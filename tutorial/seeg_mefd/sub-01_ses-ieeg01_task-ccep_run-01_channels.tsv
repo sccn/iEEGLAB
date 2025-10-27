@@ -1,0 +1,16 @@
+name	type	units	low_cutoff	high_cutoff	reference	group	sampling_frequency	notch	status	status_description
+ROC1	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC2	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC3	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC4	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC5	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC6	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC7	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC8	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC9	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC10	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC11	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC12	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC13	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	good	n/a
+ROC14	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	bad	n/a
+ROC15	SEEG	µV	2130	n/a	intracranial	n/a	4800	n/a	bad	n/a

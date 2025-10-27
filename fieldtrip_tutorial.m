@@ -3,7 +3,7 @@
 
 clear; close all; clc
 
-data_path = '/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/dataset5';
+data_path = '/Users/cedriccannard/Downloads/fieldtrip_dataset';
 cd(data_path)
 
 % Fieldtrip defaults
@@ -82,13 +82,9 @@ ft_plot_mesh(pial_lh);
 lighting gouraud;
 camlight
 
-% 8) Import the FreeSurfer-processed MRI into the MATLAB workspace for the 
-% purpose of fusing with the CT scan at a later step, and specify the 
-% coordinate system to which it was aligned in Step 4.
-fsmri_acpc = ft_read_mri('freesurfer/mri/T1.mgz'); % on Windows, use 'SubjectUCI29_MR_acpc.nii'
-fsmri_acpc.coordsys = 'acpc';
 
 %% Preprocessing of the anatomical CT
+
 
 % 9) Import the anatomical CT into the MATLAB workspace. Similar to the MRI,
 %  the CT scan comes in the format of a single file with an .img or .nii 
@@ -129,6 +125,12 @@ ft_hastoolbox('spm12', 1);
 ct_acpc = ft_convert_coordsys(ct_ctf, 'acpc');
 
 %% Fusion of the CT with the MRI
+
+% 8) Import the FreeSurfer-processed MRI into the MATLAB workspace for 
+% later fusion with the CT scan, and specify the coordinate system to which
+% it was aligned.
+fsmri_acpc = ft_read_mri('freesurfer/mri/T1.mgz'); % on Windows, use 'SubjectUCI29_MR_acpc.nii'
+fsmri_acpc.coordsys = 'acpc';
 
 % 13) Fuse the CT with the MRI, a necessary step to link the electrode 
 % locations in the anatomical CT to their corresponding locations in the 

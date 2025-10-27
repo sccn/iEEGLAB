@@ -1,0 +1,266 @@
+
+Mon Oct 27 11:19:30 PDT 2025
+cd /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer
+setenv SUBJECTS_DIR /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set
+/Applications/freesurfer/8.1.0/bin/recon-all -i /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/tmp.nii -s freesurfer -sd /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set -all
+
+subjid freesurfer
+setenv SUBJECTS_DIR /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set
+FREESURFER_HOME /Applications/freesurfer/8.1.0
+Actual FREESURFER_HOME /Applications/freesurfer/8.1.0
+build-stamp.txt: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed
+Darwin Cedrics-Mac-Studio.local 25.0.0 Darwin Kernel Version 25.0.0: Wed Sep 17 21:41:45 PDT 2025; root:xnu-12377.1.9~141/RELEASE_ARM64_T6000 arm64
+cputime      unlimited
+filesize     unlimited
+datasize     unlimited
+stacksize    8176 kbytes
+coredumpsize 0 kbytes
+memoryuse    unlimited
+descriptors  10240 
+memorylocked unlimited
+maxproc      5333 
+
+PhysMem: 31G used (2478M wired, 2120M compressor), 153M unused.
+
+########################################
+program versions used
+dev (freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed)
+dev
+
+ProgramName: lta_convert  ProgramArguments: lta_convert -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:30-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_and  ProgramArguments: mri_and -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:30-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_annotation2label  ProgramArguments: mri_annotation2label -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_aparc2aseg  ProgramArguments: mri_aparc2aseg -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_surf2volseg  ProgramArguments: mri_surf2volseg -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_binarize  ProgramArguments: mri_binarize -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_ca_label  ProgramArguments: mri_ca_label -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_ca_normalize  ProgramArguments: mri_ca_normalize -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:31-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_ca_register  ProgramArguments: mri_ca_register -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_cc  ProgramArguments: mri_cc -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_compute_overlap  ProgramArguments: mri_compute_overlap -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_compute_seg_overlap  ProgramArguments: mri_compute_seg_overlap -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_concat  ProgramArguments: mri_concat -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_concatenate_lta  ProgramArguments: mri_concatenate_lta -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+mri_convert -all-info 
+ProgramName: mri_convert  ProgramArguments: mri_convert -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_diff  ProgramArguments: mri_diff -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:32-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_edit_wm_with_aseg  ProgramArguments: mri_edit_wm_with_aseg -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_em_register  ProgramArguments: mri_em_register -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_fill  ProgramArguments: mri_fill -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_fuse_segmentations  ProgramArguments: mri_fuse_segmentations -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_fwhm  ProgramArguments: mri_fwhm -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_gcut  ProgramArguments: mri_gcut -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:33-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_info  ProgramArguments: mri_info -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:34-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_label2label  ProgramArguments: mri_label2label -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:34-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_label2vol  ProgramArguments: mri_label2vol -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:34-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_log_likelihood  ProgramArguments: mri_log_likelihood -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_mask  ProgramArguments: mri_mask -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_matrix_multiply  ProgramArguments: mri_matrix_multiply -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_normalize  ProgramArguments: mri_normalize -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_normalize_tp2  ProgramArguments: mri_normalize_tp2 -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_or  ProgramArguments: mri_or -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:35-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_relabel_hypointensities  ProgramArguments: mri_relabel_hypointensities -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:36-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_relabel_nonwm_hypos  ProgramArguments: mri_relabel_nonwm_hypos -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:36-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_remove_neck  ProgramArguments: mri_remove_neck -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:36-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+dev
+
+ProgramName: mri_robust_register  ProgramArguments: mri_robust_register -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:36-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+dev
+
+ProgramName: mri_robust_template  ProgramArguments: mri_robust_template -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_anatomical_stats  ProgramArguments: mris_anatomical_stats -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_ca_label  ProgramArguments: mris_ca_label -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_calc  ProgramArguments: mris_calc -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+mris_convert -all-info 
+ProgramName: mris_convert  ProgramArguments: mris_convert -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_curvature  ProgramArguments: mris_curvature -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:37-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_curvature_stats  ProgramArguments: mris_curvature_stats -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:38-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_diff  ProgramArguments: mris_diff -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:38-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_divide_parcellation  ProgramArguments: mris_divide_parcellation -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:38-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_segment  ProgramArguments: mri_segment -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:38-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_segstats  ProgramArguments: mri_segstats -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:38-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_euler_number  ProgramArguments: mris_euler_number -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_fix_topology  ProgramArguments: mris_fix_topology -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_topo_fixer  ProgramArguments: mris_topo_fixer -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_jacobian  ProgramArguments: mris_jacobian -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_label2annot  ProgramArguments: mris_label2annot -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_left_right_register  ProgramArguments: mris_left_right_register -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:39-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_place_surface  ProgramArguments: mris_place_surface -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mrisp_paint  ProgramArguments: mrisp_paint -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_register  ProgramArguments: mris_register -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_smooth  ProgramArguments: mris_smooth -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_sphere  ProgramArguments: mris_sphere -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_surface_stats  ProgramArguments: mris_surface_stats -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:40-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_stats2seg  ProgramArguments: mri_stats2seg -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_thickness  ProgramArguments: mris_thickness -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_thickness_diff  ProgramArguments: mris_thickness_diff -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_topo_fixer  ProgramArguments: mris_topo_fixer -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_surf2surf  ProgramArguments: mri_surf2surf -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_surf2vol  ProgramArguments: mri_surf2vol -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_surfcluster  ProgramArguments: mri_surfcluster -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mris_volmask  ProgramArguments: mris_volmask -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:41-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_tessellate  ProgramArguments: mri_tessellate -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_vol2surf  ProgramArguments: mri_vol2surf -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_vol2vol  ProgramArguments: mri_vol2vol -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_voldiff  ProgramArguments: mri_voldiff -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: mri_watershed  ProgramArguments: mri_watershed -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+ProgramName: tkregister2  ProgramArguments: tkregister2_cmdl -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+mri_motion_correct.fsl dev
+mri_convert -all-info 
+ProgramName: mri_convert  ProgramArguments: mri_convert -all-info  ProgramVersion: dev  TimeStamp: 2025/10/27-18:19:42-GMT  BuildTime: Jul 18 2025 19:06:08  BuildStamp: freesurfer-macOS-darwin_arm64-8.1.0-20250718-f30dfed  User: cedriccannard  Machine: Cedrics-Mac-Studio.local  Platform: Darwin  PlatformVersion: 25.0.0  CompilerName: Clang  CompilerVersion: 13.0.0
+#######################################
+GCADIR /Applications/freesurfer/8.1.0/average
+GCA RB_all_2020-01-02.gca
+GCASkull RB_all_withskull_2020_01_02.gca
+AvgCurvTif folding.atlas.acfb40.noaparc.i12.2016-08-02.tif
+GCSDIR /Applications/freesurfer/8.1.0/average
+GCS DKaparc.atlas.acfb40.noaparc.i12.2016-08-02.gcs
+#######################################
+/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer
+\n mri_convert /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/tmp.nii /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig/001.mgz \n
+if: Empty if.
+then: Command not found.
+mri_convert /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/tmp.nii /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig/001.mgz 
+reading from /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/tmp.nii...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, -4.65661e-10, -9.31323e-10)
+j_ras = (-9.31323e-10, 0, -1)
+k_ras = (4.65661e-10, 1, 2.98023e-08)
+writing to /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig/001.mgz...
+#--------------------------------------------
+#@# MotionCor Mon Oct 27 11:19:43 PDT 2025
+Found 1 runs
+/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig/001.mgz
+Checking for (invalid) multi-frame inputs...
+Only one run found so motion
+correction will not be performed. I'll
+copy the run to rawavg and continue.
+\n cp /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig/001.mgz /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz \n
+\n mri_info /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz \n
+rawavg.mgz ========================================
+Volume information for /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz
+          type: MGH
+        intent: MRI (0)
+    dimensions: 256 x 256 x 256
+   voxel sizes: 1.000000, 1.000000, 1.000000
+          type: UCHAR (0)
+           fov: 256.000
+           dof: 1
+        xstart: -128.0, xend: 128.0
+        ystart: -128.0, yend: 128.0
+        zstart: -128.0, zend: 128.0
+            TR: 0.00 msec, TE: 0.00 msec, TI: 0.00 msec, flip angle: 0.00 degrees
+       nframes: 1
+       PhEncDir: UNKNOWN
+       FieldStrength: 0.000000
+ras xform present
+    xform info: x_r =  -1.0000, y_r =  -0.0000, z_r =   0.0000, c_r =    -0.0000
+              : x_a =  -0.0000, y_a =   0.0000, z_a =   1.0000, c_a =     0.0000
+              : x_s =  -0.0000, y_s =  -1.0000, z_s =   0.0000, c_s =     0.0000
+
+talairach xfm : 
+Orientation   : LIA
+Primary Slice Direction: coronal
+
+voxel to ras transform:
+               -1.0000  -0.0000   0.0000   128.0000
+               -0.0000   0.0000   1.0000  -128.0000
+               -0.0000  -1.0000   0.0000   128.0000
+                0.0000   0.0000   0.0000     1.0000
+
+voxel-to-ras determinant -1
+
+ras to voxel transform:
+               -1.0000   0.0000   0.0000   128.0000
+                0.0000   0.0000  -1.0000   128.0000
+               -0.0000   1.0000   0.0000   128.0000
+               -0.0000  -0.0000  -0.0000     1.0000
+/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer
+\n mri_convert /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz --conform \n
+if: Empty if.
+then: Command not found.
+mri_convert /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz --conform 
+reading from /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, -4.65661e-10, -9.31323e-10)
+j_ras = (-9.31323e-10, 0, -1)
+k_ras = (4.65661e-10, 1, 2.98023e-08)
+volume geometry:
+valid   : 0
+extent  : (256, 256, 256)
+voxel   : ( 1.0000,  1.0000,  1.0000)
+x_(ras) : (-1.0000,  0.0000,  0.0000)
+y_(ras) : ( 0.0000,  0.0000, -1.0000)
+z_(ras) : ( 0.0000,  1.0000,  0.0000)
+c_(ras) : (-0.0000,  0.0000,  0.0000)
+shears  : ( 0.0000,  0.0000,  0.0000)
+file    : /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz
+writing to /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz...
+\n mri_add_xform_to_header -c /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/transforms/talairach.xfm /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz \n
+if: Empty if.
+then: Command not found.
+INFO: extension is mgz
+\n mri_info /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz \n
+orig.mgz ========================================
+Volume information for /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz
+          type: MGH
+        intent: MRI (0)
+    dimensions: 256 x 256 x 256
+   voxel sizes: 1.000000, 1.000000, 1.000000
+          type: UCHAR (0)
+           fov: 256.000
+           dof: 1
+        xstart: -128.0, xend: 128.0
+        ystart: -128.0, yend: 128.0
+        zstart: -128.0, zend: 128.0
+            TR: 0.00 msec, TE: 0.00 msec, TI: 0.00 msec, flip angle: 0.00 degrees
+       nframes: 1
+       PhEncDir: UNKNOWN
+       FieldStrength: 0.000000
+ras xform present
+    xform info: x_r =  -1.0000, y_r =  -0.0000, z_r =   0.0000, c_r =    -0.0000
+              : x_a =  -0.0000, y_a =   0.0000, z_a =   1.0000, c_a =     0.0000
+              : x_s =  -0.0000, y_s =  -1.0000, z_s =   0.0000, c_s =     0.0000
+
+talairach xfm : /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/transforms/talairach.xfm
+Orientation   : LIA
+Primary Slice Direction: coronal
+
+voxel to ras transform:
+               -1.0000  -0.0000   0.0000   128.0000
+               -0.0000   0.0000   1.0000  -128.0000
+               -0.0000  -1.0000   0.0000   128.0000
+                0.0000   0.0000   0.0000     1.0000
+
+voxel-to-ras determinant -1
+
+ras to voxel transform:
+               -1.0000   0.0000   0.0000   128.0000
+                0.0000   0.0000  -1.0000   128.0000
+               -0.0000   1.0000   0.0000   128.0000
+               -0.0000  -0.0000  -0.0000     1.0000
+lta_convert --inlta identity.nofile --src /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz --trg /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz --outlta /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg2orig.lta --subject freesurfer
+if: Empty if.
+then: Command not found.
+dev
+
+--inlta: identity.nofile input LTA transform.
+--src: /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz src image (geometry).
+--trg: /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz trg image (geometry).
+--outlta: /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg2orig.lta output LTA.
+--s: freesurfer subject name
+ LTA read, type : 1
+ 1.00000   0.00000   0.00000   0.00000;
+ 0.00000   1.00000   0.00000   0.00000;
+ 0.00000   0.00000   1.00000   0.00000;
+ 0.00000   0.00000   0.00000   1.00000;
+setting subject to freesurfer
+Writing  LTA to file /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg2orig.lta...
+lta_convert successful.
+\n mri_synthstrip --threads 1 -i /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz -o /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/synthstrip.mgz \n
+if: Empty if.
+then: Command not found.
+Configuring model on the CPU
+Running SynthStrip model version 1
+Input image read from: /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz
+Processing frame (of 1): 1 

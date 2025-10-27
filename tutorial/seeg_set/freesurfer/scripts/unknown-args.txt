@@ -1,0 +1,7 @@
+-i
+/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/tmp.nii
+-s
+freesurfer
+-sd
+/Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set
+-all

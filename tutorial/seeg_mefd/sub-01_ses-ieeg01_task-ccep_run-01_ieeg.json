@@ -1,0 +1,44 @@
+{
+	"TaskName": "Cortico Cortical Evoked Potentials",
+	"SamplingFrequency": 4800,
+	"PowerLineFrequency": 60,
+	"SoftwareFilters": "n/a",
+	"HardwareFilters": {
+		"HighpassFilter": {
+			"CutoffFrequency": "n/a"
+		},
+		"LowpassFilter": {
+			"CutoffFrequency": 2130
+		}
+	},
+	"Manufacturer": "",
+	"ManufacturersModelName": "",
+	"TaskDescription": "",
+	"Instructions": "",
+	"CogAtlasID": "",
+	"CogPOID": "",
+	"InstitutionName": "",
+	"InstitutionAddress": "",
+	"DeviceSerialNumber": "",
+	"ECOGChannelCount": 0,
+	"SEEGChannelCount": 0,
+	"EEGChannelCount": 0,
+	"EOGChannelCount": 0,
+	"ECGChannelCount": 0,
+	"EMGChannelCount": 0,
+	"MiscChannelCount": 0,
+	"TriggerChannelCount": 0,
+	"RecordingDuration": 543.05,
+	"RecordingType": "continuous",
+	"EpochLength": 0,
+	"SubjectArtefactDescription": "",
+	"SoftwareVersions": "",
+	"iEEGReference": "",
+	"ElectrodeManufacturer": "",
+	"ElectrodeManufacturersModelName": "",
+	"iEEGGround": "",
+	"iEEGPlacementScheme": "",
+	"iEEGElectrodeGroups": "",
+	"ElectricalStimulation": true,
+	"ElectricalStimulationParameters": "single pulse"
+}
