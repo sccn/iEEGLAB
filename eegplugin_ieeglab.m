@@ -29,7 +29,7 @@ addpath(genpath(plugin_path));
 
 % --- define callbacks
 cb_load = [try_strings.no_check 'EEG = ieeglab_load(EEG);' catch_strings.new_and_hist];
-cb_vis_elec = [try_strings.no_check 'ieeglab_vis_elec(EEG);' catch_strings.new_and_hist];
+cb_vis_elec = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG);' catch_strings.new_and_hist];
 cb_preprocess = [try_strings.no_check 'EEG = ieeglab_preprocess(EEG);' catch_strings.new_and_hist];
 cb_stats   = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_stats_subject(EEG);'   catch_strings.new_and_hist];
 

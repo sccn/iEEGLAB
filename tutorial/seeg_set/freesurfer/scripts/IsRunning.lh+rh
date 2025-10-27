@@ -1,10 +1,10 @@
 ------------------------------
 SUBJECT freesurfer
 HEMI    lh rh
-DATE Mon Oct 27 11:55:46 PDT 2025
+DATE Mon Oct 27 15:00:31 PDT 2025
 USER cedriccannard
 HOST Cedrics-Mac-Studio.local
-PROCESSID 53600 
+PROCESSID 63718 
 PROCESSOR arm64
 OS Darwin
 Darwin Cedrics-Mac-Studio.local 25.0.0 Darwin Kernel Version 25.0.0: Wed Sep 17 21:41:45 PDT 2025; root:xnu-12377.1.9~141/RELEASE_ARM64_T6000 arm64

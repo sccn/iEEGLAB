@@ -17,11 +17,12 @@ cd(filepath)
 % Fieldtrip defaults
 ft_defaults
 
-SUBJECT_DIR = filepath;  % parent folder only
-SUB_ID      = 'sub-02';
+% Subject folder and ID
+subdir = filepath;  % parent folder only
+subid  = 'sub-02';
 
 % Create directories
-orig_dir = fullfile(SUBJECT_DIR, 'freesurfer', 'orig');
+orig_dir = fullfile(subdir, 'freesurfer', 'orig');
 if ~exist(orig_dir, 'dir'); mkdir(orig_dir); end
 
 % 1) Import the anatomical MRI into the MATLAB workspace using ft_read_mri
@@ -66,32 +67,32 @@ mri_acpc = ft_volumerealign(cfg, mri);
 
 % 4) Write the preprocessed anatomical MRI out to file
 cfg           = [];
-cfg.filename  = [SUB_ID '_MR_acpc'];
+cfg.filename  = sprintf('%s_MR_acpc',subid);
 cfg.filetype  = 'nifti';
 cfg.parameter = 'anatomy';
 ft_volumewrite(cfg, mri_acpc);
 
 % 5) Cortical surface extraction with FreeSurfer (Optional)
-% 
 % Execute FreeSurfer's recon-all functionality from the Linux or 
 % MacOS terminal (Windows via VirtualBox), or from the MATLAB command 
 % window as below. This set of commands will create a folder named 
 % 'freesurfer' in the subject directory, with subdirectories containing a
 %  multitude of FreeSurfer-generated files.
 % 
-% WARNING: FreeSurfer's fully automated segmentation and cortical
-%   extraction of a T1-weighted MRI can take 10 hours!!!
 % 
-% FREESURFER_HOME = '/Applications/freesurfer/8.1.0';
-% FS_LICENSE      = '/Users/cedriccannard/Documents/license.txt';
-% setenv('FREESURFER_HOME', FREESURFER_HOME);
-% setenv('SUBJECTS_DIR', SUBJECT_DIR);
-% setenv('FS_LICENSE', FS_LICENSE);
-% setenv('FSF_OUTPUT_FORMAT','nii.gz');
-% setenv('PATH', [fullfile(FREESURFER_HOME,'bin') ':' fullfile(FREESURFER_HOME,'fsfast','bin') ':' getenv('PATH')]);
-fshome     = '/Applications/freesurfer/8.1.0';
-subdir     = SUBJECT_DIR;
-mrfile     = sprintf('%s.nii', cfg.filename);
+fshome      = '/Applications/freesurfer/8.1.0';
+% fslicense  = '/Users/cedriccannard/Documents/license.txt';
+mrfile      = sprintf('%s.nii', cfg.filename);
+
+setenv('FREESURFER_HOME', fshome);
+setenv('SUBJECTS_DIR', subdir);
+% setenv('FS_LICENSE', fslicense);
+setenv('PATH', [fullfile(FREESURFER_HOME,'bin') ':' fullfile(FREESURFER_HOME,'fsfast','bin') ':' getenv('PATH')]);
+nThreads = max(1, feature('numcores')-1);
+
+% FreeSurfer's fully automated segmentation and cortical extraction of a
+% raw T1-weighted MRI (CAN TAKE 10 hours!!!!!)
+% 
 % tic
 % system(['export FREESURFER_HOME=' fshome '; ' ...
 % 'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
@@ -99,33 +100,42 @@ mrfile     = sprintf('%s.nii', cfg.filename);
 % 'recon-all -i ' [subdir '/tmp.nii'] ' -s ' 'freesurfer' ' -sd ' subdir ' -all'])
 % toc; gong
 
-% To do minimal surface reconstruction only, using all available CPU cores
-% -1 (optional for speedup)
+% To do minimal surface reconstruction only (using parallel CPU cores (optional). 
 % -autorecon1 = preprocessing (motion correction, Talairach, skull strip, etc.)
 % -autorecon2-wm = white matter surface reconstruction (creates surf/lh.white, surf/rh.white)
-% -autorecon3 = pial surface reconstruction and final surfaces (surf/lh.pial, etc.)
-% --> This skips volume segmentation and thickness maps while still 
-% producing surf/* files.
+% -autorecon3 = parcellations, thickness maps/metrics, surfaces on sphere, and stats
+% here, ensure the brainmask.mgz file is built after autorecon1
 tic
-nThreads = feature('numcores') - 1;
+% mridir = fullfile(subdir,'freesurfer','mri');
+% system(['export FREESURFER_HOME=' fshome '; ' ...
+% 'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
+% 'export SUBJECTS_DIR=' subdir '; ' ...
+% 'mri_convert -c -oc 0 0 0 ' mrfile ' ' [subdir '/tmp.nii'] '; ' ...
+% 'recon-all -i ' [subdir '/tmp.nii'] ' -s freesurfer -sd ' subdir ' -autorecon1 -openmp ' num2str(nThreads) '; ' ...
+% 'cd "' mridir '"; $FREESURFER_HOME/bin/mri_mask -T 5 nu.mgz brainmask.mgz brain.mgz; cd - >/dev/null; ' ...
+% 'recon-all -s freesurfer -sd ' subdir ' -autorecon2 -openmp ' num2str(nThreads)]);
+
+% -autorecon1 → produces nu.mgz, brainmask.mgz; we also create brain.mgz if it's missing (your earlier crash happened right after the BFS/masking step).
+% -autorecon2-volonly → creates aseg.presurf.mgz. If this fails, you'll see it immediately in the log.
+% -autorecon2-wm/-autorecon2-pial → builds white and pial surfaces. Stats/parcellations are skipped to avoid unrelated failures.
+% Final ls shows whether lh.white, rh.white, lh.pial, rh.pial exist in .../freesurfer/surf.
+tic
 system(['export FREESURFER_HOME=' fshome '; ' ...
 'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
-'mri_convert -c -oc 0 0 0 ' mrfile ' ' [subdir '/tmp.nii'] '; ' ...
-'recon-all -i ' [subdir '/tmp.nii'] ' -s freesurfer -sd ' subdir ...
-' -autorecon1 -autorecon2-wm -autorecon3 -openmp ' num2str(nThreads)]);
+'export SUBJECTS_DIR="' subdir '"; ' ...
+'export PATH="$FREESURFER_HOME/bin:$FREESURFER_HOME/fsfast/bin:$PATH"; ' ...
+'mri_convert -c -oc 0 0 0 "' mrfile '" "' [subdir '/tmp.nii'] '"; ' ...
+'recon-all -i "' [subdir '/tmp.nii'] '" -s freesurfer -sd "' subdir '" -autorecon1 -openmp ' num2str(nThreads) '; ' ...
+'cd "' [subdir '/freesurfer/mri'] '"; ' ...
+'if [ ! -f brain.mgz ] && [ -f nu.mgz ] && [ -f brainmask.mgz ]; then mri_mask -T 5 nu.mgz brainmask.mgz brain.mgz; fi; ' ...
+'cd - >/dev/null; ' ...
+'export OMP_NUM_THREADS=1; export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1; ' ...  % stabilize seg2cc/mri_cc
+'recon-all -s freesurfer -sd "' subdir '" -autorecon2-volonly -openmp 1 -noparcstats -noparcstats2 -noparcstats3 -nobalabels; ' ...
+'unset OMP_NUM_THREADS; unset ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS; ' ...
+'recon-all -s freesurfer -sd "' subdir '" -autorecon2 -openmp ' num2str(nThreads) ' -noparcstats -noparcstats2 -noparcstats3 -nobalabels; ' ...
+'ls -l "' [subdir '/freesurfer/surf'] '" ']);
 toc; gong
 
-%  same but skipping stats/parcellations to save some time
-% nThreads = feature('numcores');  % optional speedup
-tic
-system(['export FREESURFER_HOME=' fshome '; ' ...
-'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
-'mri_convert -c -oc 0 0 0 ' mrfile ' ' [subdir '/tmp.nii'] '; ' ...
-'recon-all -i ' [subdir '/tmp.nii'] ' -s freesurfer -sd ' subdir ...
-' -autorecon1 -autorecon2-wm -autorecon3 ' ...
-' -noparcstats -noparcstats2 -noparcstats3 -nobalabels ' ...
-' -openmp ' num2str(nThreads)]);
-toc; gong
 
 
 % 6) Import the extracted cortical surfaces into the MATLAB workspace and 
@@ -145,7 +155,7 @@ camlight
 % system('which recon-all');
 % system(sprintf('mri_info "%s" | head -n 10', t1_mgz));
 % 
-% fprintf('\nDone. Subject folder: %s\n', fullfile(SUBJECT_DIR,SUB_ID));
+% fprintf('\nDone. Subject folder: %s\n', fullfile(subdir,subid));
 
 
 %% Preprocessing of the anatomical CT

@@ -1,4 +1,4 @@
-function ieeglab_vis_elec(EEG)
+function EEG = ieeglab_vis_elec(EEG)
 % ieeglab_vis_elec
 % - If subject pial *.gii surfaces exist in EEG.filepath, uses your original code (unchanged).
 % - Else: uses high-res cortex from 'cortex.mat' (variable cortex_highres),
@@ -6,11 +6,39 @@ function ieeglab_vis_elec(EEG)
 %         and plots a single rotatable 3D.
 % - If cortex.mat is missing, falls back to dipfit/standard_BEM (smooth).
 
+
+% -------- NEW: resolve surf_files from opt or popup; else fall back to dir() --------
+surf_files = {};
+if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && ...
+   isfield(EEG.ieeglab.opt,'surf_files') && ~isempty(EEG.ieeglab.opt.surf_files)
+
+    sf = EEG.ieeglab.opt.surf_files;
+    if ischar(sf) || isstring(sf), sf = cellstr(sf); end
+    % keep only names so later fullfile(EEG.filepath, surfFile) works
+    surf_files = cellfun(@(p) get_name_only(p), sf, 'UniformOutput', false);
+
+else
+    start_dir = EEG.filepath; if isempty(start_dir), start_dir = pwd; end
+    [fn, fp] = uigetfile( ...
+        {'*.gii;*.stl;*.obj;*.ply','Surface files (*.gii, *.stl, *.obj, *.ply)'; ...
+         '*.*','All files (*.*)'}, ...
+        'Select anatomical pial surface file(s) (LH and RH)', start_dir, 'MultiSelect','on');
+
+    if isequal(fn,0)
+        % no manual selection -> original behavior: scan folder for "pial"
+        sub_files  = { dir(fullfile(EEG.filepath)).name }';
+        surf_files = sub_files(contains(sub_files, 'pial')); % 'pial' or 'white' work
+    else
+        if ischar(fn) || isstring(fn), fn = cellstr(fn); end
+        % store **names only** to preserve your original fullfile() loads
+        surf_files = cellfun(@(x) get_name_only(fullfile(fp,x)), fn, 'UniformOutput', false);
+        % remember selection for next call
+        try, EEG.ieeglab.opt.surf_files = surf_files; end
+    end
+end
+
 figure('color','w'); hold on
 try icadefs; set(gcf, 'color', BACKCOLOR); catch, end  % eeglab color
-
-sub_files  = { dir(fullfile(EEG.filepath)).name }';
-surf_files = sub_files(contains(sub_files, 'pial')); % 'pial' or 'white' work
 
 % Subject pial-surface plotting from vistasoft
 if ~isempty(surf_files)        
@@ -55,7 +83,6 @@ if ~isempty(surf_files)
     % vis3d tight
     title("Visualization (using subject's pial surface file from Freesurfer)",'Interpreter','none');
 
-
 else
     % Fallback if no Freesurfer file is available: dipfit standard_BEM (smooth)
     dipfit_root = fileparts(which('dipfitdefs'));
@@ -89,4 +116,10 @@ else
 
 end
 
+end
 
+% --- helper: return just the filename from a path or name ---
+function nm = get_name_only(p)
+    [~,nm,ext] = fileparts(char(p));
+    nm = [nm ext];
+end

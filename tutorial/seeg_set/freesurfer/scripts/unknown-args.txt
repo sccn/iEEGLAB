@@ -5,11 +5,5 @@ freesurfer
 -sd
 /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set
 -autorecon1
--autorecon2-wm
--autorecon3
--noparcstats
--noparcstats2
--noparcstats3
--nobalabels
 -openmp
 9

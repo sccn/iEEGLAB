@@ -8,7 +8,7 @@ cd(plugin_path)
 
 %% Reduced sEEG .set dataset (with pial surface)
 
-filepath = fullfile(plugin_path, 'tutorial', 'seeg');
+filepath = fullfile(plugin_path, 'tutorial', 'seeg_set');
 filename = 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set';
 EEG = pop_loadset('filename', filename, 'filepath', filepath);
 
@@ -33,8 +33,11 @@ pop_eegplot(EEG,1,1,1);
 % Electrodes in 3D glass brain 
 addpath(genpath('/Users/cedriccannard/Documents/MATLAB/vistasoft'))
 
-ieeglab_vis_elec(EEG);
+EEG = ieeglab_vis_elec(EEG);
 
+% Or you can define the surface files by command line directly
+EEG.ieeglab.opt.surf_files = {'pial_desc-qsiprep.L.surf.gii' 'pial_desc-qsiprep.R.surf.gii'};
+ieeglab_vis_elec(EEG);
 
 %% Preprocess channels
 
