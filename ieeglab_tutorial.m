@@ -9,7 +9,7 @@ cd(plugin_path)
 %% Reduced sEEG .set dataset (with pial surface)
 % source: subject 2 from https://nemar.org/dataexplorer/detail?dataset_id=ds004696
 
-filepath = fullfile(plugin_path, 'tutorial', 'seeg_set');
+filepath = fullfile(plugin_path, 'tutorial', 'dataset_seeg');
 filename = 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set';
 EEG = pop_loadset('filename', filename, 'filepath', filepath);
 

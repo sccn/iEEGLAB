@@ -11,8 +11,9 @@
 clear; close all; clc
 eeglab; close
 plugin_path = fileparts(which('eegplugin_ieeglab'));
-filepath = fullfile(plugin_path, 'tutorial', 'seeg_set');
+filepath = fullfile(plugin_path, 'tutorial', 'dataset_seeg');
 cd(filepath)
+addpath('/Users/cedriccannard/Documents/MATLAB/fieldtrip')
 
 % Fieldtrip defaults
 ft_defaults
@@ -99,6 +100,7 @@ nThreads = max(1, feature('numcores')-1);
 % 'mri_convert -c -oc 0 0 0 ' mrfile ' ' [subdir '/tmp.nii'] '; ' ...
 % 'recon-all -i ' [subdir '/tmp.nii'] ' -s ' 'freesurfer' ' -sd ' subdir ' -all'])
 % toc; gong
+
 
 % To do minimal surface reconstruction only (using parallel CPU cores (optional). 
 % -autorecon1 = preprocessing (motion correction, Talairach, skull strip, etc.)
