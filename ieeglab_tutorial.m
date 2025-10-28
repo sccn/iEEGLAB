@@ -30,7 +30,6 @@ EEG = ieeglab_load(EEG);
 % Raw data
 pop_eegplot(EEG,1,1,1);
 
-
 % Electrodes in 3D glass brain 
 addpath(genpath('/Users/cedriccannard/Documents/MATLAB/vistasoft'))
 
