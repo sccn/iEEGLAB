@@ -1,1 +1,0 @@
-mri_convert /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/rawavg.mgz /Users/cedriccannard/Documents/MATLAB/eeglab/plugins/iEEGLAB/tutorial/seeg_set/freesurfer/mri/orig.mgz --conform

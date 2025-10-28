@@ -1,8 +1,0 @@
-{
-    "IntendedFor": "derivatives/freesurfer/pial.R.surf.gii" ,
-    "iEEGCoordinateSystem": "ACPC",
-    "iEEGCoordinateUnits": "mm",
-    "iEEGCoordinateSystemDescription": "ACPC using VISTASOFT software repository", 
-    "iEEGCoordinateProcessingDescription": "sEEG electrode positions from Curry",
-    "iEEGCoordinateProcessingReference": "https://github.com/vistalab/vistasoft" 
-}
