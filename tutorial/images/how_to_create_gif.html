@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.1">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px Courier; -webkit-text-stroke: #000000}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 13.0px Courier; -webkit-text-stroke: #000000; min-height: 16.0px}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">1. Install ffmpeg (and optionally gifsicle) —&gt; in terminal:</span></p>
+<p class="p2"><br></p>
+<p class="p3">brew install ffmpeg gifsicle</p>
+<p class="p2"><br></p>
+<p class="p3">2. Go to folder where video is located</p>
+<p class="p4"><span class="s1">cd /path/to/your/video/folder</span></p>
+<p class="p5"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">3. Make the GIF with the 2-step palette method, and in terminal:</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"># create a palette for good colors</span></p>
+<p class="p1"><span class="s1">ffmpeg -y -i demo.mp4 -vf "fps=12,scale=800:-1:flags=lanczos,palettegen" palette.png</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"># use that palette to produce a clean GIF</span></p>
+<p class="p1"><span class="s1">ffmpeg -i demo.mp4 -i palette.png -lavfi "fps=12,scale=800:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5" demo.gif</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">4. (Optional) If too large, lower FPS or width a bit</span></p>
+<p class="p1"><span class="s1">ffmpeg -i demo.mp4 -filter_complex \</span></p>
+<p class="p1"><span class="s1">"[0:v]fps=10,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3" \</span></p>
+<p class="p1"><span class="s1">-loop 0 demo.gif</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">4. (optional) Trim duration if the loop is long</span></p>
+<p class="p1"><span class="s1">ffmpeg -ss 0 -to 4 -i demo.mp4 -filter_complex \</span></p>
+<p class="p1"><span class="s1">"[0:v]fps=10,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3" \</span></p>
+<p class="p1"><span class="s1">-loop 0 demo_short.gif</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">5. Optimize with gifsicle</span></p>
+<p class="p1"><span class="s1">gifsicle -O3 --lossy=40 demo.gif -o demo_optimized.gif</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">6. Finally, in Github Readme:</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">&lt;p align="center"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3.gif" width="80%"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;br&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;em&gt;Interactive electrode visualization example&lt;/em&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/p&gt;</span></p>
+<p class="p6"><span class="s1"></span><br></p>
+</body>
+</html>
