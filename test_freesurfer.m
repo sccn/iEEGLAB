@@ -81,15 +81,18 @@ ft_volumewrite(cfg, mri_acpc);
 %  multitude of FreeSurfer-generated files.
 % 
 % 
-fshome      = '/Applications/freesurfer/8.1.0';
+fshome      = '/Applications/freesurfer/7.4.1';   % 8.1.0
 % fslicense  = '/Users/cedriccannard/Documents/license.txt';
 mrfile      = sprintf('%s.nii', cfg.filename);
 
 setenv('FREESURFER_HOME', fshome);
 setenv('SUBJECTS_DIR', subdir);
 % setenv('FS_LICENSE', fslicense);
-setenv('PATH', [fullfile(FREESURFER_HOME,'bin') ':' fullfile(FREESURFER_HOME,'fsfast','bin') ':' getenv('PATH')]);
+setenv('PATH', [fullfile(fshome,'bin') ':' fullfile(fshome,'fsfast','bin') ':' getenv('PATH')]);
 nThreads = max(1, feature('numcores')-1);
+
+% Ensure we are in subject folder
+cd(subdir)
 
 % FreeSurfer's fully automated segmentation and cortical extraction of a
 % raw T1-weighted MRI (CAN TAKE 10 hours!!!!!)
@@ -121,7 +124,7 @@ tic
 % -autorecon2-volonly → creates aseg.presurf.mgz. If this fails, you'll see it immediately in the log.
 % -autorecon2-wm/-autorecon2-pial → builds white and pial surfaces. Stats/parcellations are skipped to avoid unrelated failures.
 % Final ls shows whether lh.white, rh.white, lh.pial, rh.pial exist in .../freesurfer/surf.
-tic
+tstart = tic;
 system(['export FREESURFER_HOME=' fshome '; ' ...
 'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
 'export SUBJECTS_DIR="' subdir '"; ' ...
@@ -136,28 +139,39 @@ system(['export FREESURFER_HOME=' fshome '; ' ...
 'unset OMP_NUM_THREADS; unset ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS; ' ...
 'recon-all -s freesurfer -sd "' subdir '" -autorecon2 -openmp ' num2str(nThreads) ' -noparcstats -noparcstats2 -noparcstats3 -nobalabels; ' ...
 'ls -l "' [subdir '/freesurfer/surf'] '" ']);
-toc; gong
+fprintf('Time to compute with Freesurfer: %.1f min \n', toc(tstart)/60); gong
 
 
-
-% 6) Import the extracted cortical surfaces into the MATLAB workspace and 
-% examine their quality. Repeat the following code using rh.pial to visualize
-%  the pial surface of the right hemisphere.
-pial_lh = ft_read_headshape('freesurfer/surf/lh.pial');
+% Plot the extracted cortical surfaces 
+pial_lh = ft_read_headshape('freesurfer/surf/lh.smoothwm');  % inflated (smooth surface) orig/smoothwm (high-res solid gyri)
 pial_lh.coordsys = 'acpc';
 ft_plot_mesh(pial_lh);
-lighting gouraud;
-camlight
+lighting gouraud; camlight
+hold on
+pial_rh = ft_read_headshape('freesurfer/surf/rh.smoothwm');  % inflated (smooth surface) orig/smoothwm (high-res solid gyri)
+pial_rh.coordsys = 'acpc';
+ft_plot_mesh(pial_rh);
+lighting gouraud; camlight
 
+% Finish surface to get pial files
+tstart = tic;
+system(['export FREESURFER_HOME=' fshome '; ' ...
+'source $FREESURFER_HOME/SetUpFreeSurfer.sh; ' ...
+'export SUBJECTS_DIR="' subdir '"; ' ...
+'recon-all -s freesurfer -sd "' subdir '" -autorecon3 -openmp ' num2str(nThreads) '; ' ...
+'ls -l "' [subdir '/freesurfer/surf/lh.pial'] '" "' [subdir '/freesurfer/surf/rh.pial'] '"']);
+fprintf('Time to compute with Freesurfer: %.1f min \n', toc(tstart)/60); gong
 
-%% Quick FreeSurfer sanity checks
-
-% % Show version and where binaries come from
-% system('recon-all --version');
-% system('which recon-all');
-% system(sprintf('mri_info "%s" | head -n 10', t1_mgz));
-% 
-% fprintf('\nDone. Subject folder: %s\n', fullfile(subdir,subid));
+% Plot the extracted cortical surfaces 
+pial_lh = ft_read_headshape('freesurfer/surf/lh.pial');  % pial white smoothwm 
+pial_lh.coordsys = 'acpc';
+ft_plot_mesh(pial_lh);
+lighting gouraud; camlight % lighting options: "flat" "gouraud"  "none"
+hold on
+pial_rh = ft_read_headshape('freesurfer/surf/rh.thickness');  % pial white smoothwm
+pial_rh.coordsys = 'acpc';
+ft_plot_mesh(pial_rh);
+lighting gouraud; camlight
 
 
 %% Preprocessing of the anatomical CT
