@@ -1,4 +1,5 @@
 *.asv
-**/freesurfer/
+*acpc.nii
+*tmp.nii
 **/freesurfer/
 **/fsaverage/
