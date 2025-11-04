@@ -49,7 +49,9 @@ Miller, K. J., Müller, K. R., Valencia, G. O., Huang, H., Gregg, N. M., Worrell
 - Have events either directly in the data or in a .tsv/.csv file (for event-related applications)
 
 
-## Installing the iEEGLAB plugin: https://github.com/amisepa/iEEGLAB/wiki#1-install-the-ieeglab-plugin
+## Installing the iEEGLAB plugin
+
+https://github.com/amisepa/iEEGLAB/wiki#1-install-the-ieeglab-plugin
 
 
 ## Tutorial
