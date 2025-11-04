@@ -16,8 +16,6 @@ Although it is mainly designed for event-related applications:
 - Cortico-Cortical Evoked Potentials (CCEP; e.g., single pulse stimulation experiments)
 
 
-<img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs1.png" width="40%" /> <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs2.png" width="40%" />
-<img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3.png" width="50%" />
 <p align="center">
   <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3_opt.gif" width="70%">
   <br>
