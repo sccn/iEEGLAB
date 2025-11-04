@@ -233,10 +233,10 @@ if isfield(opt,'apply_acar') && opt.apply_acar && isfield(EEG,'trials') && EEG.t
     n2   = sum(~isnan(respData),2);
     sem2 = std(respData,0,2,'omitmissing') ./ sqrt(max(n2,1));
     fill([x; flipud(x)]', [mu2+sem2; flipud(mu2-sem2)]', col2, 'FaceAlpha',0.2, 'EdgeColor', col2);
-    h2 = plot(x, mu2, 'LineWidth',2, 'Color', col2, 'DisplayName','After CAR');
+    h2 = plot(x, mu2, 'LineWidth',2, 'Color', col2, 'DisplayName','After adjusted CAR');
     legend([h1 h2], 'Location','best'); box on
     xlabel('Time (ms)'); ylabel('Amplitude (\muV)');
-    title('Mean \pm 1 SEM (Before vs After CAR)');
+    title('Mean \pm 1 SEM (Before vs After Ajusted CAR)');
 end
 
 

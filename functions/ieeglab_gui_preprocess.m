@@ -248,7 +248,7 @@ append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end)
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
 
 % CAR
-append({'style' 'text' 'string' 'Common Average Reference (CAR):' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Adjusted Average Reference:' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_acar' 'value' choices.apply_acar ...
         'string' 'Enable' 'callback' cb_acar 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
