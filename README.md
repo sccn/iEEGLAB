@@ -2,7 +2,15 @@
 
 EEGLAB plugin for analyzing intracranial EEG (iEEG) data. 
 
-EEGLAB plugin for analyzing intracranial EEG (iEEG) data. Supports both stereoEEG (sEEG) and eCoG data. The plugin supports continuous iEEG data applications:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3_opt.gif" width="80%">
+  <br>
+  <em>Interactive 3D rotation of the glass brain and electrodes</em>
+</p>
+
+
+This plugin supports both Stereoelectroencephalography (sEEG) and ElectroCorticoGraphy (eCoG) data. The plugin supports continuous iEEG data applications:
 
 - Epilepsy research
 
@@ -15,12 +23,6 @@ Although it is mainly designed for event-related applications:
 
 - Cortico-Cortical Evoked Potentials (CCEP; e.g., single pulse stimulation experiments)
 
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3_opt.gif" width="70%">
-  <br>
-  <em>Interactive 3D rotation of the glass brain and electrodes</em>
-</p>
 
 
 A lot of the code and algorithms implemented in this plugin were adapted from work by Dora Hermes and the Multimodal Neuroimaging Lab (https://github.com/MultimodalNeuroimagingLab). Please cite the following references when using this plugin:
