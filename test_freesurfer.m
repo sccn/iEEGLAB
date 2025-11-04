@@ -148,7 +148,7 @@ pial_lh.coordsys = 'acpc';
 ft_plot_mesh(pial_lh);
 lighting gouraud; camlight
 hold on
-pial_rh = ft_read_headshape('freesurfer/surf/rh.smoothwm');  % inflated (smooth surface) orig/smoothwm (high-res solid gyri)
+pial_rh = ft_read_headshape('freesurfer/surf/rh.orig');  % inflated (smooth surface) orig/smoothwm (high-res solid gyri)
 pial_rh.coordsys = 'acpc';
 ft_plot_mesh(pial_rh);
 lighting gouraud; camlight
@@ -163,12 +163,12 @@ system(['export FREESURFER_HOME=' fshome '; ' ...
 fprintf('Time to compute with Freesurfer: %.1f min \n', toc(tstart)/60); gong
 
 % Plot the extracted cortical surfaces 
-pial_lh = ft_read_headshape('freesurfer/surf/lh.pial');  % pial white smoothwm 
+pial_lh = ft_read_headshape('freesurfer/surf/lh.inflated');  % pial white smoothwm 
 pial_lh.coordsys = 'acpc';
 ft_plot_mesh(pial_lh);
 lighting gouraud; camlight % lighting options: "flat" "gouraud"  "none"
 hold on
-pial_rh = ft_read_headshape('freesurfer/surf/rh.thickness');  % pial white smoothwm
+pial_rh = ft_read_headshape('freesurfer/surf/rh.inflated');  % pial white smoothwm
 pial_rh.coordsys = 'acpc';
 ft_plot_mesh(pial_rh);
 lighting gouraud; camlight
