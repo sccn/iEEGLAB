@@ -16,6 +16,15 @@ Although it is mainly designed for event-related applications:
 - Cortico-Cortical Evoked Potentials (CCEP; e.g., single pulse stimulation experiments)
 
 
+<img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs1.png" width="40%" /> <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs2.png" width="40%" />
+<img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3.png" width="50%" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/amisepa/iEEGLAB/main/tutorial/images/6_vis_elecs3_opt.gif" width="70%">
+  <br>
+  <em>Interactive 3D rotation of the glass brain and electrodes</em>
+</p>
+
+
 A lot of the code and algorithms implemented in this plugin were adapted from work by Dora Hermes and the Multimodal Neuroimaging Lab (https://github.com/MultimodalNeuroimagingLab). Please cite the following references when using this plugin:
 
 Valencia, G. O.et al., (2023). Signatures of electrical stimulation driven network interactions in the human limbic system. Journal of Neuroscience, 43(39), 6697-6711. https://pubmed.ncbi.nlm.nih.gov/37620159/
