@@ -40,7 +40,7 @@ Miller, K. J., Müller, K. R., Valencia, G. O., Huang, H., Gregg, N. M., Worrell
 
 - EEGLAB Toolbox installed and path added to MATLAB: https://github.com/sccn/eeglab?tab=readme-ov-file#installingcloning
 
-- Vistasoft for 3D glass brain visualizations: clone/download repository (https://github.com/vistalab/vistasoft.git) and add the path in MATLAB manually (see above)
+- Vistasoft for 3D glass brain visualizations: clone/download repository (https://github.com/vistalab/vistasoft.git) and add the path in MATLAB manually.
 
 - Data importation plugins to import your iEEG data in EEGLAB (depends on the data format; e.g., .mefd, .edf, .vhdr, etc.; See tutorial for more details).
 
