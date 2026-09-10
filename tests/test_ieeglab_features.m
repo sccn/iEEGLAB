@@ -101,6 +101,8 @@ EEG = local_load_headless(tc, struct());
 tc.verifyEqual(numel(EEG.event), 169, 'All 169 stimulation events should be placed.');
 tc.verifyTrue(all(arrayfun(@(c) ~isempty(c.X) && isfinite(c.X), EEG.chanlocs)), 'Every channel should get coordinates.');
 tc.verifyEqual(EEG.ieeglab.opt.event_field, 'electrical_stimulation_site');
+tc.verifyNumElements(EEG.urevent, numel(EEG.event), 'urevent must be built so trials stay traceable.');
+tc.verifyEqual([EEG.event.urevent], 1:numel(EEG.event), 'Event k must be events.tsv row k.');
 tc.verifyEqual(ieeglab_detect_mode(EEG), 'ccep');
 ev = readtable(fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_task-ccep_run-01_events.tsv'), ...
     'FileType','text', 'Delimiter','	');

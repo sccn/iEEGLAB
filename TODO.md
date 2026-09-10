@@ -26,9 +26,10 @@ Ordered by what blocks the most. Estimates are with AI-assisted development
 
 - [ ] Triage the ~134 static-audit findings that were never verified
       (concentrated in `ieeglab_gui_load2`, `ieeglab_load_mefd`, `get_elec_coor`).
-- [ ] CI on GitHub Actions (`matlab-actions/setup-matlab`, clone EEGLAB, run
-      `tests/`). Graphics hang in `-batch` on Windows; run CI on Linux with
-      `xvfb-run` or keep tests compute-only as they are now.
+- [ ] CI: `.github/workflows/tests.yml` is written (Ubuntu, `matlab-actions`,
+      EEGLAB with submodules, runs `tests/`). Confirm the first run passes and
+      add the badge to the README. Tests are compute-only because graphics hang
+      in `-batch` on Windows.
 - [ ] Wire the MEF3 loader (`ieeglab_load_mefd`) into the menu; declare matmef.
 - [ ] CARLA as its own CCEP-only dialog tab (issue #11). The label and method
       already follow the data mode; the tab is layout work.
@@ -45,7 +46,11 @@ Ordered by what blocks the most. Estimates are with AI-assisted development
 
 - [ ] Basis Profile Curves (`bpc_identify.m`, Miller, Müller & Hermes) —
       clusters stimulation sites by response shape; complements CRP.
-- [ ] Bipolar and Laplacian sEEG re-referencing, for non-CCEP sEEG.
+- [ ] Bipolar and Laplacian sEEG re-referencing. Not as simple as it looks for
+      CCEP: a bipolar derivation such as RA2-RA3 contains the stimulated contact
+      RA2 of site RA1-RA2, and a Laplacian averages neighbours that may be
+      stimulated. Both must map derived channels back to their contacts so the
+      stimulated-contact exclusion still applies. Straightforward for non-CCEP sEEG.
 - [ ] Anatomical labelling and MNI coordinates per contact, from
       `mnl_ieegBasics` (prerequisite for any group analysis).
 - [ ] Validate N1 detection against `erdetect` on shared data, as was done for

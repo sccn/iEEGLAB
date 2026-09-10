@@ -20,6 +20,9 @@ function [EEG, com] = ieeglab_preprocess(EEG, opt)
 %   .apply_baseline / .baseline_period logical / [start stop] ms
 %   .remove_rare_cond / .min_trials   logical / integer
 %   .remove_no_coords                 logical
+%   .remove_bad_channels / .exclude_soz  clinician-marked channels (see ieeglab_bad_channels)
+%   .apply_blank / .blank_window      stimulation-artifact blanking (CCEP)
+%   .reject_trials / .reject_z        automatic outlier-trial rejection (ieeglab_reject_trials)
 %   .plot                             logical, draw before/after figures.
 %                                     Defaults to false in the headless path.
 %
@@ -315,6 +318,13 @@ if isfield(opt,'apply_epoch') && opt.apply_epoch && ...
     end
 end
 
+
+% Automatic outlier-trial rejection (off by default). Before re-referencing, so
+% artifact trials cannot distort CARLA's covariance ranking.
+if local_opt(opt,'reject_trials',false) && isfield(EEG,'trials') && EEG.trials > 1
+    EEG = ieeglab_reject_trials(EEG, struct('z', local_opt(opt,'reject_z',5), ...
+        'frac', local_opt(opt,'reject_frac',0.25), 'action', 'remove', 'verbose', opt.verbose));
+end
 
 % Re-referencing (CARLA by default; see ieeglab_car for the alternatives)
 if isfield(opt,'apply_car') && opt.apply_car && isfield(EEG,'trials') && EEG.trials > 1

@@ -1,0 +1,43 @@
+name: tests
+
+# Runs the headless test suite (tests/) against the current EEGLAB.
+# All tests are compute-only: no figures, no dialogs.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  matlab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out iEEGLAB
+        uses: actions/checkout@v4
+
+      - name: Check out EEGLAB (with its plugin submodules, e.g. firfilt)
+        uses: actions/checkout@v4
+        with:
+          repository: sccn/eeglab
+          path: eeglab
+          submodules: recursive
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: latest
+          products: >
+            Signal_Processing_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+
+      - name: Run tests
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath(fullfile(pwd, 'eeglab'));
+            evalc('eeglab nogui');
+            addpath(pwd); addpath(fullfile(pwd, 'functions'));
+            results = runtests('tests');
+            disp(table(results));
+            assertSuccess(results);

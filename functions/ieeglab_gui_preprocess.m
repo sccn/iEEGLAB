@@ -37,6 +37,7 @@ choices.filter_type       = 1;          % 1 = Noncausal zero-phase (default), 2 
 % Epoching (enabled by default IF events exist)
 choices.apply_epoch       = true;
 choices.epoch_window      = [-500 900]; % ms
+choices.reject_trials     = false;      % automatic outlier-trial rejection
 
 % CAR (enabled by default IF events exist)
 choices.apply_acar        = true;
@@ -115,7 +116,7 @@ cb_lp  = local_cb_toggle({'lbl_lowpass','lowpass'});
 
 % these depend on events
 if haveEv
-    cb_seg = local_cb_toggle({'lbl_epoch','epoch_window'});
+    cb_seg = local_cb_toggle({'lbl_epoch','epoch_window','lbl_rej','reject_trials'});
     cb_acar= local_cb_toggle({'acar_fraction','acar_timewin','lbl_acar_fraction','lbl_acar_timewin'});
     cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period','lbl_bl_mode','bl_mode'});
 else
@@ -173,6 +174,7 @@ uigeom = {
 
     % Segmentation
     [0.70 0.30]
+    [0.06 0.64 0.30]
     [0.06 0.64 0.30]
 
     % CAR
@@ -268,6 +270,9 @@ append({'style' 'checkbox' 'tag' 'apply_epoch' 'value' choices.apply_epoch ...
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
+append({'style' 'text' 'string' ''});
+append({'style' 'text' 'tag' 'lbl_rej' 'string' 'Reject outlier trials automatically:' 'horizontalalignment' 'left' 'enable' onoff_seg});
+append({'style' 'checkbox' 'tag' 'reject_trials' 'value' choices.reject_trials 'string' '' 'enable' onoff_seg});
 
 % CAR
 append({'style' 'text' 'string' iff(isCCEP,'Re-referencing (CARLA, CCEP):','Re-referencing (common average):') 'horizontalalignment' 'left'});
@@ -352,6 +357,7 @@ choices.filter_type_label = ft_labels{idx};
 
 % epoch / CAR / baseline (respect event availability)
 choices.apply_epoch = isfield(out,'apply_epoch') && logical(out.apply_epoch);
+choices.reject_trials = choices.apply_epoch && isfield(out,'reject_trials') && logical(out.reject_trials);
 if isfield(out,'epoch_window') && ~isempty(out.epoch_window)
     tw = sscanf(out.epoch_window,'%f'); if numel(tw)>=2, choices.epoch_window = tw(1:2).'; end
 end

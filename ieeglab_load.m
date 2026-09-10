@@ -168,6 +168,11 @@ if isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) && opt.e
         opt.events(missing,:) = [];
         ty(missing) = [];
     end
+    % Sort by onset so events.tsv row k, EEG.event k and EEG.urevent k are the
+    % same event - eeg_checkset would otherwise re-sort EEG.event alone.
+    [~, order] = sort(opt.events.onset);
+    opt.events = opt.events(order,:);
+    ty = ty(order);
     lat = opt.events.onset;
     hasDur = ismember('duration', opt.events.Properties.VariableNames);
 
@@ -184,6 +189,10 @@ if isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) && opt.e
         end
     end
     fprintf('%d events placed using column "%s".\n', numel(ty), col);
+    EEG = eeg_checkset(EEG, 'eventconsistency');
+    % urevent keeps the original event index through epoching and trial
+    % removal, so a trial can always be traced to its events.tsv row.
+    EEG = eeg_checkset(EEG, 'makeur');
 end
 EEG = eeg_checkset(EEG, 'eventconsistency');
 EEG = eeg_checkset(EEG);
