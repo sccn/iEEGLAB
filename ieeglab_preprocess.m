@@ -1,14 +1,61 @@
-function EEG = ieeglab_preprocess(EEG)
+function [EEG, com] = ieeglab_preprocess(EEG, opt)
+% ieeglab_preprocess() - Preprocess iEEG data: event selection, resampling,
+%                        filtering, epoching, re-referencing, baseline removal.
+%
+% Usage:
+%   EEG        = ieeglab_preprocess(EEG)        % opens the GUI
+%   [EEG, com] = ieeglab_preprocess(EEG, opt)   % headless, no dialog
+%
+% Passing opt skips the dialog entirely, which is what makes the pipeline
+% scriptable and testable. Any field left unset falls back to the same default
+% the GUI would have shown. See ieeglab_gui_preprocess for the full list; the
+% commonly used ones are:
+%
+%   .apply_highpass / .highpass        logical / Hz
+%   .apply_notch    / .notch          logical / Hz (scalar or vector)
+%   .apply_lowpass  / .lowpass        logical / Hz
+%   .filter_type                      1 = noncausal zero-phase, 2 = minimum phase
+%   .apply_epoch    / .epoch_window   logical / [start stop] ms
+%   .apply_car      / .car_method     logical / 'carla' | 'varsubset' | 'car'
+%   .apply_baseline / .baseline_period logical / [start stop] ms
+%   .remove_rare_cond / .min_trials   logical / integer
+%   .remove_no_coords                 logical
+%   .plot                             logical, draw before/after figures.
+%                                     Defaults to false in the headless path.
+%
+% Example (headless):
+%   EEG = ieeglab_preprocess(EEG, struct('apply_highpass',true,'highpass',0.5, ...
+%           'apply_epoch',true,'epoch_window',[-500 1000], ...
+%           'apply_car',true,'car_method','carla','apply_baseline',true));
+%
+% Cedric Cannard, iEEGLAB, 2025-2026
 
-% GUI to get user choices
-if nargin < 2
+com = '';
+interactive = (nargin < 2 || isempty(opt));
+
+if interactive
+    % GUI to get user choices
     [EEG, wasCancelled] = ieeglab_gui_preprocess(EEG);
     if wasCancelled
         return  % user aborted, exit gracefully
     end
+    opt = EEG.ieeglab.opt;
+else
+    % Merge the supplied options over anything already on the dataset, so a
+    % scripted call can override just the fields it cares about.
+    if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isstruct(EEG.ieeglab.opt)
+        base = EEG.ieeglab.opt;
+        f = fieldnames(opt);
+        for ii = 1:numel(f), base.(f{ii}) = opt.(f{ii}); end
+        opt = base;
+    end
+    if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = false; end
+    EEG.ieeglab.opt = opt;
 end
+if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = interactive; end
 
-opt = EEG.ieeglab.opt;
+% Accept the pre-1.0 field names for re-referencing
+if isfield(opt,'apply_acar') && ~isfield(opt,'apply_car'), opt.apply_car = opt.apply_acar; end
 
 % % --- Preconditions ---
 % if ~isfield(opt,'events') || ~istable(opt.events) || isempty(opt.events) ...
@@ -17,36 +64,53 @@ opt = EEG.ieeglab.opt;
 %     return;
 % end
 
-if isfield(opt, 'event_filters') && ~isempty(opt.event_filters)
-    ev_tbl0     = opt.events;              % original TSV table (row-aligned to how EEG.event was created)
-    ev_choices  = opt.event_filters;
-    vars        = fieldnames(ev_choices);
-    
-    % check EEG.event and opt.events still match length
-    if size(ev_tbl0,1) ~= length(EEG.event)
-        error("Events from tsv and EEGLAB dataset mismatch! ")
+% Event selection. Filters name either 'type' (the EEGLAB event type) or a
+% column of the BIDS events table; both branches now actually delete the
+% non-matching events, and opt.events is kept row-aligned with EEG.event.
+if isfield(opt,'event_filters') && isstruct(opt.event_filters) && ~isempty(fieldnames(opt.event_filters))
+
+    ev_choices = opt.event_filters;
+    vars       = fieldnames(ev_choices);
+    haveTbl    = isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events);
+
+    if haveTbl && height(opt.events) ~= numel(EEG.event)
+        warning('ieeglab_preprocess:eventMismatch', ...
+            ['The BIDS events table has %d rows but the dataset has %d events, so table ' ...
+             'columns cannot be used for filtering. Filtering on event type only.'], ...
+            height(opt.events), numel(EEG.event));
+        haveTbl = false;
     end
-    
-    for iVar = 1:length(vars)
+
+    for iVar = 1:numel(vars)
         varName = vars{iVar};
-        if ~isempty(ev_choices.(varName))
-            if strcmpi(varName, 'var_type')
-                trialsToKeep = ismissing({EEG.event.type}, ev_choices.(varName));
-                warning("Per request, removing %g/%g events that are not of type: ", sum(trialsToKeep), length(EEG.event))
-                disp(ev_choices.(varName))
-                EEG.event(~trialsToKeep) = [];
-            else
-                
-                ev_values = ev_tbl0.(vars{iVar});
-                valsToKeep = ev_choices.(varName);
-                trialsToRem = ~ismissing(ev_values, valsToKeep);
-                if any(trialsToRem)
-                    warning("Removing %g/%g events with field '%s' that do not have value: ", sum(trialsToRem), length(ev_values), vars{iVar})
-                    disp(valsToKeep)
-                end
-            end
+        valsToKeep = ev_choices.(varName);
+        if isempty(valsToKeep), continue; end
+        if isempty(EEG.event), break; end
+
+        if strcmpi(varName, 'type') || strcmpi(varName, 'var_type')
+            ev_values = string({EEG.event.type});
+        elseif haveTbl && ismember(varName, opt.events.Properties.VariableNames)
+            ev_values = string(opt.events.(varName));
+        else
+            warning('ieeglab_preprocess:unknownFilterField', ...
+                'Event filter field "%s" is neither the event type nor a column of the events table; ignoring it.', varName);
+            continue
         end
-    end    
+
+        % string/ismember rather than ismissing: type-safe for numeric columns,
+        % which previously threw when the GUI stringified the choice list.
+        toRemove = ~ismember(ev_values(:)', string(valsToKeep(:))');
+        if ~any(toRemove), continue; end
+
+        fprintf('Removing %d/%d events whose "%s" is not one of: %s\n', ...
+            sum(toRemove), numel(toRemove), varName, strjoin(cellstr(string(valsToKeep(:))'), ', '));
+        EEG.event(toRemove) = [];
+        if haveTbl
+            opt.events(toRemove,:) = [];
+        end
+        EEG = eeg_checkset(EEG, 'eventconsistency');
+    end
+    EEG.ieeglab.opt = opt;   % persist, so a second run sees the aligned table
 end
 
 % %  Drop heavy event table from options (to save memory) 
@@ -73,24 +137,47 @@ if isfield(opt, 'remove_no_coords') && opt.remove_no_coords && isfield(EEG,'chan
         disp("All electrodes have 3D (XYZ) coordinates.")
     end
 
-    % Remove corresponding events whose TYPE includes any removed label (if events exist)
-    trials_to_rem = contains({EEG.event.type}, removed_elecs);
-    if any(trials_to_rem)
-        warning("Keeping %g/%g events containing electrodes that had no 3D coordinates.", sum(trials_to_rem), length({EEG.event.type}))
-        EEG.event(trials_to_rem) = [];
-        opt.events(trials_to_rem,:) = [];
-        EEG = eeg_checkset(EEG, 'eventconsistency');
-        EEG = eeg_checkset(EEG);
+    % Remove events that reference a removed electrode (CCEP stimulation sites).
+    % Guarded: continuous datasets legitimately have no events at all.
+    if ~isempty(removed_elecs) && isfield(EEG,'event') && ~isempty(EEG.event)
+        trials_to_rem = contains({EEG.event.type}, removed_elecs);
+        if any(trials_to_rem)
+            fprintf('Removing %d/%d events that reference an electrode with no 3D coordinates.\n', ...
+                sum(trials_to_rem), numel(trials_to_rem));
+            EEG.event(trials_to_rem) = [];
+            if isfield(opt,'events') && istable(opt.events) && height(opt.events) == numel(trials_to_rem)
+                opt.events(trials_to_rem,:) = [];
+            end
+            EEG = eeg_checkset(EEG, 'eventconsistency');
+            EEG = eeg_checkset(EEG);
+            EEG.ieeglab.opt = opt;
+        end
     end
 end
 
-% Sanity check that we still have some events left
-if isempty(EEG.event)
-    error("No events left after event filtering!")
+% No events is a legitimate state: the README advertises continuous mode for
+% epilepsy and clinical monitoring. Filtering still applies; the event-dependent
+% steps are skipped rather than treated as an error.
+continuousMode = ~isfield(EEG,'event') || isempty(EEG.event);
+if continuousMode
+    if isfield(opt,'apply_epoch') && opt.apply_epoch || ...
+       isfield(opt,'apply_car') && opt.apply_car || ...
+       isfield(opt,'apply_baseline') && opt.apply_baseline
+        warning('ieeglab_preprocess:continuousMode', ...
+            ['No events in the dataset - running in CONTINUOUS mode. Filtering and ' ...
+             'resampling will be applied; epoching, re-referencing and baseline ' ...
+             'correction are skipped because they need events.']);
+    end
+    opt.apply_epoch    = false;
+    opt.apply_car      = false;
+    opt.apply_acar     = false;
+    opt.apply_baseline = false;
 end
 
-% Downsample
-if isfield(opt, 'downsample') && ~isempty(opt.downsample) && opt.downsample<EEG.srate
+% Downsample. Gated on the GUI's own checkbox (apply_ds); previously the flag
+% was ignored, so unchecking "Downsample" still resampled the data.
+do_ds = (~isfield(opt,'apply_ds') || isempty(opt.apply_ds) || opt.apply_ds);
+if do_ds && isfield(opt, 'downsample') && ~isempty(opt.downsample) && opt.downsample<EEG.srate
     fprintf("Downsampling iEEG data to %g Hz... \n", opt.downsample)
     EEG = pop_resample(EEG, opt.downsample);
 end
@@ -191,52 +278,19 @@ if isfield(opt,'apply_epoch') && opt.apply_epoch && ...
 end
 
 
-% Apply aCAR (Huang et al., 2024) for epoched data
-if isfield(opt,'apply_acar') && opt.apply_acar && isfield(EEG,'trials') && EEG.trials>1
+% Re-referencing (CARLA by default; see ieeglab_car for the alternatives)
+if isfield(opt,'apply_car') && opt.apply_car && isfield(EEG,'trials') && EEG.trials > 1
 
-    % PLOT BEFORE CAR (OPTIONAL)
-    respData = nan(numel(EEG.times), numel(EEG.epoch));
-    for iTrial = 1:numel(EEG.epoch)
-        if ~isnumeric(EEG.event(1).type) && contains(EEG.event(1).type,'-') % CCEP: pick target chan from event
-            respElec   = extractAfter(EEG.event(iTrial).type,'-');
-            respIdx    = strcmpi({EEG.chanlocs.labels}, respElec);
-            respData(:,iTrial) = squeeze(EEG.data(respIdx,:,iTrial));
-        else
-            respData(:,iTrial) = squeeze(trimmean(EEG.data(:,:,iTrial),20,1));
-        end
+    if opt.plot
+        respBefore = local_response_trace(EEG);
     end
-    mu1  = trimmean(respData,20,2);
-    n1   = sum(~isnan(respData),2);
-    sem1 = std(respData,0,2,'omitmissing') ./ sqrt(max(n1,1));
-    figure('color','w'); hold on 
-    ax = gca; co = ax.ColorOrder; 
-    col1 = co(1,:); col2 = co(2,:);
-    x = EEG.times(:);
-    fill([x; flipud(x)]', [mu1+sem1; flipud(mu1-sem1)]', col1, 'FaceAlpha',0.2, 'EdgeColor', col1);
-    h1 = plot(x, mu1, 'LineWidth',2, 'Color', col1, 'DisplayName','Before CAR');
 
-    % APPLY CAR 
-    EEG = ieeglab_car(EEG);
+    EEG = ieeglab_car(EEG, opt);
 
-    % PLOT AFTER CAR (OPTIONAL)
-    respData = nan(numel(EEG.times), numel(EEG.epoch));
-    for iTrial = 1:numel(EEG.epoch)
-        if ~isnumeric(EEG.event(1).type) && contains(EEG.event(1).type,'-')
-            respElec   = extractAfter(EEG.event(iTrial).type,'-');
-            respIdx    = strcmpi({EEG.chanlocs.labels}, respElec);
-            respData(:,iTrial) = squeeze(EEG.data(respIdx,:,iTrial));
-        else
-            respData(:,iTrial) = squeeze(trimmean(EEG.data(:,:,iTrial),20,1));
-        end
+    if opt.plot
+        respAfter = local_response_trace(EEG);
+        local_plot_car_comparison(EEG.times(:), respBefore, respAfter, EEG.ref);
     end
-    mu2  = trimmean(respData,20,2);
-    n2   = sum(~isnan(respData),2);
-    sem2 = std(respData,0,2,'omitmissing') ./ sqrt(max(n2,1));
-    fill([x; flipud(x)]', [mu2+sem2; flipud(mu2-sem2)]', col2, 'FaceAlpha',0.2, 'EdgeColor', col2);
-    h2 = plot(x, mu2, 'LineWidth',2, 'Color', col2, 'DisplayName','After adjusted CAR');
-    legend([h1 h2], 'Location','best'); box on
-    xlabel('Time (ms)'); ylabel('Amplitude (\muV)');
-    title('Mean \pm 1 SEM (Before vs After Ajusted CAR)');
 end
 
 
@@ -245,7 +299,52 @@ if isfield(opt,'apply_baseline') && opt.apply_baseline
     EEG = ieeglab_rm_baseline(EEG);
 end
 
+% Persist the (possibly modified) options and report success to eeglab_new.
+EEG.ieeglab.opt = opt;
+EEG = eeg_checkset(EEG);
+com = 'EEG = ieeglab_preprocess(EEG);';
+
 end
 
+% ========================== local helpers ==========================
 
+function resp = local_response_trace(EEG)
+% Mean response trace used for the before/after re-referencing figure. For CCEP
+% data we follow the channel named after the '-' in the event type; for other
+% designs we take a trimmed mean across channels. Trials whose target label does
+% not match any channel are left as NaN instead of raising a size error.
+nTr  = size(EEG.data, 3);
+resp = nan(numel(EEG.times), nTr);
+labels = {EEG.chanlocs.labels};
+for iTrial = 1:nTr
+    ty = '';
+    if isfield(EEG,'epoch') && numel(EEG.epoch) >= iTrial && isfield(EEG.epoch,'eventtype')
+        ty = EEG.epoch(iTrial).eventtype;
+        if iscell(ty) && ~isempty(ty), ty = ty{1}; end
+    end
+    if ischar(ty) && contains(ty, '-')
+        respIdx = find(strcmpi(labels, extractAfter(ty, '-')), 1);
+        if isempty(respIdx), continue; end          % label not in this montage
+        resp(:,iTrial) = squeeze(EEG.data(respIdx,:,iTrial));
+    else
+        resp(:,iTrial) = squeeze(trimmean(EEG.data(:,:,iTrial), 20, 1));
+    end
+end
+end
 
+function local_plot_car_comparison(x, before, after, refName)
+mu = @(R) trimmean(R, 20, 2);
+sem = @(R) std(R, 0, 2, 'omitmissing') ./ sqrt(max(sum(~isnan(R), 2), 1));
+figure('color','w'); hold on
+ax = gca; co = ax.ColorOrder;
+band = @(m,s,c) fill([x; flipud(x)]', [m+s; flipud(m-s)]', c, 'FaceAlpha',0.2, 'EdgeColor', c);
+m1 = mu(before); m2 = mu(after);
+band(m1, sem(before), co(1,:));
+h1 = plot(x, m1, 'LineWidth',2, 'Color', co(1,:), 'DisplayName','Before re-referencing');
+band(m2, sem(after), co(2,:));
+h2 = plot(x, m2, 'LineWidth',2, 'Color', co(2,:), 'DisplayName', sprintf('After %s', refName));
+legend([h1 h2], 'Location','best'); box on
+xlabel('Time (ms)'); ylabel('Amplitude (\muV)');
+% Concatenated rather than sprintf'd: sprintf would warn on the TeX '\pm'.
+title(['Mean \pm 1 SEM (before vs after ' char(refName) ')']);
+end

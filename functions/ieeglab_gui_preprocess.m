@@ -13,7 +13,7 @@ ds_should_enable = EEG.srate > 512;
 ds_default_rate  = 512;
 
 choices = struct();
-choices.event_filters     = struct();   % filled by sub-GUI (or empty)
+choices.event_filters     = struct([]);  % 0x0 so isempty() is true when unset
 choices.remove_rare_cond  = true;
 choices.min_trials        = 5;
 choices.remove_no_coords  = true;
@@ -184,14 +184,14 @@ uilist = {};
 
 % Events
 append({'style' 'text' 'string' 'Events' 'fontweight' 'bold' 'horizontalalignment' 'left'});
-append({'style' 'text' 'string' 'Select events of interest:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Choose which event types to analyse:' 'horizontalalignment' 'left'});
 append({'style' 'pushbutton' 'string' 'Open selector…' 'callback' cb_ev 'enable' btn_en});
 
-append({'style' 'text' 'string' 'Remove rare conditions:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Drop conditions with too few trials:' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'remove_rare_cond' 'value' choices.remove_rare_cond 'string' 'Enable'});
 
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'string' 'Min trials:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Minimum trials per condition:' 'horizontalalignment' 'left'});
 append({'style' 'edit' 'tag' 'min_trials' 'string' num2str(choices.min_trials)});
 
 % hidden event filter store
@@ -248,14 +248,14 @@ append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end)
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
 
 % CAR
-append({'style' 'text' 'string' 'Adjusted Average Reference:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Re-referencing (CARLA):' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_acar' 'value' choices.apply_acar ...
         'string' 'Enable' 'callback' cb_acar 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_fraction' 'string' 'Fraction of channels (0–1):' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_acar_fraction' 'string' 'Fraction of channels (legacy method only):' 'horizontalalignment' 'left' 'enable' onoff_car});
 append({'style' 'edit' 'tag' 'acar_fraction' 'string' num2str(choices.acar_fraction) 'enable' onoff_car});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_timewin' 'string' 'CAR window [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_acar_timewin' 'string' 'Response window for ranking [ms]:' 'horizontalalignment' 'left' 'enable' onoff_car});
 append({'style' 'edit' 'tag' 'acar_timewin' 'string' sprintf('%d %d',choices.acar_timewin) 'enable' onoff_car});
 
 % Baseline
@@ -289,7 +289,7 @@ end
 % -------------------------------------------------------------------------
 % event filters
 if isfield(out,'evsel_json') && ~isempty(out.evsel_json)
-    try, choices.event_filters = jsondecode(out.evsel_json); catch, choices.event_filters = struct(); end
+    try, choices.event_filters = jsondecode(out.evsel_json); catch, choices.event_filters = struct([]); end
 end
 
 % numbers & toggles
@@ -338,6 +338,14 @@ end
 if isfield(out,'acar_timewin') && ~isempty(out.acar_timewin)
     tw = sscanf(out.acar_timewin,'%f'); if numel(tw)>=2, choices.acar_timewin = tw(1:2).'; end
 end
+
+% Map the dialog's controls onto the option names ieeglab_car actually reads.
+% The GUI always selects CARLA; the legacy fixed-fraction method is reachable
+% from the command line with car_method='varsubset'.
+choices.apply_car   = choices.apply_acar;
+choices.car_method  = 'carla';
+choices.car_timewin = choices.acar_timewin;
+choices.car_fraction = choices.acar_fraction;
 
 choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
 bl_labels = {'median','mean','trimmed mean','1/f'};

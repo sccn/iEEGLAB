@@ -21,14 +21,19 @@ function plot_ccep(data, timevec, chan_names, view_type, chan_idx, trim_prop)
 %
 % Cedric Cannard © iEEGLAB Plugin, 2025
 
+% Argument positions: data=1 timevec=2 chan_names=3 view_type=4 chan_idx=5 trim_prop=6
+% The nargin thresholds below must match those positions. They previously did
+% not, so plot_ccep(d,t,n,'single') silently drew a heatmap and the valid
+% 5-argument call plot_ccep(d,t,n,'single',3) raised a spurious error.
 if nargin < 6 || isempty(trim_prop)
     trim_prop = 0.10; % default 10%
 end
-if nargin < 5 || isempty(view_type)
+if nargin < 4 || isempty(view_type)
     view_type = 'all';
 end
-if strcmp(view_type, 'single') && (nargin < 6 || isempty(chan_idx))
-    error('chan_idx must be provided when view_type = ''single''.');
+if nargin < 5, chan_idx = []; end
+if strcmpi(view_type, 'single') && isempty(chan_idx)
+    error('plot_ccep:noChanIdx', 'chan_idx must be provided when view_type = ''single''.');
 end
 
 switch lower(view_type)
