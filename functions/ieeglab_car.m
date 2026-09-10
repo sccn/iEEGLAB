@@ -105,9 +105,16 @@ labels = string({EEG.chanlocs.labels});
 
 % ---------------- bad channels ----------------
 badIdx = local_resolve_channels(opt.bad_channels, labels);
+% Channels marked bad (e.g. from channels.tsv) but not removed stay out of the reference
+if isfield(EEG.chanlocs, 'status')
+    isBad = cellfun(@(x) ~isempty(x) && strcmpi(char(x), 'bad'), {EEG.chanlocs.status});
+    badIdx = unique([badIdx(:); find(isBad(:))]);
+end
 
 % ---------------- stimulated contacts per epoch ----------------
-[stimExcl, siteName] = local_stim_sites(EEG, labels, N, opt);
+% Shared parser: the same definition of a stimulation site as N1, CRP and
+% the connectivity matrix, read from EEG.epoch (epoch-aligned by construction).
+[siteName, stimExcl] = ieeglab_epoch_sites(EEG);
 nResolved = sum(~cellfun(@isempty, stimExcl));
 if opt.verbose
     if nResolved == 0
@@ -246,122 +253,6 @@ else
     end
 end
 idx = unique(idx(idx > 0));
-end
-
-function [stimExcl, siteName] = local_stim_sites(EEG, labels, N, opt)
-% Resolve the stimulated contact indices for every epoch.
-%
-% The previous implementation relied on a BIDS events table whose row count had
-% to equal the epoch count. pop_epoch silently drops boundary epochs, so that
-% test failed and exclusion became a silent no-op. We now read EEG.epoch first,
-% which pop_epoch always populates and which is aligned to the data by
-% construction.
-stimExcl = repmat({zeros(0,1)}, 1, N);
-siteName = strings(1, N);
-
-% --- source 1: EEG.epoch (always epoch-aligned) ---
-if isfield(EEG,'epoch') && ~isempty(EEG.epoch) && numel(EEG.epoch) == N
-    for i = 1:N
-        ty = local_epoch_type(EEG.epoch(i));
-        if ty == "", continue; end
-        stimExcl{i} = local_tokens_to_idx(local_split_labels(ty), labels);
-        % Group by the canonical (order-independent) pair so that 'ROP2-ROP4'
-        % and 'ROP4-ROP2' are recognised as the same stimulation site.
-        siteName(i) = local_canonical_site(ty, stimExcl{i}, labels);
-    end
-end
-
-% --- source 2: BIDS events table, when it happens to be epoch-aligned ---
-if all(cellfun(@isempty, stimExcl)) && isfield(opt,'events') && istable(opt.events) ...
-        && height(opt.events) == N
-    ev = opt.events;
-    cand = {'electrical_stimulation_site','electrodes_involved_onset','stim_electrodes'};
-    for i = 1:N
-        for f = 1:numel(cand)
-            if ~ismember(cand{f}, ev.Properties.VariableNames), continue; end
-            tok = local_split_labels(ev{i, cand{f}});
-            idx = local_tokens_to_idx(tok, labels);
-            if ~isempty(idx)
-                stimExcl{i} = idx;
-                siteName(i) = string(strjoin(cellstr(labels(idx)), '-'));
-                break
-            end
-        end
-    end
-end
-
-% --- source 3: continuous data with events but no epochs ---
-if all(cellfun(@isempty, stimExcl)) && N == 1 && isfield(EEG,'event') && ~isempty(EEG.event)
-    types = unique(string({EEG.event.type}));
-    idx = local_tokens_to_idx(local_split_labels(strjoin(cellstr(types),' ')), labels);
-    stimExcl{1} = idx;
-end
-end
-
-function site = local_canonical_site(ty, idx, labels)
-% Order-independent name for a stimulation site, so that a pair recorded as
-% 'ROP2-ROP4' in some trials and 'ROP4-ROP2' in others forms one group.
-if isempty(idx)
-    site = ty;
-else
-    site = string(strjoin(sort(cellstr(labels(idx))), '-'));
-end
-end
-
-function ty = local_epoch_type(ep)
-% The event type at latency 0 for this epoch. pop_epoch stores eventtype as a
-% cell when several events fall inside the epoch window.
-ty = "";
-if ~isfield(ep,'eventtype') || isempty(ep.eventtype), return; end
-t = ep.eventtype;
-l = [];
-if isfield(ep,'eventlatency') && ~isempty(ep.eventlatency), l = ep.eventlatency; end
-if iscell(t)
-    if iscell(l) && numel(l) == numel(t)
-        lv = cellfun(@(x) abs(double(x(1))), l);
-        [~, k] = min(lv);                 % the event the epoch is locked to
-    else
-        k = 1;
-    end
-    t = t{k};
-end
-if isnumeric(t), t = num2str(t); end
-ty = strtrim(string(t));
-end
-
-function tokens = local_split_labels(val)
-% Split a stimulation-site string such as 'RA1-RA2' into contact labels.
-% BIDS missing markers are treated as absent rather than as a label, which is
-% what previously let an 'n/a' column mask the real stimulation-site column.
-tokens = {};
-if isempty(val), return; end
-if istable(val), val = val{1,1}; end
-if iscell(val), val = string(val); end
-if iscategorical(val), val = string(val); end
-if isnumeric(val)
-    if all(isnan(val(:))), return; end
-    tokens = cellstr(string(val(:)')); return
-end
-s = char(strjoin(string(val(:))', ' '));
-parts = regexp(s, '[,;+\-\/\|\s]+', 'split');
-parts = parts(~cellfun(@isempty, parts));
-bad = ~cellfun(@isempty, regexpi(parts, '^(n/?a|nan|none|undefined|missing|\?)$', 'once'));
-tokens = parts(~bad);
-end
-
-function idx = local_tokens_to_idx(tokens, labels)
-idx = zeros(0,1);
-if isempty(tokens), return; end
-tok = string(tokens(:));
-[tf, loc] = ismember(upper(strtrim(tok)), upper(labels));
-idx = loc(tf);
-if isempty(idx)
-    tok2 = regexprep(tok, '[^\w]', '');           % strip punctuation and retry
-    [tf2, loc2] = ismember(upper(tok2), upper(regexprep(labels,'[^\w]','')));
-    idx = loc2(tf2);
-end
-idx = unique(idx(idx > 0));
-idx = idx(:);
 end
 
 function [carCh, st] = local_varsubset(X, tt_s, win_s, excl, C, frac)

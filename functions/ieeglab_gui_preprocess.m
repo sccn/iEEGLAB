@@ -17,6 +17,8 @@ choices.event_filters     = struct([]);  % 0x0 so isempty() is true when unset
 choices.remove_rare_cond  = true;
 choices.min_trials        = 5;
 choices.remove_no_coords  = true;
+choices.remove_bad_channels = true;   % clinician-marked (channels.tsv status)
+choices.exclude_soz       = false;     % seizure-onset-zone contacts
 
 choices.apply_ds          = ds_should_enable;
 
@@ -71,6 +73,13 @@ elseif isfield(EEG,'event') && ~isempty(EEG.event)
     end
 end
 haveEv = istable(evT) && ~isempty(evT) && width(evT)>0;
+% CCEP-only methods (CARLA, stimulation blanking) are offered only for CCEP data
+isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
+choices.apply_blank = isCCEP && EEG.srate >= 500;   % blanking needs the native rate
+nBadMarked = 0;
+if isfield(EEG.chanlocs,'status')
+    nBadMarked = sum(cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status}));
+end
 
 if haveEv
     ignoreCols = {'onset','duration','electrodes_involved_onset','electrodes_involved_offset','sample_start'};
@@ -136,7 +145,12 @@ uigeom = {
     0.01
     1
     [0.70 0.30]
+    [0.70 0.30]
+    [0.70 0.30]
     1
+
+    % Stimulation blanking (CCEP)
+    [0.70 0.30]
 
     % Downsample
     [0.70 0.30]
@@ -201,9 +215,17 @@ append({'style' 'edit' 'tag' 'evsel_json' 'string' '' 'visible' 'off'});
 append({'style' 'text' 'string' 'Electrodes' 'fontweight' 'bold' 'horizontalalignment' 'left'});
 append({'style' 'text' 'string' 'Remove electrodes with no XYZ coordinates?' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'rm_no_coords' 'value' choices.remove_no_coords 'string' ''});
+append({'style' 'text' 'string' sprintf('Remove clinician-marked bad channels (%d marked)?', nBadMarked) 'horizontalalignment' 'left'});
+append({'style' 'checkbox' 'tag' 'rm_bad' 'value' choices.remove_bad_channels 'string' ''});
+append({'style' 'text' 'string' 'Also remove seizure-onset-zone contacts?' 'horizontalalignment' 'left'});
+append({'style' 'checkbox' 'tag' 'rm_soz' 'value' choices.exclude_soz 'string' ''});
 
 % Signal Processing header
 append({'style' 'text' 'string' 'Signal Processing' 'fontweight' 'bold' 'horizontalalignment' 'left'});
+
+% Stimulation-artifact blanking: CCEP only, and first, before any filter can ring on it
+append({'style' 'text' 'string' 'Blank stimulation artifact (CCEP, before filtering):' 'horizontalalignment' 'left' 'enable' iff(isCCEP,'on','off')});
+append({'style' 'checkbox' 'tag' 'apply_blank' 'value' choices.apply_blank 'string' 'Enable' 'enable' iff(isCCEP,'on','off')});
 
 % Downsample
 append({'style' 'text' 'string' 'Downsample:' 'horizontalalignment' 'left'});
@@ -248,7 +270,7 @@ append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end)
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
 
 % CAR
-append({'style' 'text' 'string' 'Re-referencing (CARLA):' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' iff(isCCEP,'Re-referencing (CARLA, CCEP):','Re-referencing (common average):') 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_acar' 'value' choices.apply_acar ...
         'string' 'Enable' 'callback' cb_acar 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
@@ -295,6 +317,9 @@ end
 % numbers & toggles
 choices.remove_rare_cond = isfield(out,'remove_rare_cond') && logical(out.remove_rare_cond);
 choices.remove_no_coords = isfield(out,'rm_no_coords') && logical(out.rm_no_coords);
+choices.remove_bad_channels = isfield(out,'rm_bad') && logical(out.rm_bad);
+choices.exclude_soz = isfield(out,'rm_soz') && logical(out.rm_soz);
+choices.apply_blank = isCCEP && isfield(out,'apply_blank') && logical(out.apply_blank);
 
 if isfield(out,'min_trials'),  mt = str2double(out.min_trials);  if isfinite(mt) && mt>=0, choices.min_trials = mt; end, end
 choices.apply_ds = isfield(out,'apply_ds') && logical(out.apply_ds);
@@ -343,7 +368,7 @@ end
 % The GUI always selects CARLA; the legacy fixed-fraction method is reachable
 % from the command line with car_method='varsubset'.
 choices.apply_car   = choices.apply_acar;
-choices.car_method  = 'carla';
+choices.car_method  = iff(isCCEP, 'carla', 'car');
 choices.car_timewin = choices.acar_timewin;
 choices.car_fraction = choices.acar_fraction;
 

@@ -55,14 +55,30 @@ labels = opt.elec_labels(:);
 nch    = numel(labels);
 
 % ---------- Channels preselect ----------
+% Clinician-marked bad channels (channels.tsv status) start UNselected and are
+% labelled with the reason, so the default choice is the clinical one and
+% overriding it is one click.
+isBadCh = false(nch, 1);
+badNote = repmat({''}, nch, 1);
+if isfield(opt,'bad_labels') && ~isempty(opt.bad_labels)
+    [isBadCh, loc] = ismember(upper(labels), upper(opt.bad_labels(:)));
+    if isfield(opt,'bad_reasons') && numel(opt.bad_reasons) == numel(opt.bad_labels)
+        badNote(isBadCh) = opt.bad_reasons(loc(isBadCh));
+    end
+end
 if ~isfield(opt,'chan_idx') || isempty(opt.chan_idx)
-    preCh = 1;
+    if any(isBadCh), preCh = find(~isBadCh)' + 1; else, preCh = 1; end
 else
-    sel  = opt.chan_idx(:)'; 
+    sel  = opt.chan_idx(:)';
     sel  = sel(sel>=1 & sel<=nch);
     preCh = iff(isempty(sel) || numel(sel)==nch, 1, sel+1);
 end
-labels_disp = [{'All channels'}; labels];
+labels_shown = labels;
+for k = find(isBadCh)'
+    if isempty(badNote{k}), labels_shown{k} = [labels{k} '   [marked bad]'];
+    else, labels_shown{k} = [labels{k} '   [bad: ' badNote{k} ']']; end
+end
+labels_disp = [{'All channels'}; labels_shown];
 
 % ---------- Events presence & lists ----------
 haveEvents = isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events);
@@ -163,7 +179,12 @@ end
 
 % ---------- Channels mapping ----------
 idxCh = outstruct.sel_list(:);
-if idxCh == 1 % all channels
+if isempty(idxCh)
+    error('ieeglab_gui_load2:noChannels', 'No channel selected. Select at least one channel, or "All channels".');
+end
+% 'All channels' is entry 1. Selecting it together with other entries used to
+% fall into the else branch and index the mask at 0; it now means all.
+if any(idxCh == 1)
     opt.chan_idx  = 1:nch;
     opt.chan_list = labels;
 else

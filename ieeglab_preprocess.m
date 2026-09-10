@@ -141,7 +141,8 @@ if isfield(opt, 'remove_no_coords') && opt.remove_no_coords && isfield(EEG,'chan
     % Remove events that reference a removed electrode (CCEP stimulation sites).
     % Guarded: continuous datasets legitimately have no events at all.
     if ~isempty(removed_elecs) && isfield(EEG,'event') && ~isempty(EEG.event)
-        trials_to_rem = contains({EEG.event.type}, removed_elecs);
+        % Exact token match: contains() also matched 'RA10-RA9' when removing 'RA1'
+        trials_to_rem = ieeglab_events_using(EEG.event, removed_elecs);
         if any(trials_to_rem)
             fprintf('Removing %d/%d events that reference an electrode with no 3D coordinates.\n', ...
                 sum(trials_to_rem), numel(trials_to_rem));
@@ -153,6 +154,30 @@ if isfield(opt, 'remove_no_coords') && opt.remove_no_coords && isfield(EEG,'chan
             EEG = eeg_checkset(EEG);
             EEG.ieeglab.opt = opt;
         end
+    end
+end
+
+% Bad channels: clinician labels (BIDS channels.tsv status), seizure-zone labels,
+% an explicit list, or automatic detection. ieeglab_load MARKS them; this step
+% removes them when asked. Channels left marked are still kept out of the CAR
+% reference and out of the statistics.
+doBad = local_opt(opt,'remove_bad_channels',false) || local_opt(opt,'exclude_soz',false) || ...
+        local_opt(opt,'exclude_irritative',false) || local_opt(opt,'auto_bad_channels',false) || ...
+        ~isempty(local_opt(opt,'bad_channels',[]));
+if doBad
+    if local_opt(opt,'remove_bad_channels',false), act = 'remove'; else, act = 'mark'; end
+    EEG = ieeglab_bad_channels(EEG, struct( ...
+        'channels_tsv',       local_opt(opt,'channels_tsv',''), ...
+        'elec_tsv',           local_opt(opt,'elec_tsv',''), ...
+        'bad_channels',       local_opt(opt,'bad_channels',[]), ...
+        'exclude_soz',        local_opt(opt,'exclude_soz',false), ...
+        'exclude_irritative', local_opt(opt,'exclude_irritative',false), ...
+        'auto_detect',        local_opt(opt,'auto_bad_channels',false), ...
+        'action',             act, ...
+        'drop_bad_stim_sites',true, ...
+        'verbose',            opt.verbose));
+    if isfield(opt,'events') && istable(opt.events) && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'events')
+        opt.events = EEG.ieeglab.opt.events;     % keep the local copy aligned
     end
 end
 
@@ -360,4 +385,9 @@ legend([h1 h2], 'Location','best'); box on
 xlabel('Time (ms)'); ylabel('Amplitude (\muV)');
 % Concatenated rather than sprintf'd: sprintf would warn on the TeX '\pm'.
 title(['Mean \pm 1 SEM (before vs after ' char(refName) ')']);
+end
+
+function v = local_opt(opt, name, default)
+% Field of opt, or default when absent or empty.
+if isfield(opt, name) && ~isempty(opt.(name)), v = opt.(name); else, v = default; end
 end

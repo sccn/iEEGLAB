@@ -112,7 +112,8 @@ plot_ccep(mean(EEG.data,3), EEG.times, {EEG.chanlocs.labels}, 'all', [], 0.20);
 % All trials for one channel, with the trimmed mean on top.
 % Pick the trials belonging to one stimulation site.
 site   = 'RA1-RA2';                                  % change to a site in your data
-trials = strcmpi(local_epoch_sites(EEG), site);
+sites  = ieeglab_epoch_sites(EEG);                   % canonical, order-independent
+trials = sites == strjoin(sort(ieeglab_site_tokens(site)), '-');
 fprintf('%d trials at site %s\n', sum(trials), site);
 if any(trials)
     channel = 2;
@@ -120,61 +121,53 @@ if any(trials)
 end
 
 % For a conventional two-condition design (the eCoG dataset), compare stimuli:
-% types = local_epoch_sites(EEG);
+% types = cellstr(ieeglab_epoch_sites(EEG));
 % u     = unique(types);
 % idx1  = strcmp(types, u{1});
 % idx2  = strcmp(types, u{2});
 % plot_ccep(EEG.data(:,:,idx1), EEG.times, {EEG.chanlocs.labels}, 'single', 2, 0.20);
 
 
-%% Step 8: within-subject statistics (CRP)
-% Menu: iEEGLAB > Within-subject statistics (CRP)
+%% Step 8: CCEP analysis - N1, CRP and the connectivity matrix
+% Menu: iEEGLAB > CCEP analysis (N1, CRP, connectivity)
 %
-% Fits the canonical response shape for every stimulation-site x channel pair
-% and reports response duration (tau_R), explained variance and significance.
+% Each stage can be switched on or off in the dialog. N1 gives amplitude and
+% latency of the early response; CRP gives its canonical shape and duration;
+% the connectivity matrix summarises which stimulation site drives which contact.
 
 EEG = ieeglab_stats_subject(EEG);
 
-T = EEG.ieeglab.stats.table;
-disp(T(T.significant, :))
+% The connectivity matrix: rows are stimulation sites, columns contacts.
+% Grey = not measured (the stimulated contacts), white = no response.
+ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix);                    % responses
+ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix, 'latency_ms');      % N1 latency
 
-% Most responsive pair
-if any(T.significant)
-    [~, k] = max(T.explained_var);
-    fprintf('Strongest response: %s -> %s, tau_R = %.0f ms, R2 = %.2f\n', ...
-        T.site{k}, T.channel{k}, T.tR_ms(k), T.explained_var(k));
-end
+% The same results on the brain: how many sites evoke a response at each
+% contact, and the N1 amplitude for one stimulation site.
+% Menu: iEEGLAB > Plot electrode values on brain (also under EEGLAB's Plot menu)
+ieeglab_topoplot(EEG, 'in_degree');
+ieeglab_topoplot(EEG, 'n1_amplitude', 'site', EEG.ieeglab.ccep_matrix.sites{1});
 
-% Save
-% pop_saveset(EEG, 'filename', 'sub-02_processed.set', 'filepath', filepath);
+% Export everything as TSV / JSON / MAT.  Menu: iEEGLAB > Export results
+ieeglab_export(EEG, fullfile(filepath, 'derivatives', 'ieeglab'));
 
 
-%% Step 9: the same pipeline with no GUI at all
-% This is the scriptable form. Every step takes an options struct, so this
-% block runs unattended - which is what makes batch processing and automated
-% testing possible.
+%% Step 9: the same pipeline with no dialogs at all
+% Every step takes an options struct, so this block runs unattended - which is
+% what makes batch processing and automated testing possible. ieeglab_load
+% finds the BIDS sidecar files next to the dataset on its own.
 
 filepath = fullfile(plugin_path, 'tutorial', 'dataset_seeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath',filepath);
 
-% Electrode coordinates from the BIDS sidecar
-elecs = readtable(fullfile(filepath,'sub-02_ses-ieeg01_electrodes.tsv'), ...
-    'FileType','text', 'Delimiter','\t');
-EEG = get_elec_coor(EEG, elecs);
+% Coordinates, events (events marked status=bad are dropped) and clinician
+% channel labels, from the _electrodes.tsv / _events.tsv / _channels.tsv sidecars
+EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
-% Events from the BIDS sidecar, using the stimulation site as the event type
-events = readtable(fullfile(filepath,'sub-02_ses-ieeg01_task-ccep_run-01_events.tsv'), ...
-    'FileType','text', 'Delimiter','\t');
-EEG.event = [];
-for iEv = 1:height(events)
-    EEG.event(iEv).type    = events.electrical_stimulation_site{iEv};
-    EEG.event(iEv).latency = events.onset(iEv) * EEG.srate + 1;   % samples, 1-based
-end
-EEG = eeg_checkset(EEG, 'eventconsistency');
-EEG.ieeglab.opt.events = events;
-
-% Preprocess
+% Preprocess. Blanking needs data at its native rate; this extract is 128 Hz,
+% so it is left off here (the function warns about exactly this).
 EEG = ieeglab_preprocess(EEG, struct( ...
+    'remove_bad_channels', true, ...
     'apply_highpass', true,  'highpass', 0.5, ...
     'apply_notch',    true,  'notch', [60 120 180], ...
     'apply_lowpass',  false, ...
@@ -183,31 +176,11 @@ EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_baseline', true,  'baseline_period', [-500 -50], ...
     'plot', false));
 
-% Statistics
-EEG = ieeglab_stats_subject(EEG, struct('crp_window',[15 400], 'plot',false));
+% N1, CRP, connectivity matrix and export, in one call
+outdir = fullfile(tempdir, 'ieeglab_tutorial_results');
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', true, 'run_matrix', true, ...
+    'crp_window', [15 400], 'n1_window', [15 100], 'export_dir', outdir, 'plot', false));
 
-T = EEG.ieeglab.stats.table;
-fprintf('\n%d of %d site-channel pairs show a significant response.\n', ...
-    sum(T.significant), height(T));
-
-
-%% local helper used by step 7
-function sites = local_epoch_sites(EEG)
-% The event type each epoch is locked to, as a cellstr.
-sites = repmat({''}, 1, EEG.trials);
-if ~isfield(EEG,'epoch') || isempty(EEG.epoch), return; end
-for i = 1:numel(EEG.epoch)
-    t = EEG.epoch(i).eventtype;
-    if iscell(t)
-        l = EEG.epoch(i).eventlatency;
-        if iscell(l) && numel(l) == numel(t)
-            [~, k] = min(cellfun(@(x) abs(double(x(1))), l));
-        else
-            k = 1;
-        end
-        t = t{k};
-    end
-    if isnumeric(t), t = num2str(t); end
-    sites{i} = char(t);
-end
-end
+M = EEG.ieeglab.ccep_matrix;
+fprintf('\n%d of %d tested site-contact pairs respond (density %.2f). Results in %s\n', ...
+    M.n_significant, M.n_tested, M.density, outdir);

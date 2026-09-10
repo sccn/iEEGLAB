@@ -85,9 +85,13 @@ if nnz(iB) < 10
 end
 
 labels = string({EEG.chanlocs.labels});
-sites  = local_sites(EEG, labels);
+sites  = ieeglab_epoch_sites(EEG);
 [uSites, ~, grp] = unique(sites);
 
+isBadCh = false(1, EEG.nbchan);
+if isfield(EEG.chanlocs,'status')
+    isBadCh = cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status});
+end
 rows = {};
 for g = 1:numel(uSites)
     tr = find(grp == g);
@@ -100,13 +104,13 @@ for g = 1:numel(uSites)
 
     stimIdx = [];
     if opt.exclude_stim && uSites(g) ~= ""
-        stimIdx = find(ismember(upper(labels), upper(split(uSites(g),'-'))'));
+        stimIdx = find(ismember(upper(labels), upper(ieeglab_site_tokens(uSites(g)))));
     end
 
     pvals = nan(EEG.nbchan,1);
     tmp   = cell(EEG.nbchan,1);
     for ch = 1:EEG.nbchan
-        if ismember(ch, stimIdx), continue; end
+        if ismember(ch, stimIdx) || isBadCh(ch), continue; end
         trials = squeeze(EEG.data(ch,:,tr));           % [T x nTrials]
         if size(trials,2) < 2, continue; end
         avg = mean(trials, 2, 'omitnan');
@@ -204,36 +208,6 @@ end
 end
 
 % ===================== local helpers =====================
-
-function sites = local_sites(EEG, labels)
-N = EEG.trials;
-sites = strings(1,N);
-if ~isfield(EEG,'epoch') || isempty(EEG.epoch) || numel(EEG.epoch) ~= N, return; end
-for i = 1:N
-    ty = EEG.epoch(i).eventtype;
-    l  = [];
-    if isfield(EEG.epoch,'eventlatency'), l = EEG.epoch(i).eventlatency; end
-    if iscell(ty)
-        if iscell(l) && numel(l) == numel(ty)
-            [~,k] = min(cellfun(@(x) abs(double(x(1))), l));
-        else
-            k = 1;
-        end
-        ty = ty{k};
-    end
-    if isnumeric(ty), ty = num2str(ty); end
-    ty = strtrim(string(ty));
-    if ty == "", continue; end
-    parts = regexp(char(ty), '[-+/|]', 'split');
-    parts = parts(~cellfun(@isempty, parts));
-    hit = parts(ismember(upper(parts), upper(labels)));
-    if numel(hit) >= 2
-        sites(i) = string(strjoin(sort(hit), '-'));   % order-independent
-    else
-        sites(i) = ty;
-    end
-end
-end
 
 function padj = local_correct(p, method)
 padj = p;

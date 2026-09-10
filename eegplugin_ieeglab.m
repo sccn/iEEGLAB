@@ -20,7 +20,7 @@
 function vers = eegplugin_ieeglab(fig, try_strings, catch_strings)
 
 % Plugin version
-vers = '1.0';
+vers = '1.1.0';
 
 if nargin < 3
     error('eegplugin_ieeglab:badCall', ...
@@ -42,6 +42,9 @@ cb_load       = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_load(EEG);'     
 cb_vis_elec   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG); LASTCOM = ''EEG = ieeglab_vis_elec(EEG);'';' catch_strings.new_and_hist];
 cb_preprocess = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_preprocess(EEG);'     catch_strings.new_and_hist];
 cb_stats      = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_stats_subject(EEG);'  catch_strings.new_and_hist];
+cb_matrix     = [try_strings.no_check 'if isfield(EEG,''ieeglab'') && isfield(EEG.ieeglab,''ccep_matrix''), ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix); else, errordlg(''No connectivity matrix yet: run iEEGLAB > CCEP analysis first.'',''iEEGLAB''); end; LASTCOM = '''';' catch_strings.add_to_hist];
+cb_topo       = [try_strings.no_check 'LASTCOM = pop_ieeglab_topoplot(EEG);' catch_strings.add_to_hist];
+cb_export     = [try_strings.no_check '[~, LASTCOM] = ieeglab_export(EEG);' catch_strings.add_to_hist];
 cb_check      = 'ieeglab_check_install;';
 
 % --- remove any existing copy to avoid duplicates on rehash
@@ -53,19 +56,35 @@ menu_root = uimenu(fig, ...
     'Label',     'iEEGLAB', ...
     'Tag',       'menu_ieeglab', ...
     'Separator', 'on', ...
-    'Position',  7);  % adjust position to place it where you like
+    'Position',  7);
 
-% --- add items
 uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load);
 uimenu(menu_root, 'Label', 'Visualize electrodes', 'Callback', cb_vis_elec);
 uimenu(menu_root, 'Label', 'Preprocess iEEG data', 'Callback', cb_preprocess);
-uimenu(menu_root, 'Label', 'Within-subject statistics (CRP)','Callback', cb_stats);
+uimenu(menu_root, 'Label', 'CCEP analysis (N1, CRP, connectivity)', 'Callback', cb_stats, 'Separator', 'on');
+uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix);
+uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo);
+uimenu(menu_root, 'Label', 'Export results (TSV / JSON / MAT)', 'Callback', cb_export, 'Separator', 'on');
 uimenu(menu_root, 'Label', 'Check installation', 'Callback', cb_check, 'Separator', 'on');
+
+% Also offer the electrode-value plot under EEGLAB's own Plot menu, next to the
+% scalp topographies it replaces for intracranial data.
+try
+    plotMenu = findobj(fig, 'Type', 'uimenu', 'Tag', 'plot');
+    if ~isempty(plotMenu)
+        old = findobj(plotMenu(1), 'Tag', 'ieeglab_topo');
+        if ~isempty(old), delete(old); end
+        uimenu(plotMenu(1), 'Label', 'iEEG electrode values on brain (iEEGLAB)', ...
+            'Tag', 'ieeglab_topo', 'Callback', cb_topo, 'Separator', 'on');
+    end
+catch
+end
 
 % Fail loudly at load time if a menu callback points at a function that does not
 % exist, rather than at click time. ieeglab_stats_subject was missing for months
 % because nothing checked this.
-for f = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','ieeglab_stats_subject'}
+for f = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','ieeglab_stats_subject', ...
+         'ieeglab_plot_ccep_matrix','pop_ieeglab_topoplot','ieeglab_export'}
     if isempty(which(f{1}))
         warning('eegplugin_ieeglab:missingCallback', ...
             'iEEGLAB menu item calls %s, which is not on the path. That menu item will fail.', f{1});
