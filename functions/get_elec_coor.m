@@ -1,4 +1,16 @@
-function EEG = get_elec_coor(EEG, elecs)
+function EEG = get_elec_coor(EEG, elecs, opt)
+% get_elec_coor() - Copy electrode XYZ coordinates from a BIDS electrodes table
+%                   onto EEG.chanlocs, matching by label.
+%
+% Usage:
+%   EEG = get_elec_coor(EEG, elecs)
+%   EEG = get_elec_coor(EEG, elecs, opt)
+%
+% opt.allow_positional_match (default false)
+%   If no labels match, fall back to assigning coordinates by ROW ORDER.
+%   Off by default because a wrong assumption here mislabels every channel and
+%   still reports a 100% match. Only enable when you have verified that TSV row
+%   order corresponds to channel order.
 %GET_ELEC_COOR  Copy X/Y/Z from table into EEG.chanlocs with robust matching.
 %
 % Attempts:
@@ -27,6 +39,8 @@ tsv_labels    = string(elecs{:, ilab});
 tsv_labels_lc = lower(strtrim(tsv_labels));
 
 % ---------- Attempt 1: direct label match ----------
+if nargin < 3 || isempty(opt), opt = struct(); end
+
 [EEG, matchedMask] = copy_xyz_if_matched(EEG, elecs, tsv_labels, tsv_labels_lc, ix, iy, iz);
 report_match('[get_elec_coor] Attempt 1 (as-is)', EEG, matchedMask);
 
@@ -44,13 +58,43 @@ if sum(matchedMask) == 0
 end
 
 % ---------- Attempt 3: overwrite labels from TSV order and retry ----------
+% DANGEROUS and therefore opt-in. This assumes TSV row order equals channel
+% order. When that assumption is wrong it attaches the wrong name AND the wrong
+% coordinates to every channel, and then reports "100% matched" - a silently
+% wrong result that looks like a success. It is now gated behind
+% opt.allow_positional_match and refuses outright unless the counts agree.
 if sum(matchedMask) == 0
+    allowPositional = isstruct(opt) && isfield(opt,'allow_positional_match') && opt.allow_positional_match;
+
+    if ~allowPositional
+        error('get_elec_coor:noLabelMatch', ...
+            ['None of the %d electrode names in the .tsv match the %d channel labels ' ...
+             'in the dataset, so coordinates cannot be assigned.\n\n' ...
+             'TSV names (first 5):  %s\n' ...
+             'Dataset labels (first 5): %s\n\n' ...
+             'Fix the labels so they correspond. Only if you are certain that TSV row ' ...
+             'order matches channel order, re-run with ' ...
+             'get_elec_coor(EEG, elecs, struct(''allow_positional_match'', true)) - ' ...
+             'this assigns coordinates by position and will silently mislabel every ' ...
+             'channel if the assumption is wrong.'], ...
+             height(elecs), EEG.nbchan, ...
+             strjoin(cellstr(tsv_labels(1:min(5,end)))', ', '), ...
+             strjoin({EEG.chanlocs(1:min(5,end)).labels}, ', '));
+    end
+
+    if height(elecs) ~= EEG.nbchan
+        error('get_elec_coor:positionalCountMismatch', ...
+            ['Positional matching was requested but the .tsv has %d rows and the dataset ' ...
+             'has %d channels. Positional matching is only defensible when the counts ' ...
+             'are equal.'], height(elecs), EEG.nbchan);
+    end
+
+    warning('get_elec_coor:positionalMatch', ...
+        ['Assigning electrode coordinates BY ROW ORDER, not by label. Verify the result ' ...
+         'against the anatomy before trusting any analysis built on it.']);
+
     oldLabels = string({EEG.chanlocs.labels}.');
     m = min(EEG.nbchan, height(elecs));
-    if m < EEG.nbchan
-        warning('TSV has fewer labels (%d) than EEG channels (%d). Only first %d channels will be relabeled.', ...
-            m, EEG.nbchan, m);
-    end
 
     % Overwrite labels in order
     for i = 1:m

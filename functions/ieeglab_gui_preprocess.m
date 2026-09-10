@@ -43,7 +43,7 @@ choices.acar_timewin      = [15 500];   % ms
 
 % Baseline (enabled by default IF events exist)
 choices.apply_baseline    = true;
-choices.baseline_method   = 1;          % 1=median, 2=mean, 3=trimmed mean, 4=1/f
+choices.baseline_method   = 1;          % 1=median, 2=mean, 3=trimmed mean
 choices.baseline_period   = [-500 -50]; % ms
 choices.baseline_mode     = 1;          % 1=subtract, 2=divide
 
@@ -264,7 +264,7 @@ append({'style' 'checkbox' 'tag' 'apply_baseline' 'value' choices.apply_baseline
         'string' 'Enable' 'callback' cb_bl 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_method' 'string' 'Method:' 'horizontalalignment' 'left' 'enable' onoff_bl});
-append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean' 'Trimmed mean' '1/f'} 'value' choices.baseline_method 'enable' onoff_bl});
+append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean' 'Trimmed mean'} 'value' choices.baseline_method 'enable' onoff_bl});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_period' 'string' 'Baseline period [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_bl});
 append({'style' 'edit' 'tag' 'bl_period' 'string' sprintf('%d %d',choices.baseline_period) 'enable' onoff_bl});
@@ -348,7 +348,7 @@ choices.car_timewin = choices.acar_timewin;
 choices.car_fraction = choices.acar_fraction;
 
 choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
-bl_labels = {'median','mean','trimmed mean','1/f'};
+bl_labels = {'median','mean','trimmed mean'};
 if isfield(out,'bl_method') && ~isempty(out.bl_method), bl_idx = out.bl_method; else, bl_idx = choices.baseline_method; end
 choices.baseline_method = bl_labels{min(max(bl_idx,1),4)};
 if isfield(out,'bl_period') && ~isempty(out.bl_period)

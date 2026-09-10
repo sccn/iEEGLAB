@@ -70,6 +70,23 @@ if strcmpi(opt.car_method,'none')
     return
 end
 
+% CARLA is defined for CCEP data only. It picks the reference by finding the
+% channels least anticorrelated with the response to a KNOWN stimulated pair,
+% so on a dataset with no stimulation site there is nothing for it to rank
+% against and the result is not the published method. Fall back rather than
+% produce a number with no interpretation.
+if strcmpi(opt.car_method,'carla')
+    dmode = ieeglab_detect_mode(EEG);
+    if ~strcmp(dmode, 'ccep')
+        warning('ieeglab_car:carlaNotCCEP', ...
+            ['CARLA applies to CCEP (single-pulse stimulation) data, but this dataset ' ...
+             'looks like "%s". Falling back to a plain common average reference.\n' ...
+             'Pass car_method=''car'' explicitly to silence this, or ''carla'' on ' ...
+             'CCEP data whose event types name the stimulated pair (e.g. ''RA1-RA2'').'], dmode);
+        opt.car_method = 'car';
+    end
+end
+
 % ---------------- data ----------------
 X = EEG.data;
 if ismatrix(X), X = reshape(X, size(X,1), size(X,2), 1); end

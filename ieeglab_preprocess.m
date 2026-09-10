@@ -53,6 +53,7 @@ else
     EEG.ieeglab.opt = opt;
 end
 if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = interactive; end
+if ~isfield(opt,'verbose') || isempty(opt.verbose), opt.verbose = true; end
 
 % Accept the pre-1.0 field names for re-referencing
 if isfield(opt,'apply_acar') && ~isfield(opt,'apply_car'), opt.apply_car = opt.apply_acar; end
@@ -172,6 +173,18 @@ if continuousMode
     opt.apply_car      = false;
     opt.apply_acar     = false;
     opt.apply_baseline = false;
+end
+
+% Stimulation-artifact blanking, BEFORE any filtering. A zero-phase FIR rings
+% symmetrically about the artifact step, smearing it forward into the early
+% response and backward into the baseline (issue #10). Blanking first means the
+% filter never sees the discontinuity.
+if isfield(opt,'apply_blank') && opt.apply_blank && ~continuousMode
+    if strcmp(ieeglab_detect_mode(EEG), 'ccep')
+        EEG = ieeglab_blank_stim(EEG, opt);
+    elseif opt.verbose
+        fprintf('[preprocess] Skipping stimulation blanking: not CCEP data.\n');
+    end
 end
 
 % Downsample. Gated on the GUI's own checkbox (apply_ds); previously the flag
