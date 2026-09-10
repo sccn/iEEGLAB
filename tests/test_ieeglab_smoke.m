@@ -286,3 +286,107 @@ E = ieeglab_preprocess(EEG, setfield(defaultOpt(), 'apply_car', false)); %#ok<SF
 tc.verifyEqual(E2.data, E.data);
 tc.verifyEmpty(out);
 end
+
+function test_baseline_window_validation(tc)
+% The window used to be snapped to the nearest samples with no validation, so a
+% window outside the epoch collapsed onto an edge sample and a post-stimulus
+% window silently baselined the response against itself.
+EEG = loadSeeg(tc, true);
+E = ieeglab_preprocess(EEG, setfield(defaultOpt(), 'apply_baseline', false)); %#ok<SFLD>
+
+mk = @(win) setfield(E, 'ieeglab', setfield(E.ieeglab, 'opt', ...
+    struct('baseline_period', win, 'baseline_mode', 'subtract', 'baseline_method', 'median'))); %#ok<SFLD>
+
+tc.verifyError(@() ieeglab_rm_baseline(mk([-5000 -4000])), ...
+    'ieeglab_rm_baseline:windowOutsideEpoch', ...
+    'A window entirely outside the epoch must error, not snap to an edge sample.');
+
+tc.verifyWarning(@() ieeglab_rm_baseline(mk([-200 300])), ...
+    'ieeglab_rm_baseline:windowIncludesPostStim', ...
+    'A window crossing t=0 must warn: the response would be subtracted from itself.');
+
+tc.verifyWarningFree(@() ieeglab_rm_baseline(mk([-450 -50])));
+end
+
+function test_baseline_subtract_is_correct_and_per_trial(tc)
+% Subtraction must zero the baseline, preserve the evoked response, and be
+% computed per trial rather than pooled across trials.
+srate = 1000; t = -500:1000/srate:1000; T = numel(t);
+C = 6; N = 20;
+rng(3);
+X = randn(C,T,N)*20;
+bump = 100*exp(-((t-80)/25).^2); bump(t<0) = 0;
+X = X + repmat(reshape(bump,1,T,1), C, 1, N);
+for k = 1:N, X(:,:,k) = X(:,:,k) + 200*k/N; end   % trial-varying DC drift
+
+E = struct('data',X, 'times',t, 'srate',srate, 'nbchan',C, 'pnts',T, 'trials',N, ...
+           'xmin',t(1)/1000, 'xmax',t(end)/1000);
+E.chanlocs = struct('labels', arrayfun(@(k) sprintf('C%d',k), 1:C, 'UniformOutput', false));
+E.ieeglab.opt = struct('baseline_period',[-500 -50], 'baseline_mode','subtract', 'baseline_method','median');
+
+Eo = ieeglab_rm_baseline(E);
+bi = t >= -500 & t <= -50;
+
+tc.verifyLessThan(abs(mean(Eo.data(:,bi,:), 'all')), 1, 'Baseline was not removed.');
+tc.verifyGreaterThan(max(mean(Eo.data,3), [], 'all'), 80, 'The evoked response was destroyed.');
+
+% Per-trial: each trial's own baseline must be near zero despite the drift
+perTrial = squeeze(mean(Eo.data(:,bi,:), [1 2]));
+tc.verifyLessThan(max(abs(perTrial)), 5, ...
+    'Baseline looks pooled across trials: per-trial drift survived correction.');
+end
+
+function test_divisive_baseline_refused_on_zero_mean_data(tc)
+% Divisive baselining assumes a multiplicative model (Gyurkovics et al. 2021).
+% On high-passed time-domain data the baseline mean is near zero, so the ratio
+% explodes and its sign is arbitrary. It must refuse rather than return noise.
+srate = 1000; t = -500:1000/srate:1000; T = numel(t);
+rng(4);
+X = randn(6,T,15)*20;                       % zero-mean, like high-passed data
+E = struct('data',X, 'times',t, 'srate',srate, 'nbchan',6, 'pnts',T, 'trials',15, ...
+           'xmin',t(1)/1000, 'xmax',t(end)/1000);
+E.chanlocs = struct('labels', arrayfun(@(k) sprintf('C%d',k), 1:6, 'UniformOutput', false));
+E.ieeglab.opt = struct('baseline_period',[-500 -50], 'baseline_mode','divide', 'baseline_method','median');
+
+tc.verifyError(@() ieeglab_rm_baseline(E), 'ieeglab_rm_baseline:unsafeDivide');
+end
+
+function test_aperiodic_baseline_is_gone(tc)
+EEG = loadSeeg(tc, true);
+E = ieeglab_preprocess(EEG, setfield(defaultOpt(), 'apply_baseline', false)); %#ok<SFLD>
+E.ieeglab.opt.baseline_method = '1/f';
+tc.verifyError(@() ieeglab_rm_baseline(E), 'ieeglab_rm_baseline:removedMethod');
+end
+
+function test_carla_refuses_non_ccep(tc)
+% CARLA is defined for CCEP only; on other data it must fall back with a warning
+% rather than return an uninterpretable reference.
+d = tc.TestData.ecogDir;
+EEG = pop_loadset('filename','sub-02_ses-01_task-visual_run-01_ieeg.set','filepath',d);
+elecs = readtable(fullfile(d,'sub-02_ses-01_electrodes.tsv'),'FileType','text','Delimiter','\t');
+ev    = readtable(fullfile(d,'sub-02_ses-01_task-visual_run-01_events.tsv'),'FileType','text','Delimiter','\t');
+[~, EEG] = evalc('get_elec_coor(EEG, elecs)');
+EEG.event = [];
+for i = 1:height(ev)
+    t = ev.trial_type(i); if iscell(t), t = t{1}; end
+    if ~ischar(t), t = num2str(t); end
+    EEG.event(i).type = t;
+    EEG.event(i).latency = ev.onset(i)*EEG.srate + 1;
+end
+EEG = eeg_checkset(EEG,'eventconsistency');
+
+tc.verifyEqual(ieeglab_detect_mode(EEG), 'erp', ...
+    'A visual-task dataset must not be classified as CCEP.');
+
+opt = defaultOpt(); opt.epoch_window = [-200 600]; opt.car_nboot = 10;
+[~, E] = evalc('ieeglab_preprocess(EEG, opt)');
+tc.verifyEqual(E.ref, 'CAR', ...
+    'CARLA must fall back to a plain CAR on non-CCEP data.');
+end
+
+function test_mode_detection(tc)
+EEG = loadSeeg(tc, true);
+tc.verifyEqual(ieeglab_detect_mode(EEG), 'ccep');
+EEG.event = [];
+tc.verifyEqual(ieeglab_detect_mode(EEG), 'continuous');
+end
