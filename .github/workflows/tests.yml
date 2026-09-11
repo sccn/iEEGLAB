@@ -40,4 +40,12 @@ jobs:
             addpath(pwd); addpath(fullfile(pwd, 'functions'));
             results = runtests('tests');
             disp(table(results));
+            % Surface each failure as a GitHub annotation (visible without opening the log)
+            for r = results(~[results.Passed])
+              d = '';
+              try, d = r.Details.DiagnosticRecord(1).Report; catch, end
+              d = regexprep(d, '\s+', ' ');
+              d = strrep(d, '%', '%25');
+              fprintf('::error title=%s::%s\n', r.Name, d(1:min(end, 3000)));
+            end
             assertSuccess(results);
