@@ -106,17 +106,19 @@ figure; pop_spectopo(EEG, 1, [EEG.times(1) EEG.times(end)], 'EEG', ...
 %% Step 7: CCEP plots
 % Only meaningful for the sEEG / CCEP dataset.
 
-% Heatmap of the trimmed mean across all channels
-plot_ccep(mean(EEG.data,3), EEG.times, {EEG.chanlocs.labels}, 'all', [], 0.20);
+% Heatmap of the 20% trimmed mean over trials, all channels
+plot_ccep(EEG.data, EEG.times, {EEG.chanlocs.labels}, 'all', [], 0.20);
 
 % All trials for one channel, with the trimmed mean on top.
 % Pick the trials belonging to one stimulation site.
 site   = 'RA1-RA2';                                  % change to a site in your data
 sites  = ieeglab_epoch_sites(EEG);                   % canonical, order-independent
-trials = sites == strjoin(sort(ieeglab_site_tokens(site)), '-');
+[cs, stimmed] = ieeglab_canonical_site({site}, {EEG.chanlocs.labels});
+trials = sites == cs(1);
 fprintf('%d trials at site %s\n', sum(trials), site);
 if any(trials)
-    channel = 2;
+    % a contact NOT stimulated at this site (a stimulated one shows only the artifact)
+    channel = find(~ismember(1:EEG.nbchan, stimmed{1}), 1);
     plot_ccep(EEG.data(:,:,trials), EEG.times, {EEG.chanlocs.labels}, 'single', channel, 0.20);
 end
 

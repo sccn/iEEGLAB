@@ -320,13 +320,17 @@ end
 
 function test_topoplot_latency_values(tc)
 E = tc.TestData.E;
+% On CCEP data each contact's own stimulation trials are left out of its value.
+D = double(E.data);
+[~, stimIdx] = ieeglab_epoch_sites(E);
+for t = 1:E.trials, D(stimIdx{t}, :, t) = NaN; end
 [vals, info] = ieeglab_topoplot(E, 30, 'draw', false);
 [~, k] = min(abs(E.times - 30));
-tc.verifyEqual(vals, mean(double(E.data(:, k, :)), 3), 'AbsTol', 1e-9);
+tc.verifyEqual(vals, mean(D(:, k, :), 3, 'omitnan'), 'AbsTol', 1e-9);
 tc.verifyTrue(all(info.has_xyz));
 [vals2] = ieeglab_topoplot(E, [20 60], 'draw', false);
 idx = E.times >= 20 & E.times <= 60;
-tc.verifyEqual(vals2, mean(mean(double(E.data(:, idx, :)), 3), 2), 'AbsTol', 1e-9);
+tc.verifyEqual(vals2, mean(mean(D(:, idx, :), 3, 'omitnan'), 2, 'omitnan'), 'AbsTol', 1e-9);
 tc.verifyError(@() ieeglab_topoplot(E, 99999, 'draw', false), 'ieeglab_topoplot:latencyOutside');
 tc.verifyEmpty(findall(0,'Type','figure'));
 end
@@ -337,7 +341,10 @@ v = ieeglab_topoplot(E, 'in_degree', 'draw', false);
 tc.verifyEqual(v, M.in_degree);
 s = M.sites{1};
 a = ieeglab_topoplot(E, 'n1_amplitude', 'site', s, 'draw', false);
-tc.verifyEqual(a(:)', M.amplitude_uv(1,:), 'AbsTol', 1e-12);
+expected = M.amplitude_uv(1,:); expected(M.response(1,:) ~= 1) = NaN;   % significant only
+tc.verifyEqual(a(:)', expected, 'AbsTol', 1e-12);
+aAll = ieeglab_topoplot(E, 'n1_amplitude', 'site', s, 'draw', false, 'sig_only', false);
+tc.verifyEqual(aAll(:)', M.amplitude_uv(1,:), 'AbsTol', 1e-12);
 tok = ieeglab_site_tokens(s);
 rev = strjoin(fliplr(tok), '-');
 a2 = ieeglab_topoplot(E, 'n1_amplitude', 'site', rev, 'draw', false);

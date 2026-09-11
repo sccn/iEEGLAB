@@ -116,6 +116,15 @@ if sum(matchedMask) == 0
     report_match('[get_elec_coor] After Attempt 3 (TSV relabel)', EEG, matchedMask);
 end
 
+% ---------- Report channels left without a position ----------
+noXYZ = arrayfun(@(ch) ~isfield(ch,'X') || isempty(ch.X), EEG.chanlocs);
+if any(noXYZ) && ~all(noXYZ)
+    warning('get_elec_coor:unpositioned', ...
+        ['%d of %d channels have no position in the electrodes file and are left without ' ...
+         'coordinates: %s. Preprocessing can remove them (remove_no_coords).'], ...
+        nnz(noXYZ), numel(noXYZ), strjoin({EEG.chanlocs(noXYZ).labels}, ', '));
+end
+
 % ---------- Coordinate sanity preview ----------
 preview_n = min(5, EEG.nbchan);
 fprintf('[get_elec_coor] First %d coordinate rows after assignment:\n', preview_n);
@@ -129,40 +138,52 @@ end
 
 % ---- helpers ----
 function [EEG, matchedMask] = copy_xyz_if_matched(EEG, elecs, tsv_labels, tsv_labels_lc, ix, iy, iz)
-matchedMask = false(EEG.nbchan,1);
-for i = 1:EEG.nbchan
-    key = lower(strtrim(string(EEG.chanlocs(i).labels)));
-    hit = find(tsv_labels_lc == key, 1, 'first');
-    if ~isempty(hit)
-        EEG.chanlocs(i).matched_elec_label = char(tsv_labels(hit));
-        xi = toNumericScalar(elecs{hit, ix});
-        yi = toNumericScalar(elecs{hit, iy});
-        zi = toNumericScalar(elecs{hit, iz});
-        if ~isnan(xi), EEG.chanlocs(i).X = xi; end
-        if ~isnan(yi), EEG.chanlocs(i).Y = yi; end
-        if ~isnan(zi), EEG.chanlocs(i).Z = zi; end
-        matchedMask(i) = true;
-    end
-end
+keys = lower(strtrim(string({EEG.chanlocs.labels}.')));
+[EEG, matchedMask] = assign_xyz(EEG, elecs, tsv_labels, tsv_labels_lc, keys, ix, iy, iz);
 end
 
 function [EEG, matchedMask] = copy_xyz_if_matched_norm(EEG, elecs, tsv_labels_orig, tsv_labels_norm_l, eeg_labels_norm, ix, iy, iz)
-% Compare normalized EEG labels to normalized TSV labels, but assign XYZ
-% from the original TSV row (tsv_labels_orig). Does NOT change visible labels.
+% Compare normalized labels, assign XYZ from the original TSV row. Does NOT
+% change visible labels.
+keys = lower(strtrim(string(eeg_labels_norm)));
+[EEG, matchedMask] = assign_xyz(EEG, elecs, tsv_labels_orig, tsv_labels_norm_l, keys, ix, iy, iz);
+end
+
+function [EEG, matchedMask] = assign_xyz(EEG, elecs, tsv_labels, tsv_keys, keys, ix, iy, iz)
+% Every channel's position is cleared first: a channel the TSV does not
+% position must not keep coordinates from an earlier load, an importer or a
+% template, possibly in another space. A row counts only when all three
+% coordinates are finite (no half-filled positions). With duplicate names the
+% first COMPLETE row is used and the duplication is reported.
 matchedMask = false(EEG.nbchan,1);
+dupNames = {}; incomplete = {};
 for i = 1:EEG.nbchan
-    key_norm = lower(strtrim(string(eeg_labels_norm(i))));
-    hit = find(tsv_labels_norm_l == key_norm, 1, 'first');
-    if ~isempty(hit)
-        EEG.chanlocs(i).matched_elec_label = char(tsv_labels_orig(hit));
-        xi = toNumericScalar(elecs{hit, ix});
-        yi = toNumericScalar(elecs{hit, iy});
-        zi = toNumericScalar(elecs{hit, iz});
-        if ~isnan(xi), EEG.chanlocs(i).X = xi; end
-        if ~isnan(yi), EEG.chanlocs(i).Y = yi; end
-        if ~isnan(zi), EEG.chanlocs(i).Z = zi; end
-        matchedMask(i) = true;
+    EEG.chanlocs(i).X = []; EEG.chanlocs(i).Y = []; EEG.chanlocs(i).Z = [];
+    hits = find(tsv_keys == keys(i));
+    if isempty(hits), continue; end
+    if numel(hits) > 1, dupNames{end+1} = char(tsv_labels(hits(1))); end %#ok<AGROW>
+    chosen = 0;
+    for h = hits(:)'
+        xyz = [toNumericScalar(elecs{h, ix}), toNumericScalar(elecs{h, iy}), toNumericScalar(elecs{h, iz})];
+        if all(isfinite(xyz)), chosen = h; break; end
     end
+    if chosen == 0
+        incomplete{end+1} = char(EEG.chanlocs(i).labels); %#ok<AGROW>
+        continue
+    end
+    EEG.chanlocs(i).matched_elec_label = char(tsv_labels(chosen));
+    EEG.chanlocs(i).X = xyz(1); EEG.chanlocs(i).Y = xyz(2); EEG.chanlocs(i).Z = xyz(3);
+    matchedMask(i) = true;
+end
+if ~isempty(dupNames)
+    warning('get_elec_coor:duplicateNames', ...
+        'The electrodes file lists these names more than once; the first complete row was used: %s', ...
+        strjoin(unique(dupNames), ', '));
+end
+if ~isempty(incomplete)
+    warning('get_elec_coor:incompleteCoordinates', ...
+        'These channels have a row but not three finite coordinates, so they get no position: %s', ...
+        strjoin(incomplete, ', '));
 end
 end
 

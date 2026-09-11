@@ -7,25 +7,27 @@ function [EEG, com] = ieeglab_load(EEG, opt)
 %   [EEG, com] = ieeglab_load(EEG, opt)     % headless, no dialogs
 %
 % Options (headless path; the dialogs fill the same fields):
-%   .elec_tsv        *_electrodes.tsv path, or 'auto' (default) to find the BIDS
-%                    sibling of the dataset file; '' to skip
+%   .elec_tsv        *_electrodes.tsv path, 'auto' (default: the BIDS sidecar of
+%                    this dataset, see ieeglab_bids_sibling), or '' to skip
 %   .events_tsv      *_events.tsv path, 'auto' (default), or ''
-%   .channels_tsv    *_channels.tsv path, 'auto' (default), or ''. Its 'status'
-%                    column (good/bad) marks clinician/annotator bad channels.
-%                    They are MARKED here and removed during preprocessing if
-%                    requested, so the decision stays visible and reversible.
-%   .event_field     events.tsv column naming the condition or stimulation site.
-%                    Default: electrical_stimulation_site if present, else
-%                    trial_type, else type.
+%   .channels_tsv    *_channels.tsv path, 'auto' (default), or ''. Channels with
+%                    status 'bad' are MARKED here; whether they are removed is
+%                    decided in preprocessing, so the decision stays visible.
+%   .event_field     column naming the condition or stimulation site - of the
+%                    events.tsv, or a field of EEG.event when the events are
+%                    already in the dataset. Default: electrical_stimulation_site
+%                    if present, else trial_type, else type.
 %   .event_to_keep   values of event_field to keep. Default: all.
 %   .chan_list       channel labels to keep. Default: all.
-%   .drop_bad_events drop events whose BIDS 'status' column says 'bad'. Default true.
+%   .drop_bad_events drop events whose BIDS 'status' is 'bad'. Default true.
 %
-% Cancelling either dialog returns the dataset unmodified with com empty,
-% which tells EEGLAB not to store a half-processed dataset.
+% Provenance: every event placed from an events.tsv carries tsv_row, its row
+% in that file, and so does every epoch made from it (EEG.epoch(k).eventtsv_row).
+% EEG.ieeglab.opt.events holds exactly the rows still represented in EEG.event,
+% linked by tsv_row rather than by position, so sorting, 'boundary' events and
+% later deletions cannot misalign them.
 %
-% Example (headless):
-%   EEG = ieeglab_load(EEG, struct('event_field','electrical_stimulation_site'));
+% Cancelling either dialog returns the dataset unmodified with com empty.
 %
 % Cedric Cannard, iEEGLAB, 2025-2026
 
@@ -38,19 +40,29 @@ if ndims(EEG.data) ~= 3 && (~isfield(EEG,'trials') || isempty(EEG.trials) || EEG
     EEG.trials = 1;
 end
 
+% Labels with leading/trailing whitespace would match nothing downstream
+lab = {EEG.chanlocs.labels};
+trimmed = strtrim(lab);
+if ~isequal(lab, trimmed)
+    warning('ieeglab_load:labelWhitespace', ...
+        'Trimming leading/trailing whitespace from %d channel label(s).', nnz(~strcmp(lab, trimmed)));
+    [EEG.chanlocs.labels] = trimmed{:};
+end
+
 % ---------- which files ----------
-auto = struct('elec_tsv', local_bids_sibling(EEG, 'electrodes'), ...
-              'events_tsv', local_bids_sibling(EEG, 'events'), ...
-              'channels_tsv', local_bids_sibling(EEG, 'channels'));
+auto = struct('elec_tsv', ieeglab_bids_sibling(EEG, 'electrodes'), ...
+              'events_tsv', ieeglab_bids_sibling(EEG, 'events'), ...
+              'channels_tsv', ieeglab_bids_sibling(EEG, 'channels'));
 if interactive
     [g, wasCanceled] = ieeglab_gui_load1(EEG.filepath, auto);
     if wasCanceled || isempty(g), return; end
     opt.elec_tsv = g.elec_tsv; opt.events_tsv = g.events_tsv; opt.channels_tsv = g.channels_tsv;
 else
     for f = {'elec_tsv','events_tsv','channels_tsv'}
-        if ~isfield(opt, f{1}) || strcmpi(opt.(f{1}), 'auto')
+        if ~isfield(opt, f{1}) || (ischar(opt.(f{1})) || isstring(opt.(f{1}))) && strcmpi(opt.(f{1}), 'auto')
             opt.(f{1}) = auto.(f{1});
         end
+        opt.(f{1}) = char(opt.(f{1}));
     end
 end
 if ~isfield(opt,'drop_bad_events') || isempty(opt.drop_bad_events), opt.drop_bad_events = true; end
@@ -59,8 +71,6 @@ if ~isfield(opt,'drop_bad_events') || isempty(opt.drop_bad_events), opt.drop_bad
 elecs = [];
 if ~isempty(opt.elec_tsv)
     elecs = readtable(opt.elec_tsv, 'FileType', 'text', 'Delimiter', '\t');
-    % Properties.VariableNames, not fieldnames: fieldnames on a table also
-    % returns Properties/Row/Variables.
     vn = elecs.Properties.VariableNames;
     missingCols = setdiff({'x','y','z'}, lower(vn));
     if ~isempty(missingCols)
@@ -70,19 +80,19 @@ if ~isempty(opt.elec_tsv)
              strjoin(upper(missingCols), '/'), strjoin(vn, ', '));
         elecs = [];
     else
-        xyz = elecs{:, ismember(lower(vn), {'x','y','z'})};
-        if isempty(xyz) || all(~isfinite(xyz(:)))
+        % Text columns (all 'n/a', comma decimals) are parsed, not assumed numeric
+        xyz = local_numeric(elecs(:, ismember(lower(vn), {'x','y','z'})));
+        if all(~isfinite(xyz(:)))
             warning('ieeglab_load:emptyCoordinates', ...
-                'The X/Y/Z columns of the electrodes file are empty or all non-finite.');
+                'The x/y/z columns of %s hold no finite value (all n/a?). Continuing without them.', local_short(opt.elec_tsv));
             elecs = [];
         end
     end
 end
 
 % ---------- events ----------
-% events_from_tsv records the source: only a BIDS table has an 'onset' column
-% in seconds, so only that case is re-injected into EEG.event.
 opt.events_from_tsv = false;
+if isfield(opt,'events'), opt = rmfield(opt, 'events'); end
 if ~isempty(opt.events_tsv)
     events = readtable(opt.events_tsv, 'FileType', 'text', 'Delimiter', '\t');
     fprintf('%d events read from %s\n', height(events), local_short(opt.events_tsv));
@@ -92,26 +102,33 @@ if ~isempty(opt.events_tsv)
              'needed to place events in the recording.\nColumns found: %s'], ...
              strjoin(events.Properties.VariableNames, ', '));
     end
-    late = events.onset > EEG.xmax;
-    if any(late)
-        warning('ieeglab_load:eventsBeyondData', ...
-            'Removing %d events whose onset is after the end of the recording (%.1f s).', nnz(late), EEG.xmax);
-        events(late,:) = [];
+    events.tsv_row = (1:height(events))';
+    events.onset = local_numeric(events(:, 'onset'));
+    % Only events that fall inside the recording can be placed. BIDS allows
+    % negative onsets (before the first sample) and n/a onsets; drop them here,
+    % explicitly, instead of letting eeg_checkset remove them from EEG.event
+    % alone and leave the table one row out of step.
+    lastOnset = (EEG.pnts - 1) / EEG.srate;
+    bad = ~isfinite(events.onset) | events.onset < 0 | events.onset > lastOnset;
+    if any(bad)
+        warning('ieeglab_load:eventsOutsideData', ...
+            'Dropping %d event(s) whose onset is n/a or outside the recording [0 %.2f] s (rows %s).', ...
+            nnz(bad), lastOnset, mat2str(events.tsv_row(bad)'));
+        events(bad,:) = [];
     end
-    % Clinician/annotator trial rejection: BIDS events 'status' good/bad
     if opt.drop_bad_events && ismember('status', events.Properties.VariableNames)
         st = lower(strtrim(string(events.status)));
-        bad = st == "bad";
-        if any(bad)
-            fprintf('Dropping %d/%d events marked status=bad in the events file.\n', nnz(bad), numel(bad));
-            events(bad,:) = [];
+        isBadEv = st == "bad";
+        if any(isBadEv)
+            fprintf('Dropping %d/%d events marked status=bad in the events file.\n', nnz(isBadEv), numel(isBadEv));
+            events(isBadEv,:) = [];
         end
     end
     opt.events = events;
     opt.events_from_tsv = true;
 elseif isfield(EEG,'event') && ~isempty(EEG.event)
     fprintf('No events file; using the %d events already in the dataset.\n', numel(EEG.event));
-    opt.events = struct2table(EEG.event, 'AsArray', true);
+    opt.events = struct2table(EEG.event, 'AsArray', true);   % lets the dialog list their fields
 else
     fprintf('No events: continuous mode.\n');
 end
@@ -131,7 +148,7 @@ end
 
 % ---------- clinician bad-channel labels: mark only ----------
 if ~isempty(opt.channels_tsv) || ~isempty(elecs)
-    [EEG, badT] = ieeglab_bad_channels(EEG, struct('channels_tsv', local_or(opt.channels_tsv, ''), ...
+    [EEG, badT] = ieeglab_bad_channels(EEG, struct('channels_tsv', opt.channels_tsv, ...
         'elec_tsv', local_or_table(elecs), 'action', 'mark', 'drop_bad_stim_sites', false, ...
         'auto_detect', false, 'verbose', true));
     opt.bad_labels  = cellstr(badT.label(badT.status == "bad"));
@@ -146,148 +163,234 @@ if interactive
         EEG = EEG_in;          % get_elec_coor already rewrote chanlocs
         return
     end
-else
-    if isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) && opt.events_from_tsv ...
-            && (~isfield(opt,'event_field') || isempty(opt.event_field))
-        opt.event_field = local_default_event_field(opt.events);
-    end
+elseif isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) ...
+        && (~isfield(opt,'event_field') || isempty(opt.event_field))
+    [opt.event_field, opt.events] = local_default_event_field(opt.events);
 end
+if ~isfield(opt,'event_field'), opt.event_field = ''; end
+opt.event_field = char(opt.event_field);
 
-% ---------- inject TSV events ----------
-if isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) && opt.events_from_tsv
-    col = opt.event_field;
-    if ~ismember(col, opt.events.Properties.VariableNames)
-        error('ieeglab_load:badEventField', ...
-            'Event field "%s" is not a column of the events file. Available: %s', ...
-            col, strjoin(opt.events.Properties.VariableNames, ', '));
-    end
-    ty = local_to_str(opt.events.(col));
-    missing = ty == "" | lower(ty) == "n/a";
-    if any(missing)
-        fprintf('Dropping %d/%d events with no value in "%s".\n', nnz(missing), numel(missing), col);
-        opt.events(missing,:) = [];
-        ty(missing) = [];
-    end
-    % Sort by onset so events.tsv row k, EEG.event k and EEG.urevent k are the
-    % same event - eeg_checkset would otherwise re-sort EEG.event alone.
-    [~, order] = sort(opt.events.onset);
-    opt.events = opt.events(order,:);
-    ty = ty(order);
-    lat = opt.events.onset;
-    hasDur = ismember('duration', opt.events.Properties.VariableNames);
-
-    % Replace existing events wholesale so no stale event or field survives.
-    EEG.event = [];
-    EEG.urevent = [];
-    for iEv = 1:numel(ty)
-        EEG.event(iEv).type    = char(ty(iEv));
-        EEG.event(iEv).latency = lat(iEv) * EEG.srate + 1;     % samples, 1-based
-        if hasDur
-            d = opt.events.duration(iEv);
-            if iscell(d), d = str2double(d); end
-            if isnumeric(d) && isfinite(d), EEG.event(iEv).duration = d * EEG.srate; end
-        end
-    end
-    fprintf('%d events placed using column "%s".\n', numel(ty), col);
-    EEG = eeg_checkset(EEG, 'eventconsistency');
-    % urevent keeps the original event index through epoching and trial
-    % removal, so a trial can always be traced to its events.tsv row.
-    EEG = eeg_checkset(EEG, 'makeur');
+% ---------- place the events ----------
+if opt.events_from_tsv && isfield(opt,'events') && ~isempty(opt.events)
+    EEG = local_place_tsv_events(EEG, opt);
+elseif ~opt.events_from_tsv && isfield(EEG,'event') && ~isempty(EEG.event) ...
+        && ~isempty(opt.event_field) && ~strcmp(opt.event_field, 'type')
+    EEG = local_retype_dataset_events(EEG, opt.event_field);
 end
-EEG = eeg_checkset(EEG, 'eventconsistency');
-EEG = eeg_checkset(EEG);
+opt = local_align_table(EEG, opt);
 
 % ---------- keep only events of interest ----------
 if isfield(opt,'event_to_keep') && ~isempty(opt.event_to_keep) && isfield(EEG,'event') && ~isempty(EEG.event)
-    keep = ismember(string({EEG.event.type}), string(opt.event_to_keep));
-    fprintf('Keeping %d/%d events of interest (%s).\n', nnz(keep), numel(keep), ...
-        strjoin(cellstr(string(opt.event_to_keep)), ', '));
-    if ~any(keep)
+    want = string(opt.event_to_keep);
+    types = string({EEG.event.type});
+    isB = strcmpi(types, 'boundary');
+    keep = ismember(types, want) | isB;
+    fprintf('Keeping %d/%d events of interest (%s).\n', nnz(keep & ~isB), nnz(~isB), strjoin(cellstr(want), ', '));
+    if ~any(keep & ~isB)
         error('ieeglab_load:noEventsKept', ...
             'None of the requested event types (%s) are present. Types available: %s', ...
-            strjoin(cellstr(string(opt.event_to_keep)), ', '), strjoin(unique({EEG.event.type}), ', '));
+            strjoin(cellstr(want), ', '), strjoin(unique(cellstr(types(~isB))), ', '));
     end
     EEG.event(~keep) = [];
-    if isfield(opt,'events') && istable(opt.events) && height(opt.events) == numel(keep)
-        opt.events(~keep,:) = [];
-    end
     EEG = eeg_checkset(EEG, 'eventconsistency');
+    opt = local_align_table(EEG, opt);
 end
 
 % ---------- keep only channels of interest ----------
+removedNow = {};
 if isfield(opt,'chan_list') && ~isempty(opt.chan_list)
-    want = cellstr(opt.chan_list);
+    want = cellstr(string(opt.chan_list));
     allLabels = {EEG.chanlocs.labels};
     unknown = setdiff(want, allLabels);
     if ~isempty(unknown)
         warning('ieeglab_load:unknownChannels', 'Ignoring channel names not in the dataset: %s', strjoin(unknown, ', '));
     end
-    removed = setdiff(allLabels, want, 'stable');
-    if ~isempty(removed) && numel(removed) < numel(allLabels)
-        fprintf('Removing %d/%d channels not selected: %s\n', numel(removed), numel(allLabels), strjoin(removed, ', '));
-        EEG = pop_select(EEG, 'nochannel', removed);
-        % CCEP: drop trials whose stimulated pair used a removed contact. Exact
-        % token match - contains() also matched 'RA10-RA9' when removing 'RA1'.
-        if isfield(EEG,'event') && ~isempty(EEG.event)
-            drop = ieeglab_events_using(EEG.event, removed);
-            if any(drop)
-                fprintf('Removing %d/%d stimulation events whose pair uses a removed contact.\n', nnz(drop), numel(drop));
-                EEG.event(drop) = [];
-                if isfield(opt,'events') && istable(opt.events) && height(opt.events) == numel(drop)
-                    opt.events(drop,:) = [];
-                end
-                EEG = eeg_checkset(EEG, 'eventconsistency');
-            end
-        end
-    elseif numel(removed) == numel(allLabels)
+    removedNow = setdiff(allLabels, want, 'stable');
+    if numel(removedNow) == numel(allLabels)
         error('ieeglab_load:noChannelsSelected', 'None of the requested channels are in the dataset.');
+    elseif ~isempty(removedNow)
+        fprintf('Removing %d/%d channels not selected: %s\n', numel(removedNow), numel(allLabels), strjoin(removedNow, ', '));
+        EEG = pop_select(EEG, 'nochannel', removedNow);
+    end
+end
+if ~isfield(EEG,'ieeglab') || isempty(EEG.ieeglab), EEG.ieeglab = struct(); end
+prevRemoved = {};
+if isfield(EEG.ieeglab,'removed_channels'), prevRemoved = EEG.ieeglab.removed_channels; end
+allRemoved = unique([prevRemoved(:); removedNow(:)], 'stable');
+if ~isempty(removedNow), EEG.ieeglab.removed_channels = allRemoved; end
+
+% CCEP: a stimulation whose pair uses a contact no longer in the montage -
+% removed now or in an earlier load - is dropped (exact token match).
+if ~isempty(allRemoved) && isfield(EEG,'event') && ~isempty(EEG.event)
+    drop = ieeglab_events_using(EEG.event, allRemoved);
+    if any(drop)
+        fprintf('Removing %d/%d stimulation events whose pair uses a removed contact.\n', nnz(drop), numel(drop));
+        EEG.event(drop) = [];
+        EEG = eeg_checkset(EEG, 'eventconsistency');
+        opt = local_align_table(EEG, opt);
     end
 end
 
-if ~isfield(EEG,'ieeglab') || isempty(EEG.ieeglab), EEG.ieeglab = struct(); end
+% ---------- store ----------
+% Options owned by the loader describe THIS call only; stale selections from a
+% previous load are not carried over (the dataset would contradict them).
+owned = {'elec_tsv','events_tsv','channels_tsv','event_field','event_to_keep','chan_list', ...
+         'drop_bad_events','events','events_from_tsv','bad_labels','bad_reasons','elec_labels'};
+base = struct();
 if isfield(EEG.ieeglab,'opt') && isstruct(EEG.ieeglab.opt)
-    base = EEG.ieeglab.opt; fns = fieldnames(opt);
-    for k = 1:numel(fns), base.(fns{k}) = opt.(fns{k}); end
-    opt = base;
+    base = rmfield(EEG.ieeglab.opt, intersect(fieldnames(EEG.ieeglab.opt), owned));
 end
-EEG.ieeglab.opt = opt;
+fns = fieldnames(opt);
+for k = 1:numel(fns), base.(fns{k}) = opt.(fns{k}); end
+EEG.ieeglab.opt = base;
 EEG = eeg_checkset(EEG);
 
-com = sprintf('EEG = ieeglab_load(EEG, %s);', local_literal(opt));
+applied = struct('elec_tsv', opt.elec_tsv, 'events_tsv', opt.events_tsv, 'channels_tsv', opt.channels_tsv, ...
+                 'event_field', opt.event_field, 'drop_bad_events', logical(opt.drop_bad_events));
+if isfield(opt,'event_to_keep') && ~isempty(opt.event_to_keep), applied.event_to_keep = cellstr(string(opt.event_to_keep)); end
+if isfield(opt,'chan_list') && ~isempty(opt.chan_list), applied.chan_list = cellstr(string(opt.chan_list)); end
+com = sprintf('EEG = ieeglab_load(EEG, %s);', ieeglab_literal(applied));
 end
 
 % ======================= helpers =======================
 
-function p = local_bids_sibling(EEG, suffix)
-% BIDS sidecar next to the dataset file. electrodes.tsv is per session (no
-% task/run entities); events and channels are per run.
-p = '';
-if ~isfield(EEG,'filepath') || isempty(EEG.filepath) || ~isfolder(EEG.filepath), return; end
-d = EEG.filepath;
-stem = '';
-if isfield(EEG,'filename') && ~isempty(EEG.filename)
-    stem = regexprep(EEG.filename, '_(ieeg|eeg)\.[^.]+$', '');
+function EEG = local_place_tsv_events(EEG, opt)
+col = opt.event_field;
+T = opt.events;
+if ~ismember(col, T.Properties.VariableNames)
+    error('ieeglab_load:badEventField', ...
+        'Event field "%s" is not a column of the events file. Available: %s', ...
+        col, strjoin(T.Properties.VariableNames, ', '));
 end
-cands = {};
-if ~isempty(stem)
-    cands{end+1} = fullfile(d, [stem '_' suffix '.tsv']);
-    ses = regexp(stem, '^(sub-[^_]+(_ses-[^_]+)?)', 'tokens', 'once');
-    if ~isempty(ses), cands{end+1} = fullfile(d, [ses{1} '_' suffix '.tsv']); end
+ty = local_to_str(T.(col));
+missing = ty == "" | lower(ty) == "n/a";
+if any(missing)
+    fprintf('Dropping %d/%d events with no value in "%s".\n', nnz(missing), numel(missing), col);
+    T(missing,:) = []; ty(missing) = [];
 end
-for i = 1:numel(cands)
-    if exist(cands{i}, 'file') == 2, p = cands{i}; return; end
-end
-g = dir(fullfile(d, ['*_' suffix '.tsv']));
-if numel(g) == 1, p = fullfile(g.folder, g.name); end
+hasDur = ismember('duration', T.Properties.VariableNames);
+dur = [];
+if hasDur, dur = local_numeric(T(:, 'duration')); end
+
+% EEGLAB 'boundary' events mark discontinuities (EDF+D gaps, concatenated
+% runs, removed segments). They are kept, so pop_epoch still rejects epochs
+% that straddle one.
+bnd = [];
+if isfield(EEG,'event') && ~isempty(EEG.event) && isfield(EEG.event,'type')
+    isB = strcmpi(cellfun(@(x) char(string(x)), {EEG.event.type}, 'UniformOutput', false), 'boundary');
+    bnd = EEG.event(isB);
+    if ~isempty(bnd) && isfield(bnd,'duration')
+        d = [bnd.duration];
+        if any(d(isfinite(d)) > 0)
+            warning('ieeglab_load:boundaryWithRemovedData', ...
+                ['The dataset has boundary events that mark removed data (duration > 0). ' ...
+                 'events.tsv onsets are relative to the ORIGINAL recording and may no longer ' ...
+                 'map to the right samples after data were removed.']);
+        end
+    end
 end
 
-function f = local_default_event_field(T)
+ev = struct('type', cellstr(ty)', 'latency', num2cell(T.onset' * EEG.srate + 1), ...
+            'tsv_row', num2cell(T.tsv_row'));
+if hasDur
+    for k = 1:numel(ev)
+        if isfinite(dur(k)), ev(k).duration = dur(k) * EEG.srate; else, ev(k).duration = 0; end
+    end
+end
+if ~isempty(bnd)
+    ev = local_concat_events(ev, bnd);
+end
+EEG.event = ev;
+EEG.urevent = [];
+EEG = eeg_checkset(EEG, 'eventconsistency');
+EEG = eeg_checkset(EEG, 'makeur');
+fprintf('%d events placed using column "%s".\n', numel(ty), col);
+end
+
+function EEG = local_retype_dataset_events(EEG, field)
+% Events already in the dataset (e.g. from EEGLAB's BIDS importer, which puts
+% trial_type in EEG.event.type and every other column in its own field): use
+% the chosen field as the event type, as the events.tsv path does.
+if ~isfield(EEG.event, field)
+    error('ieeglab_load:badEventField', 'Event field "%s" is not a field of EEG.event. Fields: %s', ...
+        field, strjoin(fieldnames(EEG.event)', ', '));
+end
+n = numel(EEG.event); drop = false(1, n);
+for k = 1:n
+    t = char(string(EEG.event(k).type));
+    if strcmpi(t, 'boundary'), continue; end
+    v = EEG.event(k).(field);
+    if isnumeric(v) || islogical(v), v = num2str(v); end
+    v = strtrim(char(string(v)));
+    if isempty(v) || strcmpi(v, 'n/a')
+        drop(k) = true;
+        continue
+    end
+    EEG.event(k).orig_type = t;
+    EEG.event(k).type = v;
+end
+if any(drop)
+    fprintf('Dropping %d/%d events with no value in field "%s".\n', nnz(drop), n, field);
+    EEG.event(drop) = [];
+end
+EEG = eeg_checkset(EEG, 'eventconsistency');
+fprintf('Event types taken from field "%s".\n', field);
+end
+
+function opt = local_align_table(EEG, opt)
+% Keep opt.events to exactly the events.tsv rows still in EEG.event, in the
+% same order, linked by tsv_row.
+if ~opt.events_from_tsv || ~isfield(opt,'events') || ~istable(opt.events), return; end
+if isempty(EEG.event) || ~isfield(EEG.event, 'tsv_row')
+    opt.events = opt.events([],:);
+    return
+end
+r = [EEG.event.tsv_row];
+r = r(isfinite(r));
+[tf, loc] = ismember(r, opt.events.tsv_row);
+opt.events = opt.events(loc(tf), :);
+end
+
+function ev = local_concat_events(a, b)
+% Concatenate two event struct arrays whose fields differ.
+f = union(fieldnames(a), fieldnames(b), 'stable');
+for i = 1:numel(f)
+    if ~isfield(a, f{i}), [a.(f{i})] = deal([]); end
+    if ~isfield(b, f{i}), [b.(f{i})] = deal([]); end
+end
+a = orderfields(a, f); b = orderfields(b, f);
+for k = 1:numel(b), if isempty(b(k).tsv_row), b(k).tsv_row = NaN; end, end
+ev = [a(:); b(:)]';
+end
+
+function [f, T] = local_default_event_field(T)
 vn = T.Properties.VariableNames;
 for c = {'electrical_stimulation_site','trial_type','type','value'}
     if ismember(c{1}, vn), f = c{1}; return; end
 end
-rest = setdiff(vn, {'onset','duration','sample','sample_start'}, 'stable');
-f = rest{1};
+rest = setdiff(vn, {'onset','duration','sample','sample_start','tsv_row','latency','urevent'}, 'stable');
+if isempty(rest)
+    % BIDS only requires onset and duration; give every event one generic type
+    warning('ieeglab_load:noEventColumn', ...
+        'The events file has no column naming the events (only %s). Using the type ''event'' for all.', strjoin(vn, ', '));
+    T.event_type = repmat({'event'}, height(T), 1);
+    f = 'event_type';
+else
+    f = rest{1};
+end
+end
+
+function x = local_numeric(T)
+% Numeric matrix from table columns that may be text ('n/a', comma decimals).
+x = nan(height(T), width(T));
+for j = 1:width(T)
+    v = T{:, j};
+    if isnumeric(v) || islogical(v)
+        x(:, j) = double(v);
+    else
+        x(:, j) = str2double(strrep(string(v), ',', '.'));
+    end
+end
 end
 
 function s = local_to_str(x)
@@ -309,33 +412,10 @@ end
 s = s(:);
 end
 
-function v = local_or(x, d)
-if isempty(x), v = d; else, v = x; end
-end
-
 function v = local_or_table(t)
 if isempty(t), v = ''; else, v = t; end
 end
 
 function s = local_short(p)
 [~, n, e] = fileparts(char(p)); s = [n e];
-end
-
-function s = local_literal(opt)
-% Re-runnable struct literal for the EEGLAB history (file choices and selections).
-keys = {'elec_tsv','events_tsv','channels_tsv','event_field','event_to_keep','chan_list','drop_bad_events'};
-parts = {};
-for k = 1:numel(keys)
-    if ~isfield(opt, keys{k}), continue; end
-    v = opt.(keys{k});
-    if ischar(v) || isstring(v)
-        parts{end+1} = sprintf('''%s'',''%s''', keys{k}, strrep(char(v), '''', '''''')); %#ok<AGROW>
-    elseif iscell(v) && ~isempty(v)
-        q = cellfun(@(x) ['''' strrep(char(string(x)), '''', '''''') ''''], v, 'UniformOutput', false);
-        parts{end+1} = sprintf('''%s'',{{%s}}', keys{k}, strjoin(q, ',')); %#ok<AGROW>
-    elseif islogical(v) || isnumeric(v)
-        parts{end+1} = sprintf('''%s'',%s', keys{k}, mat2str(v)); %#ok<AGROW>
-    end
-end
-s = ['struct(' strjoin(parts, ', ') ')'];
 end

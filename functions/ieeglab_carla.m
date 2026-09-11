@@ -148,6 +148,17 @@ end
 
 % ---------------- response segment ----------------
 tmask = tt >= opts.winResp(1) & tt <= opts.winResp(2);
+% Rank on samples that are finite in every pool channel and trial. A single
+% all-NaN sample (e.g. a blanked stimulation window touching the ranking
+% window) otherwise made every covariance NaN, and the reference silently
+% collapsed to the first two channels.
+finiteT = reshape(all(all(isfinite(Vclean(poolIdx,:,:)), 1), 3), 1, []);
+nDropT = nnz(tmask & ~finiteT);
+tmask = tmask & finiteT;
+if nDropT > 0 && opts.verbose
+    warning('ieeglab_carla:nonFiniteSamples', ...
+        '%d sample(s) of the ranking window are NaN/Inf and were left out of the ranking.', nDropT);
+end
 if nnz(tmask) < 3
     error('ieeglab_carla:emptyWindow', ...
         'Response window [%g %g] s selects %d sample(s) of tt (range [%g %g] s). Widen it or check units.', ...
@@ -209,10 +220,19 @@ end
 stats.zMinMean = mean(stats.zMin, 1, 'omitnan');   % 1 x nPool x nboot
 
 % ---------------- pick the optimum ----------------
-if opts.sens && nTrs > 1
+zm = mean(stats.zMinMean, 3);
+stats.fallback = false;
+if all(isnan(zm))
+    % Nothing to optimise over: say so and use every pool channel (a plain CAR
+    % over the allowed channels) rather than an arbitrary pair.
+    warning('ieeglab_carla:noCriterion', ...
+        'The CARLA criterion could not be computed (all NaN); using all %d allowed channels as the reference.', nPool);
+    nOptimum = nPool;
+    stats.fallback = true;
+elseif opts.sens && nTrs > 1
     nOptimum = local_sensitive_optimum(stats, nPool, opts);
 else
-    [~, nOptimum] = max(mean(stats.zMinMean, 3));
+    [~, nOptimum] = max(zm);
 end
 nOptimum = max(nOptimum, min(opts.minCARsize, nPool));
 

@@ -26,6 +26,51 @@
   label matched, the loader relabelled every channel by TSV row and reported a
   100% match.
 
+### Adversarial audit — 48 confirmed findings, all fixed
+
+- **N1 significance ignored that the peak was searched for.** The z-score of
+  the largest deflection in the window was tested as if the latency were fixed.
+  p-values now come from a sign-flip permutation test whose statistic is the
+  same maximum over the window (exact for few trials), FDR across contacts.
+  The z >= 3.4 rule is still available as `method = 'sd'`.
+- **CRP significance was biased by the choice of response duration.** tau_R
+  is the argmax of the projection profile; a t-test at that duration rejected
+  far above its nominal rate on noise. Replaced by a permutation null that
+  repeats the selection.
+- **Bad channels:** indices refer to the dataset passed in (they were applied
+  after other channels had been removed, hitting the wrong contact); trials
+  that stimulate a marked-bad contact are always dropped, not only when an
+  unrelated option is on; `exclude_soz` removes the contacts as its label says.
+- **Event selection:** `boundary` markers are never deleted (epochs spanning
+  removed data were being kept); a filter given as text no longer matches
+  single characters and silently empties the dataset; rare conditions are
+  counted per site, so `ROP2-ROP4` and `ROP4-ROP2` are one site.
+- **Re-running preprocessing** no longer re-applies steps stored by an earlier
+  run (a second high-pass, a second CARLA), and pre-1.0 option names stored on
+  a dataset no longer override explicit options.
+- **History lines replay.** Preprocessing, CCEP analysis, the matrix, export and
+  the electrode plot now return commands that reproduce the run without a
+  dialog (preprocessing previously returned a constant string).
+- **Blanking** works on every epoch of epoched data (it blanked only the first)
+  and `blank_method = 'nan'` survives filtering (the whole recording became NaN).
+- **Re-referencing:** the legacy variance-subset CAR reproduces the HAPwave code
+  exactly (block-wise means); non-CCEP data form one reference group instead of
+  one per condition; `EEG.ref` is set only when a reference was applied; CARLA
+  ranks on finite samples instead of collapsing to two channels.
+- **Connectivity matrix:** contacts never tested have NaN degree, not 0; a
+  matrix that no longer matches recomputed N1/CRP results is detected, and
+  export and plots refuse it.
+- **Export** works on datasets without clinician annotations, checks every
+  target before writing when `overwrite = false`, rejects unknown formats, and
+  writes amplitude/latency matrices for significant responses only.
+- **Electrode maps** show only significant responses for per-site metrics, and
+  latency maps leave out each contact's own stimulation trials (its artifact
+  dominated the map) and honour `'site'`.
+- **Loader:** BIDS sidecars are matched by entities, not by the first file in
+  the folder; events with `n/a`, negative or out-of-range onsets are dropped
+  explicitly; `boundary` events are kept; coordinates with comma decimals or
+  duplicate rows are handled.
+
 ### New
 
 - CCEP connectivity matrix (stimulation sites × contacts) with in/out degree,

@@ -73,8 +73,8 @@ opt = struct('apply_highpass',true,'highpass',0.5,'apply_notch',false,'apply_low
     'apply_ds',false,'apply_epoch',true,'epoch_window',[-500 1000],'apply_car',false, ...
     'apply_baseline',true,'baseline_period',[-500 -50],'plot',false,'verbose',false);
 [~, E] = evalc('ieeglab_preprocess(EEG, opt)');
-tr0 = arrayfun(@(r) local_trial_of_urevent(E, r), annotated);
-tc.assertFalse(any(isnan(tr0)), 'Annotated events must be traceable to trials through urevent.');
+tr0 = arrayfun(@(r) local_trial_of_tsv_row(E, ev.tsv_row(r)), annotated);
+tc.assertFalse(any(isnan(tr0)), 'Annotated events must be traceable to trials through tsv_row.');
 [~, ~, T] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false))');
 tc.verifyTrue(all(T.bad(tr0)), sprintf('Both clinician-annotated artifact trials (%s) should be flagged.', mat2str(tr0(:)')));
 opt.reject_trials = true;
@@ -82,14 +82,14 @@ opt.reject_trials = true;
 tc.verifyEqual(E2.trials, E.trials - nnz(T.bad), 'reject_trials in preprocess must remove exactly the flagged trials.');
 end
 
-function k = local_trial_of_urevent(E, r)
-% Trial whose time-locking event (latency 0) is original event r.
+function k = local_trial_of_tsv_row(E, row)
+% Trial whose time-locking event (latency 0) came from events.tsv row 'row'.
 k = NaN;
 for t = 1:E.trials
-    ue = E.epoch(t).eventurevent; lat = E.epoch(t).eventlatency;
-    if ~iscell(ue), ue = {ue}; lat = {lat}; end
+    rr = E.epoch(t).eventtsv_row; lat = E.epoch(t).eventlatency;
+    if ~iscell(rr), rr = {rr}; lat = {lat}; end
     [~, j] = min(cellfun(@(x) abs(double(x)), lat));
-    if isequal(double(ue{j}), r), k = t; return; end
+    if isequal(double(rr{j}), double(row)), k = t; return; end
 end
 end
 

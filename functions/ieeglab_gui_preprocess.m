@@ -40,9 +40,9 @@ choices.epoch_window      = [-500 900]; % ms
 choices.reject_trials     = false;      % automatic outlier-trial rejection
 
 % CAR (enabled by default IF events exist)
-choices.apply_acar        = true;
-choices.acar_fraction     = 0.20;
-choices.acar_timewin      = [15 500];   % ms
+choices.apply_car        = true;
+choices.car_fraction      = 0.25;
+choices.car_timewin       = [10 300];   % ms, as the CARLA reference implementation
 
 % Baseline (enabled by default IF events exist)
 choices.apply_baseline    = true;
@@ -93,7 +93,7 @@ end
 % If NO events: force these OFF and keep their controls disabled
 if ~haveEv
     choices.apply_epoch    = false;
-    choices.apply_acar     = false;
+    choices.apply_car     = false;
     choices.apply_baseline = false;
 end
 
@@ -117,11 +117,11 @@ cb_lp  = local_cb_toggle({'lbl_lowpass','lowpass'});
 % these depend on events
 if haveEv
     cb_seg = local_cb_toggle({'lbl_epoch','epoch_window','lbl_rej','reject_trials'});
-    cb_acar= local_cb_toggle({'acar_fraction','acar_timewin','lbl_acar_fraction','lbl_acar_timewin'});
+    cb_car= local_cb_toggle({'car_fraction','car_timewin','lbl_car_fraction','lbl_car_timewin'});
     cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period','lbl_bl_mode','bl_mode'});
 else
     cb_seg = @(h,~) set(h,'value',0);
-    cb_acar= @(h,~) set(h,'value',0);
+    cb_car= @(h,~) set(h,'value',0);
     cb_bl  = @(h,~) set(h,'value',0);
 end
 
@@ -132,7 +132,7 @@ onoff_no  = iff(choices.apply_notch,'on','off');
 onoff_lp  = iff(choices.apply_lowpass,'on','off');
 
 onoff_seg = iff(haveEv && choices.apply_epoch,'on','off');
-onoff_car = iff(haveEv && choices.apply_acar,'on','off');
+onoff_car = iff(haveEv && choices.apply_car,'on','off');
 onoff_bl  = iff(haveEv && choices.apply_baseline,'on','off');
 
 % -------------------------------------------------------------------------
@@ -276,14 +276,14 @@ append({'style' 'checkbox' 'tag' 'reject_trials' 'value' choices.reject_trials '
 
 % CAR
 append({'style' 'text' 'string' iff(isCCEP,'Re-referencing (CARLA, CCEP):','Re-referencing (common average):') 'horizontalalignment' 'left'});
-append({'style' 'checkbox' 'tag' 'apply_acar' 'value' choices.apply_acar ...
-        'string' 'Enable' 'callback' cb_acar 'enable' iff(haveEv,'on','off')});
+append({'style' 'checkbox' 'tag' 'apply_car' 'value' choices.apply_car ...
+        'string' 'Enable' 'callback' cb_car 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_fraction' 'string' 'Fraction of channels (legacy method only):' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'acar_fraction' 'string' num2str(choices.acar_fraction) 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_car_fraction' 'string' 'Fraction of channels (legacy method only):' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'edit' 'tag' 'car_fraction' 'string' num2str(choices.car_fraction) 'enable' onoff_car});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_timewin' 'string' 'Response window for ranking [ms]:' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'acar_timewin' 'string' sprintf('%d %d',choices.acar_timewin) 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_car_timewin' 'string' 'Response window for ranking [ms]:' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'edit' 'tag' 'car_timewin' 'string' sprintf('%d %d',choices.car_timewin) 'enable' onoff_car});
 
 % Baseline
 append({'style' 'text' 'string' 'Remove baseline:' 'horizontalalignment' 'left'});
@@ -362,21 +362,18 @@ if isfield(out,'epoch_window') && ~isempty(out.epoch_window)
     tw = sscanf(out.epoch_window,'%f'); if numel(tw)>=2, choices.epoch_window = tw(1:2).'; end
 end
 
-choices.apply_acar = isfield(out,'apply_acar') && logical(out.apply_acar);
-if isfield(out,'acar_fraction') && ~isempty(out.acar_fraction)
-    choices.acar_fraction = max(0, min(1, str2double(out.acar_fraction)));
+choices.apply_car = isfield(out,'apply_car') && logical(out.apply_car);
+if isfield(out,'car_fraction') && ~isempty(out.car_fraction)
+    choices.car_fraction = max(0, min(1, str2double(out.car_fraction)));
 end
-if isfield(out,'acar_timewin') && ~isempty(out.acar_timewin)
-    tw = sscanf(out.acar_timewin,'%f'); if numel(tw)>=2, choices.acar_timewin = tw(1:2).'; end
+if isfield(out,'car_timewin') && ~isempty(out.car_timewin)
+    tw = sscanf(out.car_timewin,'%f'); if numel(tw)>=2, choices.car_timewin = tw(1:2).'; end
 end
 
 % Map the dialog's controls onto the option names ieeglab_car actually reads.
 % The GUI always selects CARLA; the legacy fixed-fraction method is reachable
 % from the command line with car_method='varsubset'.
-choices.apply_car   = choices.apply_acar;
 choices.car_method  = iff(isCCEP, 'carla', 'car');
-choices.car_timewin = choices.acar_timewin;
-choices.car_fraction = choices.acar_fraction;
 
 choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
 bl_labels = {'median','mean','trimmed mean'};
@@ -392,7 +389,7 @@ choices.baseline_mode = bm_labels{min(max(bm_idx,1),2)};
 % FINAL consistency: if no events, force these OFF (ignores any GUI value)
 if ~haveEv
     choices.apply_epoch    = false;
-    choices.apply_acar     = false;
+    choices.apply_car     = false;
     choices.apply_baseline = false;
 end
 

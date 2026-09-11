@@ -7,24 +7,37 @@ function [EEG, com] = ieeglab_preprocess(EEG, opt)
 %   [EEG, com] = ieeglab_preprocess(EEG, opt)   % headless, no dialog
 %
 % Passing opt skips the dialog entirely, which is what makes the pipeline
-% scriptable and testable. Any field left unset falls back to the same default
-% the GUI would have shown. See ieeglab_gui_preprocess for the full list; the
-% commonly used ones are:
+% scriptable and testable. The commonly used fields are:
 %
 %   .apply_highpass / .highpass        logical / Hz
 %   .apply_notch    / .notch          logical / Hz (scalar or vector)
 %   .apply_lowpass  / .lowpass        logical / Hz
 %   .filter_type                      1 = noncausal zero-phase, 2 = minimum phase
+%   .apply_ds       / .downsample     logical / Hz
+%   .event_filters                    struct: field = event 'type' or an events.tsv
+%                                     column, value = the values to keep
 %   .apply_epoch    / .epoch_window   logical / [start stop] ms
 %   .apply_car      / .car_method     logical / 'carla' | 'varsubset' | 'car'
 %   .apply_baseline / .baseline_period logical / [start stop] ms
-%   .remove_rare_cond / .min_trials   logical / integer
+%   .remove_rare_cond / .min_trials   logical / integer, counted per stimulation site
 %   .remove_no_coords                 logical
-%   .remove_bad_channels / .exclude_soz  clinician-marked channels (see ieeglab_bad_channels)
+%   .remove_bad_channels              remove clinician-marked channels (else they are
+%                                     only marked, and kept out of reference and stats)
+%   .exclude_soz / .exclude_irritative  remove seizure-onset / irritative-zone contacts
+%   .bad_channels                     labels or indices (of the dataset passed in)
 %   .apply_blank / .blank_window      stimulation-artifact blanking (CCEP)
 %   .reject_trials / .reject_z        automatic outlier-trial rejection (ieeglab_reject_trials)
-%   .plot                             logical, draw before/after figures.
-%                                     Defaults to false in the headless path.
+%   .plot                             draw before/after figures. Default false headless.
+%
+% Which steps run is decided by the call: in a headless call, step switches
+% (apply_*, remove_*, exclude_*, event_filters, bad_channels, reject_trials,
+% downsample, plot) come only from opt. Parameters such as file paths and
+% filter settings saved on the dataset by an earlier run are reused, but a
+% saved switch never re-applies its step - calling ieeglab_preprocess again to
+% change the baseline does not high-pass or re-reference the data a second time.
+%
+% The returned com (EEGLAB history) carries every option used, so it replays
+% the same run headlessly.
 %
 % Example (headless):
 %   EEG = ieeglab_preprocess(EEG, struct('apply_highpass',true,'highpass',0.5, ...
@@ -36,162 +49,187 @@ function [EEG, com] = ieeglab_preprocess(EEG, opt)
 com = '';
 interactive = (nargin < 2 || isempty(opt));
 
+stepFields = {'apply_ds','downsample','apply_highpass','apply_notch','apply_lowpass', ...
+    'apply_epoch','apply_car','apply_acar','apply_baseline','apply_blank', ...
+    'remove_rare_cond','remove_no_coords','remove_bad_channels','exclude_soz', ...
+    'exclude_irritative','auto_bad_channels','bad_channels','reject_trials', ...
+    'event_filters','plot'};
+
+stored = struct();
+if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isstruct(EEG.ieeglab.opt)
+    stored = local_aliases(EEG.ieeglab.opt);
+    stored = rmfield(stored, intersect(fieldnames(stored), stepFields));
+end
+
 if interactive
-    % GUI to get user choices
-    [EEG, wasCancelled] = ieeglab_gui_preprocess(EEG);
+    % The dialog starts from its own defaults; hand it only the saved parameters.
+    EEGd = EEG;
+    EEGd.ieeglab.opt = stored;
+    [EEGd, wasCancelled] = ieeglab_gui_preprocess(EEGd);
     if wasCancelled
         return  % user aborted, exit gracefully
     end
-    opt = EEG.ieeglab.opt;
+    EEG = EEGd;
+    opt = local_aliases(EEG.ieeglab.opt);
+    if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = true; end
 else
-    % Merge the supplied options over anything already on the dataset, so a
-    % scripted call can override just the fields it cares about.
-    if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isstruct(EEG.ieeglab.opt)
-        base = EEG.ieeglab.opt;
-        f = fieldnames(opt);
-        for ii = 1:numel(f), base.(f{ii}) = opt.(f{ii}); end
-        opt = base;
-    end
+    base = stored;
+    userOpt = local_aliases(opt);
+    f = fieldnames(userOpt);
+    for ii = 1:numel(f), base.(f{ii}) = userOpt.(f{ii}); end
+    opt = base;
     if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = false; end
-    EEG.ieeglab.opt = opt;
 end
-if ~isfield(opt,'plot') || isempty(opt.plot), opt.plot = interactive; end
 if ~isfield(opt,'verbose') || isempty(opt.verbose), opt.verbose = true; end
 
-% Accept the pre-1.0 field names for re-referencing
-if isfield(opt,'apply_acar') && ~isfield(opt,'apply_car'), opt.apply_car = opt.apply_acar; end
+% Channel indices refer to the dataset as passed in. Resolve them to labels now,
+% before any step removes a channel and shifts the indices.
+opt.bad_channels = local_index_to_labels(local_opt(opt,'bad_channels',[]), {EEG.chanlocs.labels});
+EEG.ieeglab.opt = local_persist(opt);
 
-% % --- Preconditions ---
-% if ~isfield(opt,'events') || ~istable(opt.events) || isempty(opt.events) ...
-%         || ~isfield(opt,'event_filters') || isempty(fieldnames(opt.event_filters))
-%     % nothing to do
-%     return;
-% end
-
+% ------------------------------------------------------------------
 % Event selection. Filters name either 'type' (the EEGLAB event type) or a
-% column of the BIDS events table; both branches now actually delete the
-% non-matching events, and opt.events is kept row-aligned with EEG.event.
-if isfield(opt,'event_filters') && isstruct(opt.event_filters) && ~isempty(fieldnames(opt.event_filters))
+% column of the BIDS events table, linked to each event by its tsv_row.
+% 'boundary' markers are never removed: pop_epoch needs them to reject
+% epochs that span removed data.
+% ------------------------------------------------------------------
+if isfield(opt,'event_filters') && isstruct(opt.event_filters) && ~isempty(fieldnames(opt.event_filters)) ...
+        && isfield(EEG,'event') && ~isempty(EEG.event)
 
     ev_choices = opt.event_filters;
     vars       = fieldnames(ev_choices);
     haveTbl    = isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events);
-
-    if haveTbl && height(opt.events) ~= numel(EEG.event)
-        warning('ieeglab_preprocess:eventMismatch', ...
-            ['The BIDS events table has %d rows but the dataset has %d events, so table ' ...
-             'columns cannot be used for filtering. Filtering on event type only.'], ...
-            height(opt.events), numel(EEG.event));
-        haveTbl = false;
-    end
+    nReal0     = nnz(~strcmpi(local_types(EEG), 'boundary'));
 
     for iVar = 1:numel(vars)
         varName = vars{iVar};
         valsToKeep = ev_choices.(varName);
+        if ischar(valsToKeep) || isstring(valsToKeep), valsToKeep = cellstr(valsToKeep); end
+        if isnumeric(valsToKeep) || islogical(valsToKeep), valsToKeep = num2cell(valsToKeep); end
         if isempty(valsToKeep), continue; end
         if isempty(EEG.event), break; end
 
+        types = local_types(EEG);
+        isB = strcmpi(types, 'boundary');
         if strcmpi(varName, 'type') || strcmpi(varName, 'var_type')
-            ev_values = string({EEG.event.type});
+            ev_values = types;
         elseif haveTbl && ismember(varName, opt.events.Properties.VariableNames)
-            ev_values = string(opt.events.(varName));
+            ev_values = local_table_values(EEG, opt.events, varName);
+            if all(ismissing(ev_values(~isB)))
+                warning('ieeglab_preprocess:eventLink', ...
+                    ['Cannot link the events table to the dataset''s events (no tsv_row and different ' ...
+                     'row counts), so the "%s" filter is ignored. Reload with ieeglab_load.'], varName);
+                continue
+            end
         else
             warning('ieeglab_preprocess:unknownFilterField', ...
                 'Event filter field "%s" is neither the event type nor a column of the events table; ignoring it.', varName);
             continue
         end
 
-        % string/ismember rather than ismissing: type-safe for numeric columns,
-        % which previously threw when the GUI stringified the choice list.
-        toRemove = ~ismember(ev_values(:)', string(valsToKeep(:))');
+        keepStr = string(cellfun(@(v) char(string(v)), valsToKeep(:)', 'UniformOutput', false));
+        toRemove = ~ismember(ev_values(:)', keepStr) & ~isB;
         if ~any(toRemove), continue; end
 
         fprintf('Removing %d/%d events whose "%s" is not one of: %s\n', ...
-            sum(toRemove), numel(toRemove), varName, strjoin(cellstr(string(valsToKeep(:))'), ', '));
+            sum(toRemove), nnz(~isB), varName, strjoin(cellstr(keepStr), ', '));
         EEG.event(toRemove) = [];
-        if haveTbl
-            opt.events(toRemove,:) = [];
-        end
         EEG = eeg_checkset(EEG, 'eventconsistency');
+        opt = local_sync_events(EEG, opt, toRemove);
     end
-    EEG.ieeglab.opt = opt;   % persist, so a second run sees the aligned table
+    if nReal0 > 0 && (isempty(EEG.event) || all(strcmpi(local_types(EEG), 'boundary')))
+        error('ieeglab_preprocess:allEventsFiltered', ...
+            'The event filters removed every event (%s). Check the values to keep.', ...
+            strjoin(vars', ', '));
+    end
 end
 
-% %  Drop heavy event table from options (to save memory) 
-% if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'events')
-%     EEG.ieeglab.opt = rmfield(EEG.ieeglab.opt, 'events');
-% end
-
-
+% ------------------------------------------------------------------
 % Remove electrodes with no coordinates (optional)
-if isfield(opt, 'remove_no_coords') && opt.remove_no_coords && isfield(EEG,'chanlocs') && ~isempty(EEG.chanlocs)
+% ------------------------------------------------------------------
+if local_opt(opt,'remove_no_coords',false) && isfield(EEG,'chanlocs') && ~isempty(EEG.chanlocs)
     hasXYZ = arrayfun(@(c) isfield(c,'X') && isfield(c,'Y') && isfield(c,'Z') && ...
         ~isempty(c.X) && ~isempty(c.Y) && ~isempty(c.Z) && ...
         all(isfinite([c.X c.Y c.Z])), EEG.chanlocs);
 
-    removed_elecs = {EEG.chanlocs(~hasXYZ).labels};  % for logging
-    if any(~hasXYZ)
-        warning('Removing %d channels with no 3D (XYZ) coordinates: %s\n', ...
-            nnz(~hasXYZ), strjoin(removed_elecs, ', '));
-        keepChanIdx = find(hasXYZ);
-        EEG = pop_select(EEG, 'channel', keepChanIdx);
-        EEG = eeg_checkset(EEG);
-    else
+    removed_elecs = {EEG.chanlocs(~hasXYZ).labels};
+    if all(~hasXYZ)
+        warning('ieeglab_preprocess:noCoordinates', ...
+            'No channel has 3D coordinates; remove_no_coords is ignored.');
         removed_elecs = {};
+    elseif any(~hasXYZ)
+        warning('ieeglab_preprocess:removedNoCoords', ...
+            'Removing %d channels with no 3D (XYZ) coordinates: %s', ...
+            nnz(~hasXYZ), strjoin(removed_elecs, ', '));
+        EEG = pop_select(EEG, 'channel', find(hasXYZ));
+        EEG = eeg_checkset(EEG);
+        prev = {};
+        if isfield(EEG.ieeglab,'removed_channels'), prev = EEG.ieeglab.removed_channels; end
+        EEG.ieeglab.removed_channels = unique([prev(:); removed_elecs(:)], 'stable');
+    elseif opt.verbose
         disp("All electrodes have 3D (XYZ) coordinates.")
     end
 
-    % Remove events that reference a removed electrode (CCEP stimulation sites).
-    % Guarded: continuous datasets legitimately have no events at all.
+    % Remove events that stimulate a removed electrode (exact token match).
     if ~isempty(removed_elecs) && isfield(EEG,'event') && ~isempty(EEG.event)
-        % Exact token match: contains() also matched 'RA10-RA9' when removing 'RA1'
         trials_to_rem = ieeglab_events_using(EEG.event, removed_elecs);
         if any(trials_to_rem)
             fprintf('Removing %d/%d events that reference an electrode with no 3D coordinates.\n', ...
                 sum(trials_to_rem), numel(trials_to_rem));
             EEG.event(trials_to_rem) = [];
-            if isfield(opt,'events') && istable(opt.events) && height(opt.events) == numel(trials_to_rem)
-                opt.events(trials_to_rem,:) = [];
-            end
             EEG = eeg_checkset(EEG, 'eventconsistency');
-            EEG = eeg_checkset(EEG);
-            EEG.ieeglab.opt = opt;
+            opt = local_sync_events(EEG, opt, trials_to_rem);
         end
     end
 end
 
-% Bad channels: clinician labels (BIDS channels.tsv status), seizure-zone labels,
-% an explicit list, or automatic detection. ieeglab_load MARKS them; this step
-% removes them when asked. Channels left marked are still kept out of the CAR
-% reference and out of the statistics.
-doBad = local_opt(opt,'remove_bad_channels',false) || local_opt(opt,'exclude_soz',false) || ...
-        local_opt(opt,'exclude_irritative',false) || local_opt(opt,'auto_bad_channels',false) || ...
-        ~isempty(local_opt(opt,'bad_channels',[]));
+% ------------------------------------------------------------------
+% Bad channels: clinician labels (BIDS channels.tsv status), seizure-zone
+% labels, an explicit list, or automatic detection. ieeglab_load MARKS them.
+% Whenever any channel is marked bad - whatever option marked it - the trials
+% that stimulate it are dropped, so the analysed trials never depend on an
+% unrelated switch. remove_bad_channels removes every marked channel;
+% exclude_soz / exclude_irritative remove those contacts.
+% ------------------------------------------------------------------
+removeBad = local_opt(opt,'remove_bad_channels',false);
+exclSOZ   = local_opt(opt,'exclude_soz',false);
+exclIRR   = local_opt(opt,'exclude_irritative',false);
+anyMarked = isfield(EEG.chanlocs,'status') && ...
+    any(cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status}));
+doBad = removeBad || exclSOZ || exclIRR || local_opt(opt,'auto_bad_channels',false) || ...
+        ~isempty(opt.bad_channels) || anyMarked;
 if doBad
-    if local_opt(opt,'remove_bad_channels',false), act = 'remove'; else, act = 'mark'; end
+    if removeBad, act = 'remove'; else, act = 'mark'; end
     EEG = ieeglab_bad_channels(EEG, struct( ...
         'channels_tsv',       local_opt(opt,'channels_tsv',''), ...
         'elec_tsv',           local_opt(opt,'elec_tsv',''), ...
-        'bad_channels',       local_opt(opt,'bad_channels',[]), ...
-        'exclude_soz',        local_opt(opt,'exclude_soz',false), ...
-        'exclude_irritative', local_opt(opt,'exclude_irritative',false), ...
+        'bad_channels',       {opt.bad_channels}, ...
+        'exclude_soz',        exclSOZ, ...
+        'exclude_irritative', exclIRR, ...
         'auto_detect',        local_opt(opt,'auto_bad_channels',false), ...
         'action',             act, ...
         'drop_bad_stim_sites',true, ...
         'verbose',            opt.verbose));
-    if isfield(opt,'events') && istable(opt.events) && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'events')
-        opt.events = EEG.ieeglab.opt.events;     % keep the local copy aligned
+    if ~removeBad && (exclSOZ || exclIRR)
+        Tb = EEG.ieeglab.bad_channels;
+        zoneLabels = cellstr(Tb.label(Tb.source == "seizure_zone"));
+        rm = ismember({EEG.chanlocs.labels}, zoneLabels);
+        if any(rm)
+            fprintf('[preprocess] Removing %d seizure-zone contact(s): %s\n', nnz(rm), strjoin(zoneLabels, ', '));
+            EEG = pop_select(EEG, 'nochannel', find(rm));
+            prev = {};
+            if isfield(EEG.ieeglab,'removed_channels'), prev = EEG.ieeglab.removed_channels; end
+            EEG.ieeglab.removed_channels = unique([prev(:); zoneLabels(:)], 'stable');
+        end
     end
+    opt = local_sync_events(EEG, opt, []);
 end
 
-% No events is a legitimate state: the README advertises continuous mode for
-% epilepsy and clinical monitoring. Filtering still applies; the event-dependent
-% steps are skipped rather than treated as an error.
-continuousMode = ~isfield(EEG,'event') || isempty(EEG.event);
+% No events is a legitimate state (continuous mode for epilepsy and clinical
+% monitoring). Filtering still applies; the event-dependent steps are skipped.
+continuousMode = ~isfield(EEG,'event') || isempty(EEG.event) || all(strcmpi(local_types(EEG), 'boundary'));
 if continuousMode
-    if isfield(opt,'apply_epoch') && opt.apply_epoch || ...
-       isfield(opt,'apply_car') && opt.apply_car || ...
-       isfield(opt,'apply_baseline') && opt.apply_baseline
+    if local_opt(opt,'apply_epoch',false) || local_opt(opt,'apply_car',false) || local_opt(opt,'apply_baseline',false)
         warning('ieeglab_preprocess:continuousMode', ...
             ['No events in the dataset - running in CONTINUOUS mode. Filtering and ' ...
              'resampling will be applied; epoching, re-referencing and baseline ' ...
@@ -199,56 +237,61 @@ if continuousMode
     end
     opt.apply_epoch    = false;
     opt.apply_car      = false;
-    opt.apply_acar     = false;
     opt.apply_baseline = false;
-end
-
-% Stimulation-artifact blanking, BEFORE any filtering. A zero-phase FIR rings
-% symmetrically about the artifact step, smearing it forward into the early
-% response and backward into the baseline (issue #10). Blanking first means the
-% filter never sees the discontinuity.
-if isfield(opt,'apply_blank') && opt.apply_blank && ~continuousMode
-    if strcmp(ieeglab_detect_mode(EEG), 'ccep')
-        EEG = ieeglab_blank_stim(EEG, opt);
-    elseif opt.verbose
-        fprintf('[preprocess] Skipping stimulation blanking: not CCEP data.\n');
-    end
-end
-
-% Downsample. Gated on the GUI's own checkbox (apply_ds); previously the flag
-% was ignored, so unchecking "Downsample" still resampled the data.
-do_ds = (~isfield(opt,'apply_ds') || isempty(opt.apply_ds) || opt.apply_ds);
-if do_ds && isfield(opt, 'downsample') && ~isempty(opt.downsample) && opt.downsample<EEG.srate
-    fprintf("Downsampling iEEG data to %g Hz... \n", opt.downsample)
-    EEG = pop_resample(EEG, opt.downsample);
 end
 
 % Global filter type -> minphase flag for pop_eegfiltnew
 minphase = false;  % default = noncausal zero-phase
 if isfield(opt,'filter_type') && ~isempty(opt.filter_type)
-    idx = round(double(opt.filter_type));
-    minphase = (idx == 2);   % 1=noncausal, 2=minimum-phase
+    minphase = (round(double(opt.filter_type)) == 2);   % 1=noncausal, 2=minimum-phase
 elseif isfield(opt,'filter_type_label') && ~isempty(opt.filter_type_label)
     lbl = lower(string(opt.filter_type_label));
-    if contains(lbl,'minimum') || contains(lbl,'causal')
-        minphase = true;
-    elseif contains(lbl,'noncausal') || contains(lbl,'zero')
-        minphase = false;
+    minphase = contains(lbl,'minimum') || contains(lbl,'causal') && ~contains(lbl,'noncausal');
+end
+doHP = local_opt(opt,'apply_highpass',false) && local_opt(opt,'highpass',0) > 0;
+doNotch = local_opt(opt,'apply_notch',false) && ~isempty(local_opt(opt,'notch',[]));
+doLP = local_opt(opt,'apply_lowpass',false) && local_opt(opt,'lowpass',0) > 0;
+do_ds = local_opt(opt,'apply_ds', isfield(opt,'downsample')) && ...
+        ~isempty(local_opt(opt,'downsample',[])) && opt.downsample < EEG.srate;
+
+% ------------------------------------------------------------------
+% Stimulation-artifact blanking, BEFORE any filtering. A zero-phase FIR rings
+% symmetrically about the artifact step, smearing it forward into the early
+% response and backward into the baseline (issue #10). Blanking first means
+% the filter never sees the discontinuity. blank_method 'nan' cannot go
+% through a filter or the resampler (NaN would spread over the recording), so
+% the gap is bridged linearly for them and set back to NaN afterwards.
+% ------------------------------------------------------------------
+reNaN = false;
+if local_opt(opt,'apply_blank',false) && ~continuousMode
+    if strcmp(ieeglab_detect_mode(EEG), 'ccep')
+        bopt = opt;
+        if strcmpi(local_opt(opt,'blank_method','pchip'), 'nan') && (doHP || doNotch || doLP || do_ds)
+            bopt.blank_method = 'linear';
+            reNaN = true;
+        end
+        EEG = ieeglab_blank_stim(EEG, bopt);
+    elseif opt.verbose
+        fprintf('[preprocess] Skipping stimulation blanking: not CCEP data.\n');
     end
 end
 
+% Downsample
+if do_ds
+    fprintf("Downsampling iEEG data to %g Hz... \n", opt.downsample)
+    EEG = pop_resample(EEG, opt.downsample);
+end
+
 % High-pass filter
-if isfield(opt,'apply_highpass') && opt.apply_highpass && isfield(opt,'highpass') ...
-        && ~isempty(opt.highpass) && opt.highpass > 0
+if doHP
     EEG = pop_eegfiltnew(EEG, 'locutoff', double(opt.highpass), 'usefftfilt', 1, 'minphase', minphase);
 end
 
 % Notch filter
-if isfield(opt,'apply_notch') && opt.apply_notch && isfield(opt,'notch') && ~isempty(opt.notch)
+if doNotch
     nyq = EEG.srate/2;
-    centers = double(opt.notch(:))';
     BW = 2;                     % total bandwidth (Hz)
-    for f0 = centers
+    for f0 = double(opt.notch(:))'
         if ~isfinite(f0) || f0<=0 || f0>=nyq, continue; end
         lo = max(0, f0 - BW/2);
         hi = min(nyq-1e-6, f0 + BW/2);
@@ -258,66 +301,64 @@ if isfield(opt,'apply_notch') && opt.apply_notch && isfield(opt,'notch') && ~ise
 end
 
 % Low-pass filter
-if isfield(opt,'apply_lowpass') && opt.apply_lowpass && isfield(opt,'lowpass') ...
-        && ~isempty(opt.lowpass) && opt.lowpass > 0
+if doLP
     lp = double(opt.lowpass);
-    nyq = EEG.srate/2;
-    if isfinite(lp) && lp > 0 && lp < nyq
+    if isfinite(lp) && lp < EEG.srate/2
         EEG = pop_eegfiltnew(EEG,'hicutoff',lp,'usefftfilt',1, 'minphase', minphase);
     end
 end
 
-% Remove conditions with too few trials
-if isfield(opt,'remove_rare_cond') && opt.remove_rare_cond && isfield(opt,'min_trials')
-    minN = max(0, round(double(opt.min_trials)));
-    if minN>0 && isfield(EEG,'event') && ~isempty(EEG.event)
-        types = string({EEG.event.type});
-        u = unique(types);
-        cnt = arrayfun(@(x) sum(types==x), u);
-        rm = u(cnt < minN);
-        if ~isempty(rm)
-            fprintf('Removing %d condition(s) with < %d trials: %s\n', numel(rm), minN, strjoin(cellstr(rm), ', '));
-            keep = ~ismember(types, rm);
-            EEG.event = EEG.event(keep);
-            try EEG = eeg_checkset(EEG,'makeur'); catch, end
-        else
+if reNaN
+    nopt = opt; nopt.blank_method = 'nan'; nopt.verbose = false;
+    EEG = ieeglab_blank_stim(EEG, nopt);
+    if opt.verbose, fprintf('[blank] Blanked samples set back to NaN after filtering.\n'); end
+end
+
+% ------------------------------------------------------------------
+% Remove stimulation sites / conditions with too few trials. Counted per
+% site as every later step defines it (ROP2-ROP4 and ROP4-ROP2 are one site);
+% 'boundary' markers are not a condition.
+% ------------------------------------------------------------------
+if local_opt(opt,'remove_rare_cond',false) && ~continuousMode
+    minN = max(0, round(double(local_opt(opt,'min_trials',0))));
+    if minN > 0
+        types = local_types(EEG);
+        isB = strcmpi(types, 'boundary');
+        site = ieeglab_canonical_site(cellstr(types), {EEG.chanlocs.labels});
+        [u, ~, g] = unique(site(~isB));
+        cnt = accumarray(g(:), 1);
+        rmSites = u(cnt < minN);
+        if ~isempty(rmSites)
+            drop = ismember(site, rmSites) & ~isB;
+            fprintf('Removing %d condition(s) with < %d trials: %s\n', numel(rmSites), minN, strjoin(cellstr(rmSites), ', '));
+            EEG.event(drop) = [];
+            EEG = eeg_checkset(EEG, 'eventconsistency');
+            opt = local_sync_events(EEG, opt, drop);
+        elseif opt.verbose
             fprintf('No conditions below %d trials.\n', minN);
         end
     end
 end
 
-
-% Epoching (uses ALL current event types if none chosen in GUI)
-if isfield(opt,'apply_epoch') && opt.apply_epoch && ...
-        isfield(opt,'epoch_window') && ...
-        isfield(EEG,'event') && ~isempty(EEG.event)
-
-    % window
+% ------------------------------------------------------------------
+% Epoching around every remaining event type except 'boundary'
+% ------------------------------------------------------------------
+if local_opt(opt,'apply_epoch',false) && isfield(opt,'epoch_window') && ~continuousMode
     t_ms = double(opt.epoch_window(:))';
     if numel(t_ms)<2 || ~all(isfinite(t_ms(1:2))) || t_ms(2)<=t_ms(1)
-        warning('Invalid epoch window; skipping epoching.');
+        warning('ieeglab_preprocess:badEpochWindow', 'Invalid epoch window; skipping epoching.');
     else
-        % collect unique event types as strings
-        if istable(EEG.event), evTypes = EEG.event.type; else, evTypes = {EEG.event.type}'; end
-        if isnumeric(evTypes), evTypes = string(evTypes); end
-        if iscell(evTypes),   evTypes = string(evTypes); end
-        evtTypes = unique(cellstr(string(evTypes(:))));  % cellstr
-
+        types = local_types(EEG);
+        evtTypes = unique(cellstr(types(~strcmpi(types,'boundary'))));
         if isempty(evtTypes)
-            warning('No event types found to epoch around; skipping.');
+            warning('ieeglab_preprocess:noEventTypes', 'No event types found to epoch around; skipping.');
         else
             fprintf('Epoching around %d event types, window [%g %g] ms\n', numel(evtTypes), t_ms(1), t_ms(2));
             EEG = pop_epoch(EEG, evtTypes, t_ms/1000, 'epochinfo','yes', 'newname','iEEGLAB epochs');
             EEG = eeg_checkset(EEG);
         end
     end
-
-    % event_filters were only for selection; drop from opts
-    if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'event_filters')
-        EEG.ieeglab.opt = rmfield(EEG.ieeglab.opt, 'event_filters');
-    end
 end
-
 
 % Automatic outlier-trial rejection (off by default). Before re-referencing, so
 % artifact trials cannot distort CARLA's covariance ranking.
@@ -326,14 +367,16 @@ if local_opt(opt,'reject_trials',false) && isfield(EEG,'trials') && EEG.trials >
         'frac', local_opt(opt,'reject_frac',0.25), 'action', 'remove', 'verbose', opt.verbose));
 end
 
-% Re-referencing (CARLA by default; see ieeglab_car for the alternatives)
-if isfield(opt,'apply_car') && opt.apply_car && isfield(EEG,'trials') && EEG.trials > 1
-
+% Re-referencing (CARLA by default; see ieeglab_car for the alternatives).
+% Bad channels reach it through chanlocs.status, which survives channel removal.
+if local_opt(opt,'apply_car',false) && isfield(EEG,'trials') && EEG.trials > 1
+    carOpt = opt;
+    carOpt.bad_channels = [];
     if opt.plot
         respBefore = local_response_trace(EEG);
     end
 
-    EEG = ieeglab_car(EEG, opt);
+    EEG = ieeglab_car(EEG, carOpt);
 
     if opt.plot
         respAfter = local_response_trace(EEG);
@@ -341,20 +384,101 @@ if isfield(opt,'apply_car') && opt.apply_car && isfield(EEG,'trials') && EEG.tri
     end
 end
 
-
-% Baseline correction
-if isfield(opt,'apply_baseline') && opt.apply_baseline
+% Baseline correction (reads its options from EEG.ieeglab.opt)
+if local_opt(opt,'apply_baseline',false)
+    EEG.ieeglab.opt = local_persist(opt);
     EEG = ieeglab_rm_baseline(EEG);
 end
 
-% Persist the (possibly modified) options and report success to eeglab_new.
-EEG.ieeglab.opt = opt;
+% Persist the options (never the plot switch) and return a replayable history line.
+EEG.ieeglab.opt = local_persist(opt);
+if isfield(EEG.ieeglab.opt,'event_filters') && EEG.trials > 1
+    EEG.ieeglab.opt = rmfield(EEG.ieeglab.opt, 'event_filters');   % applied; not to be re-applied
+end
 EEG = eeg_checkset(EEG);
-com = 'EEG = ieeglab_preprocess(EEG);';
+replay = rmfield(opt, intersect(fieldnames(opt), {'events','plot','events_from_tsv'}));
+replay.plot = false;
+com = sprintf('EEG = ieeglab_preprocess(EEG, %s);', ieeglab_literal(replay));
 
 end
 
 % ========================== local helpers ==========================
+
+function o = local_aliases(o)
+% Pre-1.0 names -> current names. A current name, when present, wins.
+if ~isstruct(o), o = struct(); return; end
+map = {'apply_acar','apply_car'; 'acar_timewin','car_timewin'; 'acar_fraction','car_fraction'};
+for k = 1:size(map,1)
+    if isfield(o, map{k,1})
+        if ~isfield(o, map{k,2}) || isempty(o.(map{k,2}))
+            o.(map{k,2}) = o.(map{k,1});
+        end
+        o = rmfield(o, map{k,1});
+    end
+end
+end
+
+function o = local_persist(o)
+if isfield(o,'plot'), o = rmfield(o,'plot'); end
+end
+
+function b = local_index_to_labels(b, labels)
+if isempty(b) || ~(isnumeric(b) || islogical(b)), return; end
+if islogical(b), b = find(b); end
+b = double(b(:)');
+bad = b < 1 | b > numel(labels) | b ~= round(b);
+if any(bad)
+    warning('ieeglab_preprocess:badChannelIndex', ...
+        'bad_channels indices outside 1..%d are ignored: %s', numel(labels), mat2str(b(bad)));
+end
+b = labels(b(~bad));
+end
+
+function t = local_types(EEG)
+t = strings(1, numel(EEG.event));
+for i = 1:numel(EEG.event)
+    v = EEG.event(i).type;
+    if isnumeric(v) || islogical(v), v = num2str(v); end
+    t(i) = string(v);
+end
+end
+
+function v = local_table_values(EEG, T, varName)
+% Value of events-table column varName for each event, linked by tsv_row
+% (falling back to position when both have the same number of rows).
+n = numel(EEG.event);
+v = strings(1, n); v(:) = missing;
+col = string(T.(varName));
+if isfield(EEG.event,'tsv_row') && ismember('tsv_row', T.Properties.VariableNames)
+    r = local_rows(EEG);
+    [tf, loc] = ismember(r, T.tsv_row);
+    v(tf) = col(loc(tf));
+elseif height(T) == n
+    v = col(:)';
+end
+end
+
+function r = local_rows(EEG)
+r = nan(1, numel(EEG.event));
+for i = 1:numel(EEG.event)
+    x = EEG.event(i).tsv_row;
+    if ~isempty(x) && isnumeric(x), r(i) = double(x(1)); end
+end
+end
+
+function opt = local_sync_events(EEG, opt, removed)
+% Keep opt.events to the rows still represented in EEG.event.
+if ~isfield(opt,'events') || ~istable(opt.events), return; end
+T = opt.events;
+if ismember('tsv_row', T.Properties.VariableNames) && isfield(EEG,'event') && isfield(EEG.event,'tsv_row')
+    r = local_rows(EEG);
+    r = r(isfinite(r));
+    [tf, loc] = ismember(r, T.tsv_row);
+    opt.events = T(loc(tf), :);
+elseif ~isempty(removed) && height(T) == numel(removed)
+    opt.events(removed, :) = [];
+end
+end
 
 function resp = local_response_trace(EEG)
 % Mean response trace used for the before/after re-referencing figure. For CCEP

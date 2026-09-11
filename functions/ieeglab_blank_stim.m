@@ -106,15 +106,16 @@ end
 
 nBlank = 0; nSkip = 0;
 for e = 1:numel(lat)
-    idx = lat(e) + offs;
-    tr  = min(max(ep(min(e,numel(ep))),1), N);
+    tr = 1;
+    base = lat(e);
     if N > 1
-        % latency is within-epoch after pop_epoch only if urevent bookkeeping
-        % survived; guard rather than silently blanking the wrong samples
-        idx = idx(idx >= 1 & idx <= T);
-    else
-        idx = idx(idx >= 1 & idx <= T);
+        % Epoched: EEGLAB latencies count across the concatenated epochs, so
+        % convert to a sample within this event's own epoch.
+        tr = min(max(ep(min(e, numel(ep))), 1), N);
+        base = lat(e) - (tr - 1) * T;
     end
+    idx = base + offs;
+    idx = idx(idx >= 1 & idx <= T);
     if numel(idx) < 2
         nSkip = nSkip + 1;
         continue

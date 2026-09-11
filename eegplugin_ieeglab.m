@@ -42,7 +42,7 @@ cb_load       = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_load(EEG);'     
 cb_vis_elec   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG); LASTCOM = ''EEG = ieeglab_vis_elec(EEG);'';' catch_strings.new_and_hist];
 cb_preprocess = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_preprocess(EEG);'     catch_strings.new_and_hist];
 cb_stats      = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_stats_subject(EEG);'  catch_strings.new_and_hist];
-cb_matrix     = [try_strings.no_check 'if isfield(EEG,''ieeglab'') && isfield(EEG.ieeglab,''ccep_matrix''), ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix); else, errordlg(''No connectivity matrix yet: run iEEGLAB > CCEP analysis first.'',''iEEGLAB''); end; LASTCOM = '''';' catch_strings.add_to_hist];
+cb_matrix     = [try_strings.no_check '[ok_, why_] = ieeglab_matrix_current(EEG); if ok_, ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix); else, errordlg([''Cannot plot the connectivity matrix: '' why_ ''. Run iEEGLAB > CCEP analysis.''],''iEEGLAB''); end; clear ok_ why_; LASTCOM = '''';' catch_strings.add_to_hist];
 cb_topo       = [try_strings.no_check 'LASTCOM = pop_ieeglab_topoplot(EEG);' catch_strings.add_to_hist];
 cb_export     = [try_strings.no_check '[~, LASTCOM] = ieeglab_export(EEG);' catch_strings.add_to_hist];
 cb_check      = 'ieeglab_check_install;';

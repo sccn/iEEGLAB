@@ -33,6 +33,9 @@ function [EEG, T, com] = ieeglab_bad_channels(EEG, opt)
 %   .drop_bad_stim_sites for CCEP data, also drop trials whose stimulated pair
 %                        includes a bad contact. Default true, as in the original
 %                        pipeline (is_good_pair). Uses exact token matching.
+%   .honor_previous      keep marks from an earlier pass (e.g. ieeglab_load). Default true.
+%   .keep_channels       labels forced GOOD, overriding every source (a user
+%                        decision to keep a clinician-marked channel). Default [].
 %   .verbose             default true
 %
 % Outputs:
@@ -55,7 +58,7 @@ end
 def = struct('channels_tsv','auto', 'elec_tsv','', 'bad_channels',[], ...
     'drop_non_ieeg',true, 'exclude_soz',false, 'exclude_irritative',false, ...
     'auto_detect',false, 'auto_z',5, 'action','remove', ...
-    'drop_bad_stim_sites',true, 'verbose',true);
+    'drop_bad_stim_sites',true, 'honor_previous',true, 'keep_channels',[], 'verbose',true);
 f = fieldnames(def);
 for i = 1:numel(f)
     if ~isfield(opt, f{i}) || (isempty(opt.(f{i})) && ~ischar(def.(f{i})))
@@ -78,7 +81,7 @@ zone   = strings(1, C);
 % ieeglab_load annotates with action='mark'; preprocessing then calls this again
 % with action='remove'. Earlier marks are honoured so that second call acts on
 % them even when it is not re-reading the same files.
-if isfield(EEG.chanlocs, 'status')
+if opt.honor_previous && isfield(EEG.chanlocs, 'status')
     for c = 1:C
         s0 = EEG.chanlocs(c).status;
         if ~isempty(s0) && strcmpi(string(s0), "bad")
@@ -126,7 +129,7 @@ if chTsv ~= ""
             end
             if opt.drop_non_ieeg && ~isempty(iType)
                 ty = upper(strtrim(string(Tc{r, iType})));
-                if ~ismissing(ty) && ty ~= "" && ~ismember(ty, ["SEEG","ECOG","DBS","EEG"]) && status(c) == "good"
+                if ~ismissing(ty) && ty ~= "" && ty ~= "N/A" && ~ismember(ty, ["SEEG","ECOG","DBS","EEG"]) && status(c) == "good"
                     status(c) = "bad";
                     source(c) = "channels.tsv";
                     reason(c) = "non-iEEG channel type " + ty;
@@ -206,6 +209,20 @@ if opt.auto_detect
     reason(newly) = "extreme variance (robust z = " + compose('%.1f', z(newly)) + ")";
 end
 
+% ---------- user overrides ----------
+if ~isempty(opt.keep_channels)
+    kc = opt.keep_channels;
+    if isnumeric(kc) || islogical(kc)
+        if islogical(kc), kc = find(kc); end
+        kc = cellstr(labels(kc(kc>=1 & kc<=C)));
+    end
+    ov = ismember(L, upper(strtrim(string(kc)))) & status == "bad";
+    for k = find(ov)
+        reason(k) = "mark overridden by user (was: " + reason(k) + ")";
+    end
+    status(ov) = "good"; source(ov) = "user override";
+end
+
 % ---------- record on chanlocs ----------
 for c = 1:C
     EEG.chanlocs(c).status             = char(status(c));
@@ -232,15 +249,28 @@ if opt.verbose
     end
 end
 
+% A dataset in which every channel is bad has nothing left to analyse; say so
+% before any trial is dropped (dropping first gave EEGLAB's cryptic 'dataset
+% is empty', even for action='mark').
+if all(isBad)
+    error('ieeglab_bad_channels:allBad', 'Every channel is marked bad; nothing would remain to analyse.');
+end
+
 % ---------- trials stimulating a bad contact (CCEP) ----------
 badLabels = cellstr(labels(isBad));
 if opt.drop_bad_stim_sites && any(isBad)
     if EEG.trials > 1
         sites = ieeglab_epoch_sites(EEG);
         dropTr = false(1, EEG.trials);
+        [~, stimIdx] = ieeglab_epoch_sites(EEG);
+        badIdx = find(isBad);
         for i = 1:EEG.trials
-            tok = upper(ieeglab_site_tokens(sites(i)));
-            dropTr(i) = numel(tok) >= 2 && any(ismember(tok, upper(string(badLabels))));
+            dropTr(i) = numel(stimIdx{i}) >= 1 && sites(i) ~= "" && any(ismember(stimIdx{i}, badIdx)) ...
+                && numel(ieeglab_site_tokens(sites(i), cellstr(labels))) >= 2;
+        end
+        if all(dropTr)
+            error('ieeglab_bad_channels:allTrialsBad', ...
+                'Every trial stimulates a bad contact, so none would remain.');
         end
         if any(dropTr)
             if opt.verbose
@@ -278,7 +308,14 @@ if strcmpi(opt.action, 'remove') && any(isBad)
     EEG.ieeglab.removed_channels = unique([prev(:); badLabels(:)], 'stable');
 end
 EEG = eeg_checkset(EEG);
-com = 'EEG = ieeglab_bad_channels(EEG);';
+used = struct('channels_tsv', char(string(opt.channels_tsv)), 'bad_channels', opt.bad_channels, ...
+    'drop_non_ieeg', opt.drop_non_ieeg, 'exclude_soz', opt.exclude_soz, ...
+    'exclude_irritative', opt.exclude_irritative, 'auto_detect', opt.auto_detect, 'auto_z', opt.auto_z, ...
+    'action', char(opt.action), 'drop_bad_stim_sites', opt.drop_bad_stim_sites, ...
+    'honor_previous', opt.honor_previous, 'keep_channels', opt.keep_channels);
+if ischar(opt.elec_tsv) || isstring(opt.elec_tsv), used.elec_tsv = char(opt.elec_tsv); end
+if iscell(used.bad_channels) || isstring(used.bad_channels), used.bad_channels = cellstr(string(used.bad_channels)); end
+com = sprintf('EEG = ieeglab_bad_channels(EEG, %s);', ieeglab_literal(used));
 end
 
 % ======================= helpers =======================
@@ -295,16 +332,8 @@ if ~strcmpi(spec, 'auto')
     end
     return
 end
-% 'auto': the BIDS sibling of the dataset file, e.g.
-%   sub-02_ses-01_task-ccep_run-01_ieeg.set -> sub-02_ses-01_task-ccep_run-01_channels.tsv
-if ~isfield(EEG,'filepath') || isempty(EEG.filepath) || ~isfolder(EEG.filepath), return; end
-if isfield(EEG,'filename') && ~isempty(EEG.filename)
-    stem = regexprep(EEG.filename, '_(ieeg|eeg)\.[^.]+$', '');
-    cand = fullfile(EEG.filepath, [stem '_channels.tsv']);
-    if exist(cand,'file') == 2, p = string(cand); return; end
-end
-d = dir(fullfile(EEG.filepath, '*_channels.tsv'));
-if numel(d) == 1, p = string(fullfile(d.folder, d.name)); end
+% 'auto': the BIDS sidecar of THIS dataset; never another run's
+p = string(ieeglab_bids_sibling(EEG, 'channels'));
 end
 
 function Te = local_electrodes_table(spec)

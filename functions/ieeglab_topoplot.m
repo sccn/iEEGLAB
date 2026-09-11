@@ -13,7 +13,11 @@ function [vals, info] = ieeglab_topoplot(EEG, what, varargin)
 %
 % Options:
 %   'draw'        default true
-%   'site'        stimulation site, for the n1_* / crp_* values
+%   'site'        stimulation site. Required for the n1_* / crp_* values; for a
+%                 latency or window it restricts the average to that site's trials
+%   'sig_only'    per-site metrics: show only significant responses; tested pairs
+%                 without one are drawn grey like untested ones. Default true, as
+%                 in ieeglab_plot_ccep_matrix
 %   'surf_files'  surfaces to draw under the electrodes (as in ieeglab_vis_elec);
 %                 defaults to the ones chosen earlier, stored in EEG.ieeglab.opt
 %   'clim'        colour limits
@@ -29,6 +33,10 @@ function [vals, info] = ieeglab_topoplot(EEG, what, varargin)
 % Channels without coordinates are skipped; channels with a NaN value are
 % drawn small and grey, so "no value" stays distinct from "value near zero".
 %
+% Latency and window maps on CCEP data leave out, for every contact, the trials
+% in which that contact was itself stimulated - its own stimulation artifact
+% would otherwise dominate the map (N1 and CRP exclude them the same way).
+%
 % Cedric Cannard, iEEGLAB, 2026
 
 p = inputParser;
@@ -37,35 +45,66 @@ p.addParameter('site', '');
 p.addParameter('surf_files', {});
 p.addParameter('clim', []);
 p.addParameter('title', '');
+p.addParameter('sig_only', true);
 p.parse(varargin{:});
 o = p.Results;
 
 C = EEG.nbchan;
 labels = {EEG.chanlocs.labels};
+usedSite = false;   % whether the values are specific to o.site (for the title)
+ownStim = false;    % whether own-stimulation trials were left out
 
 % ---------- values ----------
 if isnumeric(what) && numel(what) == C && C > 2
     vals = double(what(:));
     desc = 'value';
 elseif isnumeric(what) && any(numel(what) == [1 2])
-    if EEG.trials < 1 || ~isfield(EEG,'times') || isempty(EEG.times)
-        error('ieeglab_topoplot:noTimes', 'A latency needs EEG.times.');
+    if ~isfield(EEG,'times') || numel(EEG.times) ~= size(EEG.data,2)
+        error('ieeglab_topoplot:noTimes', 'A latency needs EEG.times matching the data.');
     end
-    w = double(what);
+    w = double(what(:))';
+    t0 = double(EEG.times(1)); t1 = double(EEG.times(end));
+    if any(w < t0 | w > t1)
+        error('ieeglab_topoplot:latencyOutside', ...
+            'Latency %s ms is outside the epoch [%g %g] ms.', mat2str(w), t0, t1);
+    end
     if numel(w) == 1
-        [~, k] = min(abs(EEG.times - w)); idx = k;
-        desc = sprintf('Amplitude at %g ms (\\muV)', EEG.times(k));
+        [~, idx] = min(abs(double(EEG.times) - w));
+        desc = sprintf('Amplitude at %g ms (\\muV)', EEG.times(idx));
     else
         idx = find(EEG.times >= min(w) & EEG.times <= max(w));
+        if isempty(idx)
+            error('ieeglab_topoplot:emptyWindow', 'No sample between %g and %g ms at %g Hz.', min(w), max(w), EEG.srate);
+        end
         desc = sprintf('Mean amplitude %g-%g ms (\\muV)', min(w), max(w));
     end
-    if isempty(idx) || (numel(w) == 1 && (w < EEG.times(1) || w > EEG.times(end)))
-        error('ieeglab_topoplot:latencyOutside', ...
-            'Latency %s ms is outside the epoch [%g %g] ms.', mat2str(w), EEG.times(1), EEG.times(end));
+    tr = 1:size(EEG.data,3);
+    if ~isempty(o.site)
+        if EEG.trials < 2
+            error('ieeglab_topoplot:notEpoched', '''site'' needs epoched data.');
+        end
+        sites = ieeglab_epoch_sites(EEG);
+        cs = ieeglab_canonical_site({char(o.site)}, labels);
+        tr = find(sites == cs(1));
+        if isempty(tr)
+            error('ieeglab_topoplot:unknownSite', 'No epoch was stimulated at "%s". Sites: %s', ...
+                char(o.site), strjoin(cellstr(unique(sites)), ', '));
+        end
+        usedSite = true;
     end
-    vals = squeeze(mean(mean(double(EEG.data(:, idx, :)), 3, 'omitnan'), 2, 'omitnan'));
+    D = double(EEG.data(:, idx, tr));
+    if EEG.trials > 1 && strcmp(ieeglab_detect_mode(EEG), 'ccep')
+        [~, stimIdx] = ieeglab_epoch_sites(EEG);
+        for k = 1:numel(tr)
+            sIdx = stimIdx{tr(k)};
+            if ~isempty(sIdx), D(sIdx, :, k) = NaN; end
+        end
+        ownStim = true;
+    end
+    vals = reshape(mean(mean(D, 3, 'omitnan'), 2, 'omitnan'), [], 1);
 elseif ischar(what) || isstring(what)
-    [vals, desc] = local_named_value(EEG, char(what), o.site);
+    [vals, desc] = local_named_value(EEG, char(what), o.site, o.sig_only);
+    usedSite = ~isempty(o.site) && ~any(strcmpi(char(what), {'in_degree','indegree'}));
 else
     error('ieeglab_topoplot:badInput', ...
         ['Second argument must be a latency in ms, a [start stop] window, a vector with one ' ...
@@ -102,7 +141,8 @@ end
 info.title = o.title;
 if isempty(info.title)
     info.title = desc;
-    if ~isempty(o.site), info.title = sprintf('%s - stimulation of %s', desc, o.site); end
+    if usedSite, info.title = sprintf('%s - stimulation of %s', desc, char(o.site)); end
+    if ownStim, info.title = {info.title, 'each contact''s own stimulation trials excluded'}; end
 end
 if ~o.draw, return; end
 
@@ -140,12 +180,16 @@ end
 
 % ======================= helpers =======================
 
-function [v, desc] = local_named_value(EEG, name, site)
+function [v, desc] = local_named_value(EEG, name, site, sigOnly)
 C = EEG.nbchan;
 v = nan(C,1);
 labels = upper({EEG.chanlocs.labels});
 M = [];
 if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'ccep_matrix'), M = EEG.ieeglab.ccep_matrix; end
+if ~isempty(M)
+    [ok, why] = ieeglab_matrix_current(EEG);
+    if ~ok, error('ieeglab_topoplot:staleMatrix', 'The connectivity matrix is out of date: %s.', why); end
+end
 switch lower(name)
     case {'in_degree','indegree'}
         if isempty(M), error('ieeglab_topoplot:noMatrix', 'No CCEP matrix; run ieeglab_ccep_matrix first.'); end
@@ -159,8 +203,8 @@ switch lower(name)
         end
         r = find(strcmpi(M.sites, site), 1);
         if isempty(r)
-            tok = sort(upper(ieeglab_site_tokens(site)));
-            r = find(strcmpi(M.sites, strjoin(tok,'-')), 1);
+            cs = ieeglab_canonical_site({char(site)}, M.channels);
+            r = find(strcmpi(M.sites, cs(1)), 1);
         end
         if isempty(r)
             error('ieeglab_topoplot:unknownSite', 'Site "%s" is not in the matrix. Sites: %s', site, strjoin(M.sites, ', '));
@@ -174,10 +218,14 @@ switch lower(name)
         end
         [tf, loc] = ismember(labels, upper(M.channels));
         row = M.(fld)(r,:);
+        if sigOnly && ~strcmp(fld, 'response')
+            row(M.response(r,:) ~= 1) = NaN;    % tested, not significant: no N1 to show
+        end
         v(tf) = row(loc(tf));
         descs = struct('amplitude_uv','N1 amplitude (\muV)', 'latency_ms','N1 latency (ms)', ...
             'tR_ms','CRP \tau_R (ms)', 'explained_var','CRP explained variance', 'response','Significant response');
         desc = descs.(fld);
+        if sigOnly && ~strcmp(fld, 'response'), desc = [desc ', significant responses']; end
     otherwise
         error('ieeglab_topoplot:unknownMetric', ...
             'Unknown metric "%s". Use in_degree, n1_amplitude, n1_latency, crp_tr, crp_explained_var or response.', name);

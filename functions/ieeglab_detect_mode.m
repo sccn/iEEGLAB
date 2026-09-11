@@ -39,6 +39,12 @@ num = cellfun(@isnumeric, types);
 types(num) = cellfun(@num2str, types(num), 'UniformOutput', false);
 types = string(types);
 
+% 'boundary' events mark discontinuities, not conditions
+types = types(~strcmpi(types, 'boundary'));
+if isempty(types)
+    mode = 'continuous';
+    return
+end
 info.n_events = numel(types);
 uTypes = unique(types);
 info.n_types = numel(uTypes);
@@ -56,8 +62,7 @@ labels = upper(string({EEG.chanlocs.labels}));
 % as stimulation sites.
 isPair = false(1, numel(uTypes));
 for i = 1:numel(uTypes)
-    parts = regexp(char(uTypes(i)), '[-+/|]', 'split');
-    parts = upper(strtrim(string(parts(~cellfun(@isempty, parts)))));
+    parts = upper(strtrim(ieeglab_site_tokens(uTypes(i), {EEG.chanlocs.labels})));
     if numel(parts) >= 2
         isPair(i) = all(ismember(parts, labels));
     end

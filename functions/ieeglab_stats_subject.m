@@ -11,19 +11,31 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %   .run_n1        N1 amplitude and latency per site x contact. Default: on for CCEP data.
 %   .run_crp       Canonical Response Parameterization. Default: on.
 %   .run_matrix    connectivity matrix, sites x contacts. Default: on for CCEP data.
+%                  Built from THIS call's results: its source stage is run too.
 %   .matrix_source 'n1' (default) or 'crp' - which detector defines a response
 %   .export_dir    write TSV/JSON/MAT results there. '' (default) = no export.
 %   .plot          CRP summary and connectivity-matrix figures. Default: on in
 %                  the dialog, off when opt is passed, so scripts stay headless.
 %
-% Shared:  .alpha (0.05)  .correct ('fdr'|'bonferroni'|'none')  .min_trials (5)
-%          .exclude_stim (true)  .verbose (true)
+% The dataset afterwards holds exactly this call's results: a stage that is
+% switched off has its earlier results removed, so plots, exports and the
+% history line never mix two analyses.
+%
+% Shared:  .alpha (0.05)  .correct ('fdr'|'bonferroni'|'none')  .min_trials (5, at least 2)
+%          .exclude_stim (true)  .n_perm (1000)  .verbose (true)
 % CRP:     .crp_window  [15 500] ms, after the stimulation artifact
 % N1:      .n1_window   [10 100] ms   .n1_baseline [-500 -10] ms
-%          .n1_method   'sd' | 'permutation'   .n1_threshold 3.4
+%          .n1_method   'permutation' (default) | 'sd'   .n1_threshold 3.4 (sd only)
+%
+% CRP significance: run_CRP chooses the response duration tau_R as the argmax
+% of the mean cross-projection profile, so a t-test at tau_R is biased by that
+% choice (on pure noise it rejects far above its nominal rate). The p-value
+% here comes instead from a sign-flip permutation null in which the SAME
+% selection - the maximum of the profile over all durations - is repeated for
+% every permutation. Exact for up to 9 trials.
 %
 % Results:
-%   EEG.ieeglab.stats.table   CRP: tR, explained variance, p, per site x contact
+%   EEG.ieeglab.stats.table   CRP per site x contact: tR_ms, explained_var, snr, p, p_adj, significant, n_trials
 %   EEG.ieeglab.stats.crp     full run_CRP output per site x contact
 %   EEG.ieeglab.n1            N1 results (see ieeglab_detect_n1)
 %   EEG.ieeglab.ccep_matrix   connectivity matrix (see ieeglab_ccep_matrix)
@@ -44,13 +56,16 @@ if interactive, opt = struct(); end
 isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
 def = struct('run_n1',isCCEP, 'run_crp',true, 'run_matrix',isCCEP, 'matrix_source','n1', ...
     'export_dir','', 'plot',interactive, 'alpha',0.05, 'correct','fdr', 'min_trials',5, ...
-    'exclude_stim',true, 'verbose',true, 'crp_window',[15 500], ...
-    'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','sd', 'n1_threshold',3.4);
+    'exclude_stim',true, 'n_perm',1000, 'verbose',true, 'crp_window',[15 500], ...
+    'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','permutation', 'n1_threshold',3.4);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
     if ~isfield(opt, fn{ii}) || (isempty(opt.(fn{ii})) && ~ischar(def.(fn{ii})))
         opt.(fn{ii}) = def.(fn{ii});
     end
+end
+for f = {'matrix_source','correct','n1_method','export_dir'}
+    opt.(f{1}) = char(string(opt.(f{1})));
 end
 
 % ---------------- preconditions ----------------
@@ -68,6 +83,38 @@ if interactive
     opt = local_dialog(EEG, opt, isCCEP);
     if isempty(opt), return; end
 end
+if opt.min_trials < 2
+    warning('ieeglab_stats_subject:minTrials', 'min_trials raised to 2: a site needs at least two trials.');
+    opt.min_trials = 2;
+end
+
+% The matrix is built from this call's detector results
+if opt.run_matrix
+    switch lower(opt.matrix_source)
+        case 'n1'
+            if ~opt.run_n1 && opt.verbose
+                fprintf('[CCEP] The N1 matrix needs N1 results from this analysis; running N1.\n');
+            end
+            opt.run_n1 = true;
+        case 'crp'
+            if ~opt.run_crp && opt.verbose
+                fprintf('[CCEP] The CRP matrix needs CRP results from this analysis; running CRP.\n');
+            end
+            opt.run_crp = true;
+        otherwise
+            error('ieeglab_stats_subject:badSource', 'matrix_source must be ''n1'' or ''crp''.');
+    end
+end
+
+% ---------------- the dataset holds only this call's results ----------------
+if ~isfield(EEG,'ieeglab') || isempty(EEG.ieeglab), EEG.ieeglab = struct(); end
+stale = {};
+if isfield(EEG.ieeglab,'ccep_matrix'), stale{end+1} = 'ccep_matrix'; end
+if ~opt.run_n1  && isfield(EEG.ieeglab,'n1'),    stale{end+1} = 'n1'; end
+if ~opt.run_crp && isfield(EEG.ieeglab,'stats'), stale{end+1} = 'stats'; end
+if ~isempty(stale)
+    EEG.ieeglab = rmfield(EEG.ieeglab, stale);
+end
 
 % ---------------- CRP ----------------
 if opt.run_crp
@@ -76,25 +123,20 @@ end
 
 % ---------------- N1 ----------------
 if opt.run_n1
-    [EEG, ~] = ieeglab_detect_n1(EEG, struct('n1_window', opt.n1_window, 'baseline', opt.n1_baseline, ...
-        'method', opt.n1_method, 'threshold', opt.n1_threshold, 'alpha', opt.alpha, ...
-        'correct', opt.correct, 'min_trials', opt.min_trials, 'exclude_stim', opt.exclude_stim, ...
-        'verbose', opt.verbose));
+    EEG = ieeglab_detect_n1(EEG, struct('n1_window', opt.n1_window, 'baseline', opt.n1_baseline, ...
+        'method', opt.n1_method, 'threshold', opt.n1_threshold, 'n_perm', opt.n_perm, ...
+        'alpha', opt.alpha, 'correct', opt.correct, 'min_trials', opt.min_trials, ...
+        'exclude_stim', opt.exclude_stim, 'verbose', opt.verbose));
 end
 
 % ---------------- connectivity matrix ----------------
 if opt.run_matrix
-    src = lower(char(opt.matrix_source));
-    if strcmp(src,'crp') && ~opt.run_crp
-        warning('ieeglab_stats_subject:matrixNeedsCRP', 'Matrix source is CRP but CRP is off; using N1.');
-        src = 'n1';
-    end
     try
-        EEG = ieeglab_ccep_matrix(EEG, struct('source', src, 'compute_missing', true, 'plot', false, ...
-            'verbose', opt.verbose, 'n1_window', opt.n1_window, 'baseline', opt.n1_baseline, ...
-            'alpha', opt.alpha, 'correct', opt.correct, 'min_trials', opt.min_trials));
+        EEG = ieeglab_ccep_matrix(EEG, struct('source', opt.matrix_source, 'compute_missing', false, ...
+            'plot', false, 'verbose', opt.verbose));
     catch ME
         warning('ieeglab_stats_subject:matrixFailed', 'Connectivity matrix not built: %s', ME.message);
+        if isfield(EEG.ieeglab,'ccep_matrix'), EEG.ieeglab = rmfield(EEG.ieeglab, 'ccep_matrix'); end
     end
 end
 
@@ -103,17 +145,23 @@ if opt.plot
     if opt.run_crp && isfield(EEG.ieeglab,'stats') && ~isempty(EEG.ieeglab.stats.table)
         local_plot_crp(EEG.ieeglab.stats.table, opt);
     end
-    if opt.run_matrix && isfield(EEG.ieeglab,'ccep_matrix') && ~isempty(EEG.ieeglab.ccep_matrix)
+    if isfield(EEG.ieeglab,'ccep_matrix') && ~isempty(EEG.ieeglab.ccep_matrix)
         ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix);
     end
 end
 
 % ---------------- export ----------------
+% A failed export must not cost the analysis: the analysed EEG is still returned.
 if ~isempty(opt.export_dir)
-    ieeglab_export(EEG, opt.export_dir, struct('verbose', opt.verbose));
+    try
+        ieeglab_export(EEG, opt.export_dir, struct('verbose', opt.verbose));
+    catch ME
+        warning('ieeglab_stats_subject:exportFailed', 'Results computed but not exported: %s', ME.message);
+    end
 end
 
-com = sprintf('EEG = ieeglab_stats_subject(EEG, %s);', local_struct2str(rmfield(opt, 'plot')));
+replay = opt; replay.plot = false;       % replay headless
+com = sprintf('EEG = ieeglab_stats_subject(EEG, %s);', ieeglab_literal(replay));
 end
 
 % ========================== stages ==========================
@@ -130,15 +178,15 @@ end
 t_win = tt_s(pick);
 
 labels = string({EEG.chanlocs.labels});
-sites  = ieeglab_epoch_sites(EEG);
+[sites, stimIdxEp] = ieeglab_epoch_sites(EEG);
 [uSites, ~, grp] = unique(sites);
 isBadCh = false(1, EEG.nbchan);
 if isfield(EEG.chanlocs,'status')
     isBadCh = cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status});
 end
 if opt.verbose
-    fprintf('[CRP] %d site(s)/condition(s), %d channel(s), window [%g %g] ms.\n', ...
-        numel(uSites), EEG.nbchan, opt.crp_window(1), opt.crp_window(2));
+    fprintf('[CRP] %d site(s)/condition(s), %d channel(s), window [%g %g] ms, %d permutations.\n', ...
+        numel(uSites), EEG.nbchan, opt.crp_window(1), opt.crp_window(2), opt.n_perm);
 end
 
 rows = {};
@@ -154,36 +202,38 @@ for g = 1:numel(uSites)
         continue
     end
     stimIdx = [];
-    if opt.exclude_stim && uSites(g) ~= ""
-        stimIdx = find(ismember(upper(labels), upper(ieeglab_site_tokens(uSites(g)))));
-    end
+    if opt.exclude_stim, stimIdx = unique(vertcat(stimIdxEp{tr})); end
+
     pvals = nan(EEG.nbchan,1);
     tmp   = cell(EEG.nbchan,1);
     for ch = 1:EEG.nbchan
         if ismember(ch, stimIdx) || isBadCh(ch), continue; end
-        V = squeeze(EEG.data(ch, pick, tr));
-        if size(V,2) < 2 || all(~isfinite(V(:))), continue; end
+        V = reshape(double(EEG.data(ch, pick, tr)), nnz(pick), numel(tr));   % time x trials
+        if nnz(all(isfinite(V), 1)) < opt.min_trials, continue; end
         try
-            [parms, projs] = run_CRP(double(V), t_win, struct('verbose',false));
+            [parms, projs] = run_CRP(V, t_win, struct('verbose', false));
         catch ME
             warning('ieeglab_stats_subject:crpFailed', 'CRP failed for %s / %s: %s', ...
                 char(uSites(g)), labels(ch), ME.message);
             continue
         end
-        if isempty(parms) || ~isfield(parms,'tR') || isempty(parms.tR), continue; end
-        pvals(ch) = projs.p_value_tR;
-        tmp{ch}   = struct('parms',parms,'projs',projs);
+        if isempty(parms) || ~isfield(parms,'tR') || isempty(parms.tR) || isempty(projs.S_all), continue; end
+        [p, K] = local_crp_perm_p(projs.S_all, opt.n_perm);
+        if ~isfinite(p), continue; end               % not testable: left out, not "no response"
+        pvals(ch) = p;
+        tmp{ch} = struct('parms',parms, 'projs',projs, 'K',K);
     end
+
     padj = local_correct(pvals, opt.correct);
     for ch = 1:EEG.nbchan
         if isempty(tmp{ch}), continue; end
-        p = tmp{ch};
+        q = tmp{ch};
         snr = NaN;
-        if isfield(p.parms,'Vsnr') && ~isempty(p.parms.Vsnr), snr = mean(p.parms.Vsnr,'omitnan'); end
-        rows(end+1,:) = { char(uSites(g)), char(labels(ch)), p.parms.tR*1000, ...
-            mean(p.parms.expl_var,'omitnan'), snr, pvals(ch), padj(ch), padj(ch) < opt.alpha }; %#ok<AGROW>
+        if isfield(q.parms,'Vsnr') && ~isempty(q.parms.Vsnr), snr = mean(q.parms.Vsnr,'omitnan'); end
+        rows(end+1,:) = { char(uSites(g)), char(labels(ch)), q.parms.tR*1000, ...
+            mean(q.parms.expl_var,'omitnan'), snr, pvals(ch), padj(ch), padj(ch) < opt.alpha, q.K }; %#ok<AGROW>
         crpAll(end+1) = struct('site',char(uSites(g)),'channel',char(labels(ch)), ...
-            'parms',p.parms,'projs',p.projs); %#ok<AGROW>
+            'parms',q.parms,'projs',q.projs); %#ok<AGROW>
     end
 end
 
@@ -194,15 +244,58 @@ if isempty(rows)
     T = table();
 else
     T = cell2table(rows, 'VariableNames', ...
-        {'site','channel','tR_ms','explained_var','snr','p','p_adj','significant'});
-    T = sortrows(T, {'site','p_adj'});
+        {'site','channel','tR_ms','explained_var','snr','p','p_adj','significant','n_trials'});
+    T = sortrows(T, {'site','channel'});
 end
 EEG.ieeglab.stats = struct('table', T, 'crp', crpAll, 'opt', opt);
+if isfield(EEG.ieeglab,'ccep_matrix') && isfield(EEG.ieeglab.ccep_matrix,'source') ...
+        && strcmp(EEG.ieeglab.ccep_matrix.source, 'crp')
+    EEG.ieeglab = rmfield(EEG.ieeglab, 'ccep_matrix');
+end
 if opt.verbose && ~isempty(T)
-    fprintf('[CRP] %d significant of %d site-channel pairs (%s, alpha=%g).', ...
+    fprintf('[CRP] %d significant of %d site-contact pairs (selection-corrected permutation test, %s, alpha=%g).', ...
         sum(T.significant), height(T), opt.correct, opt.alpha);
     if nSkipped, fprintf(' %d site(s) skipped for too few trials.', nSkipped); end
     fprintf('\n');
+end
+end
+
+function [p, K] = local_crp_perm_p(S_all, nPerm)
+% Sign-flip null for the CRP statistic, with the duration selection repeated.
+%
+% S_all holds, for every candidate duration j, the K^2-K off-diagonal
+% semi-normalised cross-projections P_ab = <v_a/|v_a|, v_b> in column-major
+% order (as run_CRP builds them). Flipping the sign of trials by s multiplies
+% P_ab by s_a*s_b, so the mean projection for duration j under s is
+%     (s' * Q_j * s) / (K^2 - K),   Q_j = P_j with a zero diagonal.
+% run_CRP picks tau_R as the duration with the largest mean projection; the
+% statistic is that maximum, and the null takes the maximum over durations
+% again for every sign pattern.
+nPairs = size(S_all, 1);
+K = round((1 + sqrt(1 + 4*nPairs)) / 2);
+p = NaN;
+if K < 2 || K*(K-1) ~= nPairs || any(~isfinite(S_all(:))), return; end
+M = size(S_all, 2);
+off = find(~eye(K));
+if 2^K <= nPerm + 1
+    B = dec2bin(0:2^K-1, K) == '1';
+    S = double(~B') * 2 - 1;             % column 1 is all +1 (observed)
+    exact = true;
+else
+    S = [ones(K,1), (randi(2, K, nPerm) * 2 - 3)];
+    exact = false;
+end
+best = -inf(1, size(S,2));
+for j = 1:M
+    Q = zeros(K);
+    Q(off) = S_all(:, j);
+    val = sum(S .* (Q * S), 1) / nPairs;
+    best = max(best, val);
+end
+if exact
+    p = mean(best >= best(1));
+else
+    p = (1 + sum(best(2:end) >= best(1))) / numel(best);
 end
 end
 
@@ -227,9 +320,9 @@ uilist = { ...
     {'style' 'edit' 'string' num2str(opt.n1_window) 'tag' 'n1Win' 'enable' ccepOn}, ...
     {'style' 'text' 'string' 'Significance level (alpha)'}, ...
     {'style' 'edit' 'string' num2str(opt.alpha) 'tag' 'alpha'}, ...
-    {'style' 'text' 'string' 'Minimum trials per stimulation site'}, ...
+    {'style' 'text' 'string' 'Minimum trials per stimulation site (2 or more)'}, ...
     {'style' 'edit' 'string' num2str(opt.min_trials) 'tag' 'minTr'}, ...
-    {'style' 'text' 'string' 'Correction across channels'}, ...
+    {'style' 'text' 'string' 'Correction across contacts'}, ...
     {'style' 'popupmenu' 'string' {'FDR (Benjamini-Hochberg)','Bonferroni','None'} 'tag' 'corr'}, ...
     {'style' 'checkbox' 'string' 'Skip the stimulated contacts for their own site' 'value' opt.exclude_stim 'tag' 'exclStim'}, ...
     {'style' 'checkbox' 'string' 'Detect N1 responses (amplitude, latency)' 'value' opt.run_n1 'tag' 'runN1' 'enable' ccepOn}, ...
@@ -263,17 +356,11 @@ end
 if ~isfinite(opt.alpha) || opt.alpha <= 0 || opt.alpha >= 1
     error('ieeglab_stats_subject:badAlpha', 'alpha must be between 0 and 1; got %s.', out.alpha);
 end
+if ~isfinite(opt.min_trials) || opt.min_trials < 2
+    error('ieeglab_stats_subject:badMinTrials', 'Minimum trials must be 2 or more; got %s.', out.minTr);
+end
 if logical(out.doExport) && isempty(opt.export_dir)
     error('ieeglab_stats_subject:noExportDir', 'Export is ticked but no folder was given.');
-end
-end
-
-function L = local_flatten(C)
-L = {};
-for i = 1:size(C,1)
-    for j = 1:size(C,2)
-        if ~isempty(C{i,j}), L{end+1} = C{i,j}; end %#ok<AGROW>
-    end
 end
 end
 
@@ -309,18 +396,6 @@ switch lower(method)
     otherwise
         warning('ieeglab_stats_subject:badCorrection', 'Unknown correction "%s"; reporting uncorrected p.', method);
 end
-end
-
-function s = local_struct2str(opt)
-f = fieldnames(opt); parts = {};
-for i = 1:numel(f)
-    v = opt.(f{i});
-    if ischar(v),        parts{end+1} = sprintf('''%s'',''%s''', f{i}, v); %#ok<AGROW>
-    elseif islogical(v), parts{end+1} = sprintf('''%s'',%d', f{i}, v); %#ok<AGROW>
-    elseif isnumeric(v), parts{end+1} = sprintf('''%s'',%s', f{i}, mat2str(v)); %#ok<AGROW>
-    end
-end
-s = ['struct(' strjoin(parts, ', ') ')'];
 end
 
 function out = iff(c, a, b)

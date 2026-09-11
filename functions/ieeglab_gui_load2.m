@@ -55,9 +55,10 @@ labels = opt.elec_labels(:);
 nch    = numel(labels);
 
 % ---------- Channels preselect ----------
-% Clinician-marked bad channels (channels.tsv status) start UNselected and are
-% labelled with the reason, so the default choice is the clinical one and
-% overriding it is one click.
+% Clinician-marked bad channels (channels.tsv status) are listed with the reason
+% and stay selected: they are loaded and remain MARKED, and whether they are
+% removed is decided in Preprocess ("Remove clinician-marked bad channels").
+% Deselecting a channel here drops it at load.
 isBadCh = false(nch, 1);
 badNote = repmat({''}, nch, 1);
 if isfield(opt,'bad_labels') && ~isempty(opt.bad_labels)
@@ -67,7 +68,7 @@ if isfield(opt,'bad_labels') && ~isempty(opt.bad_labels)
     end
 end
 if ~isfield(opt,'chan_idx') || isempty(opt.chan_idx)
-    if any(isBadCh), preCh = find(~isBadCh)' + 1; else, preCh = 1; end
+    preCh = 1;
 else
     sel  = opt.chan_idx(:)';
     sel  = sel(sel>=1 & sel<=nch);

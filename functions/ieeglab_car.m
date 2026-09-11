@@ -49,6 +49,17 @@ if nargin < 2 || isempty(opt)
     end
 end
 
+% Pre-1.0 field names, honoured only when the current name is absent, so an
+% alias stored on the dataset by an old dialog never overrides an explicit
+% request. (apply_acar is not read here: whether to re-reference at all is the
+% caller's decision - ieeglab_preprocess gates this function on apply_car.)
+if isfield(opt,'acar_timewin') && ~isempty(opt.acar_timewin) && ~(isfield(opt,'car_timewin') && ~isempty(opt.car_timewin))
+    opt.car_timewin = opt.acar_timewin;
+end
+if isfield(opt,'acar_fraction') && ~isempty(opt.acar_fraction) && ~(isfield(opt,'car_fraction') && ~isempty(opt.car_fraction))
+    opt.car_fraction = opt.acar_fraction;
+end
+
 % ---------------- defaults ----------------
 def = struct('car_method','carla', 'car_timewin',[10 300], 'car_fraction',0.25, ...
              'car_nboot',100, 'car_sens',false, 'car_linefreq',60, ...
@@ -59,11 +70,6 @@ for ii = 1:numel(fn)
         opt.(fn{ii}) = def.(fn{ii});
     end
 end
-
-% Back-compatibility with the previous field names
-if isfield(opt,'acar_timewin')  && ~isempty(opt.acar_timewin),  opt.car_timewin  = opt.acar_timewin;  end
-if isfield(opt,'acar_fraction') && ~isempty(opt.acar_fraction), opt.car_fraction = opt.acar_fraction; end
-if isfield(opt,'apply_acar') && ~opt.apply_acar, opt.car_method = 'none'; end
 
 out = struct('group',{},'trials',{},'car_channels',{},'excluded_channels',{},'n_sel',{},'stats',{});
 if strcmpi(opt.car_method,'none')
@@ -126,12 +132,20 @@ if opt.verbose
 end
 
 % ---------------- group epochs ----------------
-if opt.car_persite && any(siteName ~= "")
+% Per-site grouping only when stimulation sites were resolved. On non-CCEP
+% data ieeglab_epoch_sites returns the condition name as the "site"; grouping
+% by it would choose a different reference per condition and confound every
+% condition contrast.
+persite = opt.car_persite && nResolved > 0;
+if persite
     [uSites, ~, grpIdx] = unique(siteName);
 else
     uSites = "all"; grpIdx = ones(1,N);
 end
 nGrp = numel(uSites);
+if ~persite && nResolved > 0 && opt.verbose
+    fprintf('[CAR] Pooled reference (car_persite=false): each trial''s stimulated contacts are left out of that trial''s average.\n');
+end
 
 % ---------------- diagnostics before ----------------
 r_before = local_rank_proxy(X);
@@ -141,8 +155,13 @@ for g = 1:nGrp
     tr = find(grpIdx == g);
     if isempty(tr), continue; end
 
-    % Channels barred from this group's reference: stimulated pair + bad channels
-    excl = unique([badIdx(:); vertcat(stimExcl{tr})]);
+    % Channels barred from this group's reference selection: bad channels, and
+    % for a site group its stimulated pair. A pooled group excludes stimulated
+    % contacts trial by trial when the reference is applied (excluding the union
+    % of every site's pair would leave no channel on a typical montage).
+    stimG = [];
+    if persite, stimG = vertcat(stimExcl{tr}); end
+    excl = unique([badIdx(:); stimG(:)]);
     excl = excl(excl >= 1 & excl <= C);
 
     if strcmpi(opt.car_method,'carla') && numel(tr) > 1 && numel(tr) < 5
@@ -159,15 +178,18 @@ for g = 1:nGrp
                            'sens', opt.car_sens, 'lineFreq', opt.car_linefreq, ...
                            'verbose', false);
             [~, ~, st] = ieeglab_carla(tt_s, Vg, EEG.srate, copts);
-            carCh = st.chsUsed;
+            carCh = st.chsUsed(:);
             stg   = st;
+            blocks = {struct('rows', 1:C, 'sel', carCh')};
 
         case 'varsubset'
             [carCh, stg] = local_varsubset(X(:,:,tr), tt_s, win_s, excl, C, opt.car_fraction);
+            blocks = cellfun(@(b) struct('rows', b.block, 'sel', b.selected), stg.blocks, 'UniformOutput', false);
 
         case 'car'
             carCh = setdiff((1:C)', excl);
             stg   = struct();
+            blocks = {struct('rows', 1:C, 'sel', carCh')};
 
         otherwise
             error('ieeglab_car:badMethod', ...
@@ -180,9 +202,26 @@ for g = 1:nGrp
         continue
     end
 
-    % Apply per trial, so the common average tracks trial-level noise
-    mu = mean(X(carCh,:,tr), 1, 'omitnan');           % [1 x T x numel(tr)]
-    X(:,:,tr) = X(:,:,tr) - mu;
+    % Apply per trial, so the common average tracks trial-level noise. Each
+    % block (one for CARLA/CAR, one per 64 channels for varsubset, as in the
+    % legacy HAPwave code) is referenced to the mean of its own selection.
+    nNoRef = 0;
+    for b = 1:numel(blocks)
+        rows = blocks{b}.rows; sel = blocks{b}.sel;
+        if persite || nResolved == 0
+            X(rows,:,tr) = X(rows,:,tr) - mean(X(sel,:,tr), 1, 'omitnan');
+        else
+            for k = tr(:)'
+                selk = setdiff(sel, stimExcl{k});
+                if isempty(selk), nNoRef = nNoRef + 1; continue; end
+                X(rows,:,k) = X(rows,:,k) - mean(X(selk,:,k), 1, 'omitnan');
+            end
+        end
+    end
+    if nNoRef > 0
+        warning('ieeglab_car:trialsNotReferenced', ...
+            '%d trial-block(s) had no reference channel left once their stimulated contacts were excluded, and were not re-referenced.', nNoRef);
+    end
 
     out(end+1) = struct('group', char(uSites(g)), 'trials', tr, ...
         'car_channels', carCh(:)', 'excluded_channels', excl(:)', ...
@@ -196,6 +235,12 @@ for g = 1:nGrp
 end
 
 % ---------------- write back ----------------
+% EEG.ref names a reference only when one was actually applied.
+if isempty(out)
+    warning('ieeglab_car:nothingApplied', ...
+        'No group could be re-referenced; the data are unchanged and EEG.ref is left as "%s".', local_refname(EEG));
+    return
+end
 EEG.data = X;
 switch lower(opt.car_method)
     case 'carla',     EEG.ref = 'CARLA';
@@ -203,7 +248,7 @@ switch lower(opt.car_method)
     case 'car',       EEG.ref = 'CAR';
 end
 EEG.ieeglab.car = struct('method', opt.car_method, 'timewin_ms', opt.car_timewin, ...
-    'persite', opt.car_persite, 'n_groups', numel(out));
+    'persite', persite, 'n_groups', numel(out));
 
 r_after = local_rank_proxy(X);
 if r_after < r_before
@@ -260,7 +305,7 @@ function [carCh, st] = local_varsubset(X, tt_s, win_s, excl, C, frac)
 % the frac-th percentile of cross-trial covariance. Kept so previously analysed
 % datasets can be reproduced. Adapted from apply_ieeg_car / ccep_CAR64blocks_percent
 % (Multimodal Neuroimaging Lab, Mayo Clinic).
-tmask = tt_s >= win_s(1) & tt_s <= win_s(2);
+tmask = tt_s > win_s(1) & tt_s < win_s(2);      % open interval, as apply_ieeg_car
 if ~any(tmask), tmask = true(1, size(X,2)); end
 carCh = [];
 st = struct('blocks', {{}});
@@ -277,6 +322,11 @@ for b = 1:ceil(C/64)
     st.blocks{end+1} = struct('block', blk, 'selected', sel(:)', 'threshold', th);
 end
 carCh = unique(carCh);
+end
+
+function s = local_refname(EEG)
+s = '';
+if isfield(EEG,'ref') && (ischar(EEG.ref) || isstring(EEG.ref)), s = char(EEG.ref); end
 end
 
 function r = local_rank_proxy(X3)
