@@ -169,7 +169,10 @@ o = struct('apply_baseline', true, 'baseline_period', [-400 -50], 'verbose', fal
 [~, E2] = evalc('ieeglab_preprocess(E, o)');
 tc.verifyEqual(E2.trials, E.trials);
 D = double(E2.data) - double(E.data);
-tc.verifyLessThan(max(std(D, 0, 2), [], 'all'), 1e-3, 'Only a per-trial constant may change.');
+% Single-precision data: allow rounding at the data's own scale (a second
+% high-pass or re-reference would change the waveform by microvolts).
+tol = 10 * double(eps(single(max(abs(E.data(:))))));
+tc.verifyLessThan(max(std(D, 0, 2), [], 'all'), tol, 'Only a per-trial constant may change.');
 tc.verifyFalse(isfield(E2.ieeglab.opt, 'plot'), 'The plot switch must not be stored.');
 end
 
