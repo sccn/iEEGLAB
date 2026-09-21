@@ -38,9 +38,9 @@ Ordered by what blocks the most. Estimates are with AI-assisted development
       `.gitignore` rules existed). Destructive: needs a force-push and a heads-up
       to anyone with a clone.
 - [ ] Update the wiki: it still documents aCAR, the 1/f baseline and the old menu.
-- [ ] Add the real `channels.tsv` from OpenNeuro ds004696 (sub-02) to the
-      tutorial so bad-channel handling can be shown on real clinician labels.
-      The tutorial currently has seizure-zone labels but no channels.tsv.
+- [x] Add the real `channels.tsv` from OpenNeuro ds004696 (sub-02) to the
+      tutorial (done 2026-09-21, subset to the 16 contacts; ROP3, ROP5, ROP6 are
+      status 'bad'). Run the tutorial once to confirm `ieeglab_load` picks it up.
 
 ## Methods
 
@@ -54,9 +54,28 @@ Ordered by what blocks the most. Estimates are with AI-assisted development
 - [ ] Anatomical labelling and MNI coordinates per contact, from
       `mnl_ieegBasics` (prerequisite for any group analysis).
 - [ ] Validate N1 detection against `erdetect` on shared data, as was done for
-      CARLA.
+      CARLA. Partly done 2026-09-20 (Python prototype, HAPwave sub-02): latency
+      within 5 ms in 92% of jointly detected pairs, amplitude r = 0.99, detection
+      kappa 0.36 with the old z-rule. erdetect's rule is now an option of
+      `ieeglab_detect_n1` (`polarity`, `min_baseline_sd`). Remaining: MATLAB run of
+      `ieeglab_detect_n1` with erdetect-equivalent settings vs erdetect, on
+      ds004080 (subject IDs are `sub-ccepAgeUMCU01`...) and on HAPwave sub-02.
+- [ ] Unit tests for the new `ieeglab_detect_n1` options: polarity 'negative'
+      ignores a positive peak; `min_baseline_sd` floors z on a quiet contact;
+      a baseline outside the epoch is clamped with warning `baselineClamped`.
+- [ ] Decide the N1 polarity default with Dora (37% of responsive pairs on
+      HAPwave sub-02 have their largest early deflection positive).
+- [ ] Time-frequency per contact: wavelet spectrogram and 70-170 Hz broadband,
+      as in Huang et al. 2023. HAPwave sub-02: HFB rises 1.7x median over a
+      distant baseline, a third of pairs above surrogate.
+- [ ] Phase: use epochs of at least -2..+2 s (wavelet cone of influence), equal
+      trial counts vs surrogate, and an evoked-subtracted (induced) ITPC to test
+      phase reset. HAPwave sub-02: no phase reset survives ERP subtraction.
 - [ ] Test blanking and N1 on native-rate data (the tutorial extract is 128 Hz,
       too coarse for either to be meaningful — both functions warn about this).
+      Done in the Python prototype on HAPwave sub-02 (2048 Hz, see
+      worklog/2026-09-20-native-rate-numbers.md); the MATLAB functions themselves
+      still need running on it (MEF3: wire `ieeglab_load_mefd`).
 
 ## Surfaces and localisation
 

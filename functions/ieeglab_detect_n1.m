@@ -35,6 +35,23 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %   .require_peak  the maximum must be a local extremum inside the window, not
 %                  its first or last sample (a slope running out of the window
 %                  is not an N1). Default true.
+%   .polarity      'abs' (default) counts the largest deflection of either sign;
+%                  'negative' counts only negative-going peaks, the convention
+%                  used by erdetect; 'positive' only positive-going ones. On
+%                  HAPwave sub-02, 37% of responsive pairs have their largest
+%                  early deflection positive, so the two conventions disagree
+%                  for about a third of the data.
+%   .min_baseline_sd  floor on the baseline SD in uV, so that a quiet contact
+%                  cannot produce a large z. Default 50, which with the default
+%                  threshold of 3.4 gives erdetect's effective 170 uV criterion.
+%                  Set 0 to disable.
+%
+% erdetect-equivalent settings:
+%   opt = struct('method','sd', 'threshold',3.4, 'min_baseline_sd',50, ...
+%                'polarity','negative', 'n1_window',[9 90], 'baseline',[-1000 -100]);
+%   A baseline that does not fit the epoch is clamped to the available
+%   pre-stimulus period with a warning, rather than silently returning no
+%   detections.
 %   .verbose       default true
 %
 % Output T (also EEG.ieeglab.n1.table): site, channel, n1_amplitude_uv,
@@ -49,6 +66,8 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %   van Blooijs D, et al. (2018). Evoked directional network characteristics of
 %   epileptogenic tissue derived from single pulse electrical stimulation.
 %   Human Brain Mapping 39(11):4611-4622.
+%   ER-detect (MultimodalNeuroimagingLab), the reference implementation of the
+%   SD rule used here: https://github.com/MultimodalNeuroimagingLab/erdetect
 %   Maris E, Oostenveld R (2007). Nonparametric statistical testing of EEG- and
 %   MEG-data. J Neurosci Methods 164(1):177-190.
 %
@@ -58,7 +77,8 @@ com = '';
 if nargin < 2 || isempty(opt), opt = struct(); end
 def = struct('n1_window',[10 100], 'baseline',[-500 -10], 'method','permutation', ...
              'n_perm',1000, 'threshold',3.4, 'alpha',0.05, 'correct','fdr', ...
-             'min_trials',5, 'exclude_stim',true, 'require_peak',true, 'verbose',true);
+             'min_trials',5, 'exclude_stim',true, 'require_peak',true, ...
+             'polarity','abs', 'min_baseline_sd',50, 'verbose',true);
 fn = fieldnames(def);
 for i = 1:numel(fn)
     if ~isfield(opt,fn{i}) || isempty(opt.(fn{i})), opt.(fn{i}) = def.(fn{i}); end
@@ -67,6 +87,14 @@ opt.method  = lower(char(opt.method));
 opt.correct = lower(char(opt.correct));
 if ~any(strcmp(opt.method, {'permutation','sd'}))
     error('ieeglab_detect_n1:badMethod', 'method must be ''permutation'' or ''sd''; got ''%s''.', opt.method);
+end
+opt.polarity = lower(char(opt.polarity));
+if ~any(strcmp(opt.polarity, {'abs','negative','positive'}))
+    error('ieeglab_detect_n1:badPolarity', ...
+        'polarity must be ''abs'', ''negative'' or ''positive''; got ''%s''.', opt.polarity);
+end
+if ~isnumeric(opt.min_baseline_sd) || ~isscalar(opt.min_baseline_sd) || opt.min_baseline_sd < 0
+    error('ieeglab_detect_n1:badMinSd', 'min_baseline_sd must be a non-negative scalar (uV).');
 end
 if opt.min_trials < 2
     warning('ieeglab_detect_n1:minTrials', 'min_trials raised to 2: a site needs at least two trials.');
@@ -93,9 +121,22 @@ if nnz(iN) < 3
         opt.n1_window(1), opt.n1_window(2), nnz(iN), t(1), t(end));
 end
 if nnz(iB) < 10
-    error('ieeglab_detect_n1:badBaseline', ...
-        'Baseline [%g %g] ms selects only %d samples; need at least 10 for a noise estimate.', ...
-        opt.baseline(1), opt.baseline(2), nnz(iB));
+    % The requested baseline does not fit this epoch. Clamp it to the pre-stimulus
+    % period that exists rather than returning nothing, which is the failure mode
+    % erdetect has with its default baseline of -1000 to -100 ms on short epochs.
+    lo = max(opt.baseline(1), t(1));
+    hi = min(opt.baseline(2), -1000/EEG.srate);          % one sample before zero
+    iB = t >= lo & t <= hi;
+    if nnz(iB) < 10
+        error('ieeglab_detect_n1:badBaseline', ...
+            ['Baseline [%g %g] ms selects only %d samples of an epoch spanning [%g %g] ms; ' ...
+             'need at least 10 for a noise estimate.'], ...
+            opt.baseline(1), opt.baseline(2), nnz(iB), t(1), t(end));
+    end
+    warning('ieeglab_detect_n1:baselineClamped', ...
+        'Baseline [%g %g] ms does not fit this epoch; using [%g %g] ms (%d samples).', ...
+        opt.baseline(1), opt.baseline(2), lo, hi, nnz(iB));
+    opt.baseline = [lo hi];
 end
 use = iB | iN;                  % only these samples are ever needed
 iBu = iB(use); iNu = iN(use); tN = t(iN);
@@ -134,7 +175,8 @@ for g = 1:numel(uSites)
         else
             S = ones(K, 1); exact = false;
         end
-        [stat, amp, lat, sd] = local_stat(X * S / K, iBu, iNu, tN, opt.require_peak);
+        [stat, amp, lat, sd] = local_stat(X * S / K, iBu, iNu, tN, opt.require_peak, ...
+                                          opt.polarity, opt.min_baseline_sd);
 
         switch opt.method
             case 'permutation'
@@ -226,14 +268,23 @@ end
 
 % ===================== local helpers =====================
 
-function [stat, amp, lat, sd] = local_stat(A, iB, iN, tN, requirePeak)
+function [stat, amp, lat, sd] = local_stat(A, iB, iN, tN, requirePeak, polarity, minSd)
 % A: samples x patterns (column 1 is the observed average). Statistic per
-% column: largest |deflection| in the window, from the baseline median, in
-% units of baseline SD.
+% column: largest deflection in the window, from the baseline median, in units
+% of baseline SD. polarity selects which deflections count ('abs', 'negative'
+% or 'positive'); minSd is a floor on the baseline SD, so that threshold x SD
+% cannot fall below threshold x minSd on a quiet contact (erdetect's rule).
+if nargin < 6 || isempty(polarity), polarity = 'abs'; end
+if nargin < 7 || isempty(minSd),    minSd    = 0;     end
 A = A - median(A(iB,:), 1, 'omitnan');
 sdAll = std(A(iB,:), 0, 1, 'omitnan');
+sdAll = max(sdAll, minSd);
 seg = A(iN,:);
-a = abs(seg);
+switch polarity
+    case 'negative', a = -seg; a(a < 0) = 0;
+    case 'positive', a =  seg; a(a < 0) = 0;
+    otherwise,       a = abs(seg);
+end
 n = size(seg, 1);
 if requirePeak && n >= 3
     ext = false(size(a));

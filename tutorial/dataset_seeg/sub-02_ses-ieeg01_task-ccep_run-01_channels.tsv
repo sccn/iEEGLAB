@@ -1,0 +1,17 @@
+name	type	units	low_cutoff	high_cutoff	reference	group	sampling_frequency	notch	status	status_description	headbox
+RA1	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA2	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA3	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA4	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA5	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA6	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA7	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA8	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA9	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+RA10	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	1
+ROP1	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	2
+ROP2	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	2
+ROP3	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	bad	n/a	2
+ROP4	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	good	n/a	2
+ROP5	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	bad	n/a	2
+ROP6	SEEG	µV	878	0.01	intracranial	n/a	128	n/a	bad	n/a	3

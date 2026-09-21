@@ -150,13 +150,15 @@ end
 function test_bad_channels_from_channels_tsv_mark(tc)
 EEG = local_load_headless(tc, struct());
 labels = {EEG.chanlocs.labels};
-f = local_channels_tsv(tc, labels, {'RA3','ROP5'}, {'high impedance','n/a'}, {'ROP6'});
+f = local_channels_tsv(tc, labels, {'RA3','ROP5'}, {'high impedance','n/a'}, {'RA10'});
+% Contacts the tutorial's own channels.tsv marked bad at load stay bad.
+pre = local_marked_at_load(EEG);
 [~, E, T] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'', f, ''action'', ''mark''))');
 tc.verifyEqual(E.nbchan, EEG.nbchan, 'mark must not remove channels.');
 bad = cellstr(T.label(T.status == "bad"));
-tc.verifyEqual(sort(bad(:))', sort({'RA3','ROP5','ROP6'}));
+tc.verifyEqual(sort(bad(:))', sort(union({'RA3','ROP5','RA10'}, pre)));
 tc.verifyEqual(char(T.reason(T.label == "RA3")), 'high impedance', 'status_description must be kept as the reason.');
-tc.verifySubstring(char(T.reason(T.label == "ROP6")), 'ECG', 'Non-iEEG types must be flagged.');
+tc.verifySubstring(char(T.reason(T.label == "RA10")), 'ECG', 'Non-iEEG types must be flagged.');
 tc.verifyEqual(E.chanlocs(strcmp(labels,'RA3')).status, 'bad');
 end
 
@@ -165,11 +167,21 @@ EEG = local_load_headless(tc, struct());
 labels = {EEG.chanlocs.labels};
 f = local_channels_tsv(tc, labels, {'RA1'}, {'noisy'}, {});
 nRA10 = nnz(strcmp({EEG.event.type}, 'RA10-RA9'));
+pre = local_marked_at_load(EEG);
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'', f, ''action'', ''remove''))');
 tc.verifyFalse(any(strcmp({E.chanlocs.labels}, 'RA1')));
 tc.verifyFalse(any(strcmp({E.event.type}, 'RA1-RA2')), 'Stimulation of a bad contact must be dropped.');
 tc.verifyEqual(nnz(strcmp({E.event.type}, 'RA10-RA9')), nRA10, 'RA10-RA9 must survive (exact matching).');
-tc.verifyEqual(E.ieeglab.removed_channels, {'RA1'});
+tc.verifyEqual(sort(E.ieeglab.removed_channels(:))', sort(union({'RA1'}, pre)));
+end
+
+function pre = local_marked_at_load(EEG)
+% Labels already marked bad when the dataset was loaded (tutorial channels.tsv).
+pre = {};
+if isfield(EEG.chanlocs, 'status')
+    isBad = cellfun(@(x) ~isempty(x) && strcmpi(char(x), 'bad'), {EEG.chanlocs.status});
+    pre = {EEG.chanlocs(isBad).labels};
+end
 end
 
 function test_marked_bad_channel_is_kept_out_of_the_reference(tc)
@@ -233,7 +245,9 @@ tc.verifyEqual(numel(M.channels), E.nbchan);
 tc.verifySize(M.response, [numel(M.sites) numel(M.channels)]);
 tc.verifyTrue(all(ismember(M.response(~isnan(M.response)), [0 1])), 'response must be 0, 1 or NaN.');
 tc.verifyEqual(M.out_degree, sum(M.response == 1, 2));
-tc.verifyEqual(M.in_degree, sum(M.response == 1, 1)');
+inExp = sum(M.response == 1, 1)';
+inExp(all(isnan(M.response), 1)') = NaN;          % never tested (e.g. marked bad): NaN, not 0
+tc.verifyEqual(M.in_degree, inExp);
 tc.verifyGreaterThanOrEqual(M.density, 0); tc.verifyLessThanOrEqual(M.density, 1);
 % Stimulated contacts are "not measured" for their own site, never 0 or 1
 for s = 1:numel(M.sites)

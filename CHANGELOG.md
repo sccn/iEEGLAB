@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased (2026-09-21)
+
+- **N1 detection gains erdetect's rule as options.** `ieeglab_detect_n1` now
+  takes `polarity` ('abs' default, 'negative' as erdetect, 'positive') and
+  `min_baseline_sd` (default 50 uV), a floor on the baseline SD, so threshold
+  3.4 gives erdetect's effective 170 uV criterion. erdetect-equivalent settings
+  are documented in the header. Not yet covered by tests.
+- **A baseline that does not fit the epoch is clamped, not fatal.** It is
+  reduced to the available pre-stimulus period with warning
+  `ieeglab_detect_n1:baselineClamped`. erdetect with its default -1000 to
+  -100 ms baseline returns zero detections silently on shorter epochs.
+- **Tutorial: real `channels.tsv` added** for sub-02 (from ds004696), so the
+  clinician bad-channel path is exercised; ROP3, ROP5, ROP6 are marked bad.
+- **Test: `tests/test_crp_vs_python.m`** checks `run_CRP.m` against an
+  independent implementation on fixed synthetic data
+  (`tests/reference/crp_test_*.csv`, `crp_python_reference.json`).
+- **Tests follow the tutorial's clinician labels.** Four tests assumed the tutorial had
+  no `channels.tsv`; they now expect ROP3, ROP5 and ROP6 to be bad from load, and
+  the matrix in-degree to be NaN for contacts never tested. Suite: 80 tests.
+
 ## 1.1.0 — 2026-09
 
 ### Scientific fixes — re-run any CCEP analysis made with 1.0

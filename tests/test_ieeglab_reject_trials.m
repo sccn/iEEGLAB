@@ -77,9 +77,14 @@ tr0 = arrayfun(@(r) local_trial_of_tsv_row(E, ev.tsv_row(r)), annotated);
 tc.assertFalse(any(isnan(tr0)), 'Annotated events must be traceable to trials through tsv_row.');
 [~, ~, T] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false))');
 tc.verifyTrue(all(T.bad(tr0)), sprintf('Both clinician-annotated artifact trials (%s) should be flagged.', mat2str(tr0(:)')));
+% Preprocess rejects before baseline correction, so compare against flags on
+% data at that same stage.
+opt.apply_baseline = false;
+[~, Enb] = evalc('ieeglab_preprocess(EEG, opt)');
+[~, ~, Tnb] = evalc('ieeglab_reject_trials(Enb, struct(''action'',''mark'',''verbose'',false))');
 opt.reject_trials = true;
 [~, E2] = evalc('ieeglab_preprocess(EEG, opt)');
-tc.verifyEqual(E2.trials, E.trials - nnz(T.bad), 'reject_trials in preprocess must remove exactly the flagged trials.');
+tc.verifyEqual(E2.trials, Enb.trials - nnz(Tnb.bad), 'reject_trials in preprocess must remove exactly the flagged trials.');
 end
 
 function k = local_trial_of_tsv_row(E, row)
