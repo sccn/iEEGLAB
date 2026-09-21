@@ -13,10 +13,12 @@ ds_should_enable = EEG.srate > 512;
 ds_default_rate  = 512;
 
 choices = struct();
-choices.event_filters     = struct();   % filled by sub-GUI (or empty)
+choices.event_filters     = struct([]);  % 0x0 so isempty() is true when unset
 choices.remove_rare_cond  = true;
 choices.min_trials        = 5;
 choices.remove_no_coords  = true;
+choices.remove_bad_channels = true;   % clinician-marked (channels.tsv status)
+choices.exclude_soz       = false;     % seizure-onset-zone contacts
 
 choices.apply_ds          = ds_should_enable;
 
@@ -35,15 +37,16 @@ choices.filter_type       = 1;          % 1 = Noncausal zero-phase (default), 2 
 % Epoching (enabled by default IF events exist)
 choices.apply_epoch       = true;
 choices.epoch_window      = [-500 900]; % ms
+choices.reject_trials     = false;      % automatic outlier-trial rejection
 
 % CAR (enabled by default IF events exist)
-choices.apply_acar        = true;
-choices.acar_fraction     = 0.20;
-choices.acar_timewin      = [15 500];   % ms
+choices.apply_car        = true;
+choices.car_fraction      = 0.25;
+choices.car_timewin       = [10 300];   % ms, as the CARLA reference implementation
 
 % Baseline (enabled by default IF events exist)
 choices.apply_baseline    = true;
-choices.baseline_method   = 1;          % 1=median, 2=mean, 3=trimmed mean, 4=1/f
+choices.baseline_method   = 1;          % 1=median, 2=mean, 3=trimmed mean
 choices.baseline_period   = [-500 -50]; % ms
 choices.baseline_mode     = 1;          % 1=subtract, 2=divide
 
@@ -71,6 +74,13 @@ elseif isfield(EEG,'event') && ~isempty(EEG.event)
     end
 end
 haveEv = istable(evT) && ~isempty(evT) && width(evT)>0;
+% CCEP-only methods (CARLA, stimulation blanking) are offered only for CCEP data
+isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
+choices.apply_blank = isCCEP && EEG.srate >= 500;   % blanking needs the native rate
+nBadMarked = 0;
+if isfield(EEG.chanlocs,'status')
+    nBadMarked = sum(cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status}));
+end
 
 if haveEv
     ignoreCols = {'onset','duration','electrodes_involved_onset','electrodes_involved_offset','sample_start'};
@@ -83,7 +93,7 @@ end
 % If NO events: force these OFF and keep their controls disabled
 if ~haveEv
     choices.apply_epoch    = false;
-    choices.apply_acar     = false;
+    choices.apply_car     = false;
     choices.apply_baseline = false;
 end
 
@@ -106,12 +116,12 @@ cb_lp  = local_cb_toggle({'lbl_lowpass','lowpass'});
 
 % these depend on events
 if haveEv
-    cb_seg = local_cb_toggle({'lbl_epoch','epoch_window'});
-    cb_acar= local_cb_toggle({'acar_fraction','acar_timewin','lbl_acar_fraction','lbl_acar_timewin'});
+    cb_seg = local_cb_toggle({'lbl_epoch','epoch_window','lbl_rej','reject_trials'});
+    cb_car= local_cb_toggle({'car_fraction','car_timewin','lbl_car_fraction','lbl_car_timewin'});
     cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period','lbl_bl_mode','bl_mode'});
 else
     cb_seg = @(h,~) set(h,'value',0);
-    cb_acar= @(h,~) set(h,'value',0);
+    cb_car= @(h,~) set(h,'value',0);
     cb_bl  = @(h,~) set(h,'value',0);
 end
 
@@ -122,7 +132,7 @@ onoff_no  = iff(choices.apply_notch,'on','off');
 onoff_lp  = iff(choices.apply_lowpass,'on','off');
 
 onoff_seg = iff(haveEv && choices.apply_epoch,'on','off');
-onoff_car = iff(haveEv && choices.apply_acar,'on','off');
+onoff_car = iff(haveEv && choices.apply_car,'on','off');
 onoff_bl  = iff(haveEv && choices.apply_baseline,'on','off');
 
 % -------------------------------------------------------------------------
@@ -136,7 +146,12 @@ uigeom = {
     0.01
     1
     [0.70 0.30]
+    [0.70 0.30]
+    [0.70 0.30]
     1
+
+    % Stimulation blanking (CCEP)
+    [0.70 0.30]
 
     % Downsample
     [0.70 0.30]
@@ -159,6 +174,7 @@ uigeom = {
 
     % Segmentation
     [0.70 0.30]
+    [0.06 0.64 0.30]
     [0.06 0.64 0.30]
 
     % CAR
@@ -184,14 +200,14 @@ uilist = {};
 
 % Events
 append({'style' 'text' 'string' 'Events' 'fontweight' 'bold' 'horizontalalignment' 'left'});
-append({'style' 'text' 'string' 'Select events of interest:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Choose which event types to analyse:' 'horizontalalignment' 'left'});
 append({'style' 'pushbutton' 'string' 'Open selector…' 'callback' cb_ev 'enable' btn_en});
 
-append({'style' 'text' 'string' 'Remove rare conditions:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Drop conditions with too few trials:' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'remove_rare_cond' 'value' choices.remove_rare_cond 'string' 'Enable'});
 
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'string' 'Min trials:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Minimum trials per condition:' 'horizontalalignment' 'left'});
 append({'style' 'edit' 'tag' 'min_trials' 'string' num2str(choices.min_trials)});
 
 % hidden event filter store
@@ -201,9 +217,17 @@ append({'style' 'edit' 'tag' 'evsel_json' 'string' '' 'visible' 'off'});
 append({'style' 'text' 'string' 'Electrodes' 'fontweight' 'bold' 'horizontalalignment' 'left'});
 append({'style' 'text' 'string' 'Remove electrodes with no XYZ coordinates?' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'rm_no_coords' 'value' choices.remove_no_coords 'string' ''});
+append({'style' 'text' 'string' sprintf('Remove clinician-marked bad channels (%d marked)?', nBadMarked) 'horizontalalignment' 'left'});
+append({'style' 'checkbox' 'tag' 'rm_bad' 'value' choices.remove_bad_channels 'string' ''});
+append({'style' 'text' 'string' 'Also remove seizure-onset-zone contacts?' 'horizontalalignment' 'left'});
+append({'style' 'checkbox' 'tag' 'rm_soz' 'value' choices.exclude_soz 'string' ''});
 
 % Signal Processing header
 append({'style' 'text' 'string' 'Signal Processing' 'fontweight' 'bold' 'horizontalalignment' 'left'});
+
+% Stimulation-artifact blanking: CCEP only, and first, before any filter can ring on it
+append({'style' 'text' 'string' 'Blank stimulation artifact (CCEP, before filtering):' 'horizontalalignment' 'left' 'enable' iff(isCCEP,'on','off')});
+append({'style' 'checkbox' 'tag' 'apply_blank' 'value' choices.apply_blank 'string' 'Enable' 'enable' iff(isCCEP,'on','off')});
 
 % Downsample
 append({'style' 'text' 'string' 'Downsample:' 'horizontalalignment' 'left'});
@@ -246,17 +270,20 @@ append({'style' 'checkbox' 'tag' 'apply_epoch' 'value' choices.apply_epoch ...
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
+append({'style' 'text' 'string' ''});
+append({'style' 'text' 'tag' 'lbl_rej' 'string' 'Reject outlier trials automatically:' 'horizontalalignment' 'left' 'enable' onoff_seg});
+append({'style' 'checkbox' 'tag' 'reject_trials' 'value' choices.reject_trials 'string' '' 'enable' onoff_seg});
 
 % CAR
-append({'style' 'text' 'string' 'Adjusted Average Reference:' 'horizontalalignment' 'left'});
-append({'style' 'checkbox' 'tag' 'apply_acar' 'value' choices.apply_acar ...
-        'string' 'Enable' 'callback' cb_acar 'enable' iff(haveEv,'on','off')});
+append({'style' 'text' 'string' iff(isCCEP,'Re-referencing (CARLA, CCEP):','Re-referencing (common average):') 'horizontalalignment' 'left'});
+append({'style' 'checkbox' 'tag' 'apply_car' 'value' choices.apply_car ...
+        'string' 'Enable' 'callback' cb_car 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_fraction' 'string' 'Fraction of channels (0–1):' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'acar_fraction' 'string' num2str(choices.acar_fraction) 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_car_fraction' 'string' 'Fraction of channels (legacy method only):' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'edit' 'tag' 'car_fraction' 'string' num2str(choices.car_fraction) 'enable' onoff_car});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_acar_timewin' 'string' 'CAR window [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'acar_timewin' 'string' sprintf('%d %d',choices.acar_timewin) 'enable' onoff_car});
+append({'style' 'text' 'tag' 'lbl_car_timewin' 'string' 'Response window for ranking [ms]:' 'horizontalalignment' 'left' 'enable' onoff_car});
+append({'style' 'edit' 'tag' 'car_timewin' 'string' sprintf('%d %d',choices.car_timewin) 'enable' onoff_car});
 
 % Baseline
 append({'style' 'text' 'string' 'Remove baseline:' 'horizontalalignment' 'left'});
@@ -264,7 +291,7 @@ append({'style' 'checkbox' 'tag' 'apply_baseline' 'value' choices.apply_baseline
         'string' 'Enable' 'callback' cb_bl 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_method' 'string' 'Method:' 'horizontalalignment' 'left' 'enable' onoff_bl});
-append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean' 'Trimmed mean' '1/f'} 'value' choices.baseline_method 'enable' onoff_bl});
+append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean' 'Trimmed mean'} 'value' choices.baseline_method 'enable' onoff_bl});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_period' 'string' 'Baseline period [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_bl});
 append({'style' 'edit' 'tag' 'bl_period' 'string' sprintf('%d %d',choices.baseline_period) 'enable' onoff_bl});
@@ -289,12 +316,15 @@ end
 % -------------------------------------------------------------------------
 % event filters
 if isfield(out,'evsel_json') && ~isempty(out.evsel_json)
-    try, choices.event_filters = jsondecode(out.evsel_json); catch, choices.event_filters = struct(); end
+    try, choices.event_filters = jsondecode(out.evsel_json); catch, choices.event_filters = struct([]); end
 end
 
 % numbers & toggles
 choices.remove_rare_cond = isfield(out,'remove_rare_cond') && logical(out.remove_rare_cond);
 choices.remove_no_coords = isfield(out,'rm_no_coords') && logical(out.rm_no_coords);
+choices.remove_bad_channels = isfield(out,'rm_bad') && logical(out.rm_bad);
+choices.exclude_soz = isfield(out,'rm_soz') && logical(out.rm_soz);
+choices.apply_blank = isCCEP && isfield(out,'apply_blank') && logical(out.apply_blank);
 
 if isfield(out,'min_trials'),  mt = str2double(out.min_trials);  if isfinite(mt) && mt>=0, choices.min_trials = mt; end, end
 choices.apply_ds = isfield(out,'apply_ds') && logical(out.apply_ds);
@@ -327,20 +357,26 @@ choices.filter_type_label = ft_labels{idx};
 
 % epoch / CAR / baseline (respect event availability)
 choices.apply_epoch = isfield(out,'apply_epoch') && logical(out.apply_epoch);
+choices.reject_trials = choices.apply_epoch && isfield(out,'reject_trials') && logical(out.reject_trials);
 if isfield(out,'epoch_window') && ~isempty(out.epoch_window)
     tw = sscanf(out.epoch_window,'%f'); if numel(tw)>=2, choices.epoch_window = tw(1:2).'; end
 end
 
-choices.apply_acar = isfield(out,'apply_acar') && logical(out.apply_acar);
-if isfield(out,'acar_fraction') && ~isempty(out.acar_fraction)
-    choices.acar_fraction = max(0, min(1, str2double(out.acar_fraction)));
+choices.apply_car = isfield(out,'apply_car') && logical(out.apply_car);
+if isfield(out,'car_fraction') && ~isempty(out.car_fraction)
+    choices.car_fraction = max(0, min(1, str2double(out.car_fraction)));
 end
-if isfield(out,'acar_timewin') && ~isempty(out.acar_timewin)
-    tw = sscanf(out.acar_timewin,'%f'); if numel(tw)>=2, choices.acar_timewin = tw(1:2).'; end
+if isfield(out,'car_timewin') && ~isempty(out.car_timewin)
+    tw = sscanf(out.car_timewin,'%f'); if numel(tw)>=2, choices.car_timewin = tw(1:2).'; end
 end
 
+% Map the dialog's controls onto the option names ieeglab_car actually reads.
+% The GUI always selects CARLA; the legacy fixed-fraction method is reachable
+% from the command line with car_method='varsubset'.
+choices.car_method  = iff(isCCEP, 'carla', 'car');
+
 choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
-bl_labels = {'median','mean','trimmed mean','1/f'};
+bl_labels = {'median','mean','trimmed mean'};
 if isfield(out,'bl_method') && ~isempty(out.bl_method), bl_idx = out.bl_method; else, bl_idx = choices.baseline_method; end
 choices.baseline_method = bl_labels{min(max(bl_idx,1),4)};
 if isfield(out,'bl_period') && ~isempty(out.bl_period)
@@ -353,7 +389,7 @@ choices.baseline_mode = bm_labels{min(max(bm_idx,1),2)};
 % FINAL consistency: if no events, force these OFF (ignores any GUI value)
 if ~haveEv
     choices.apply_epoch    = false;
-    choices.apply_acar     = false;
+    choices.apply_car     = false;
     choices.apply_baseline = false;
 end
 

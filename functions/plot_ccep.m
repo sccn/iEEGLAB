@@ -6,7 +6,8 @@ function plot_ccep(data, timevec, chan_names, view_type, chan_idx, trim_prop)
 %
 % Inputs:
 %   data      - Data array [nChannels x nTimePoints x nTrials]
-%   timevec     - Time vector [1 x nTimePoints] in seconds
+%   timevec     - Time vector [1 x nTimePoints], in ms (EEG.times) or seconds;
+%                 the axis label follows (values beyond +/-20 are taken as ms)
 %   chan_names  - (Optional) cell array of channel names for labeling
 %   view_type   - 'all' (heatmap of all channels) or 'single' (plot one channel)
 %   chan_idx    - Channel index (required if view_type = 'single')
@@ -21,19 +22,27 @@ function plot_ccep(data, timevec, chan_names, view_type, chan_idx, trim_prop)
 %
 % Cedric Cannard © iEEGLAB Plugin, 2025
 
+% Argument positions: data=1 timevec=2 chan_names=3 view_type=4 chan_idx=5 trim_prop=6
+% The nargin thresholds below must match those positions. They previously did
+% not, so plot_ccep(d,t,n,'single') silently drew a heatmap and the valid
+% 5-argument call plot_ccep(d,t,n,'single',3) raised a spurious error.
 if nargin < 6 || isempty(trim_prop)
     trim_prop = 0.10; % default 10%
 end
-if nargin < 5 || isempty(view_type)
+if nargin < 4 || isempty(view_type)
     view_type = 'all';
 end
-if strcmp(view_type, 'single') && (nargin < 6 || isempty(chan_idx))
-    error('chan_idx must be provided when view_type = ''single''.');
+if nargin < 5, chan_idx = []; end
+if strcmpi(view_type, 'single') && isempty(chan_idx)
+    error('plot_ccep:noChanIdx', 'chan_idx must be provided when view_type = ''single''.');
 end
+
+if max(abs(double(timevec(:)))) > 20, tLabel = 'Time (ms)'; else, tLabel = 'Time (s)'; end
 
 switch lower(view_type)
     case 'all'
-        % --- Collapse trials with trimmed mean ---
+        % --- Collapse trials with trimmed mean (plain data if already averaged) ---
+        nTrials = size(data, 3);
         data = squeeze(trimmean(data, trim_prop*100, 3)); % chan × time
 
         % --- Main plot ---
@@ -65,7 +74,7 @@ switch lower(view_type)
         end
 
         % --- Labels ---
-        xlabel('Time (s)', 'FontSize', 14, 'FontWeight','bold');
+        xlabel(tLabel, 'FontSize', 14, 'FontWeight','bold');
         ylabel('Channels', 'FontSize', 14, 'FontWeight','bold');
 
         % --- Symmetric color limits (robust to outliers) ---
@@ -78,8 +87,12 @@ switch lower(view_type)
         % --- Styling ---
         set(gca, 'YDir', 'normal', 'LineWidth',1);
         xline(0, '--k', 'LineWidth', 1.5); % stim onset
-        title(sprintf('CCEP Map (%.0f%% Trimmed Mean)', trim_prop*100), ...
-            'FontSize', 18, 'FontWeight', 'bold');
+        if nTrials > 1
+            ttl = sprintf('CCEP Map (%.0f%% Trimmed Mean of %d trials)', trim_prop*100, nTrials);
+        else
+            ttl = 'CCEP Map';   % input was already one trace per channel
+        end
+        title(ttl, 'FontSize', 18, 'FontWeight', 'bold');
 
     case 'single'
 
@@ -96,7 +109,7 @@ switch lower(view_type)
         plot(timevec, chan_mean, 'Color', [0.8 0.1 0.1], 'LineWidth', 2);
         xline(0, '--k', 'LineWidth', 1);
         xlim([min(timevec) max(timevec)]);
-        xlabel('Time (s)', 'FontSize', 14, 'FontWeight', 'bold');
+        xlabel(tLabel, 'FontSize', 14, 'FontWeight', 'bold');
         ylabel('Amplitude (\muV)', 'FontSize', 14, 'FontWeight', 'bold');
 
         if exist('chan_names','var') && ~isempty(chan_names)

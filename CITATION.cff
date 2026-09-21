@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+message: >-
+  If you use iEEGLAB, please cite it as below, and also cite the methods you
+  used (CARLA, CRP, N1 detection) - the plugin prints the relevant reference
+  each time a method runs.
+title: "iEEGLAB: an EEGLAB plugin for intracranial EEG and CCEP analysis"
+type: software
+authors:
+  - family-names: Cannard
+    given-names: Cedric
+  - family-names: Delorme
+    given-names: Arnaud
+version: 1.1.0
+license: GPL-3.0-or-later
+repository-code: "https://github.com/sccn/iEEGLAB"
+keywords:
+  - intracranial EEG
+  - sEEG
+  - ECoG
+  - CCEP
+  - single pulse electrical stimulation
+  - EEGLAB
+references:
+  - type: article
+    title: "CARLA: Adjusted common average referencing for cortico-cortical evoked potential data"
+    authors:
+      - family-names: Huang
+        given-names: Harvey
+      - family-names: Hermes
+        given-names: Dora
+    journal: Journal of Neuroscience Methods
+    volume: 407
+    start: 110153
+    year: 2024
+    doi: 10.1016/j.jneumeth.2024.110153
+  - type: article
+    title: "Canonical Response Parameterization: Quantifying the structure of responses to single-pulse intracranial electrical brain stimulation"
+    authors:
+      - family-names: Miller
+        given-names: Kai J.
+      - family-names: Hermes
+        given-names: Dora
+    journal: PLoS Computational Biology
+    volume: 19
+    issue: 5
+    start: e1011105
+    year: 2023
+    doi: 10.1371/journal.pcbi.1011105
+  - type: article
+    title: "Signatures of electrical stimulation driven network interactions in the human limbic system"
+    authors:
+      - family-names: Ojeda Valencia
+        given-names: Gabriela
+      - family-names: Hermes
+        given-names: Dora
+    journal: Journal of Neuroscience
+    volume: 43
+    issue: 39
+    start: 6697
+    end: 6711
+    year: 2023
+    doi: 10.1523/JNEUROSCI.2201-22.2023

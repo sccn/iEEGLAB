@@ -1,5 +1,12 @@
 *.asv
+*.mat~
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Large derived/scratch imaging files. Note: rules only affect UNtracked files -
+# anything already committed must be removed with `git rm --cached` as well.
 *acpc.nii
 *tmp.nii
 **/freesurfer/
-**/fsaverage/
+**/fsaverage

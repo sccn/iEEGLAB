@@ -105,10 +105,15 @@ opts = local_merge_opts(opts, struct( ...
 
 vprint = @(varargin) (opts.verbose && fprintf(varargin{:}));
 
-if isfield(opts,'label')
-    fprintf('\n================= [CRP] Run: %s =================\n', opts.label);
-else
-    fprintf('\n================= [CRP] New run =================\n');
+% Header respects the verbose flag: this function is called once per
+% channel-by-site pair, so an unconditional banner floods the command window
+% during a scripted run.
+if opts.verbose
+    if isfield(opts,'label')
+        fprintf('\n================= [CRP] Run: %s =================\n', opts.label);
+    else
+        fprintf('\n================= [CRP] New run =================\n');
+    end
 end
 
 % ---------- Input hygiene ----------

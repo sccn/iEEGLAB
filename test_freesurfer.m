@@ -28,13 +28,13 @@ if ~exist(orig_dir, 'dir'); mkdir(orig_dir); end
 
 % 1) Import the anatomical MRI into the MATLAB workspace using ft_read_mri
 sub_files = {dir(fullfile(filepath)).name}';
-mri_filename = contains(lower(sub_files), 't1');
-if ~any(mri_filename)
+isT1 = find(contains(lower(sub_files), 't1'), 1);   % first match; several T1 files used to error
+if isempty(isT1)
         error("No T1 file detected in subject folder")
 end
-mri_filename = sub_files{mri_filename};
-fprintf("T1 MRI file succesfully detected in subject folder: %s \n", t1_nii)
-% mri = ft_read_mri([subjID '_MR_acpc.nii']); % we used the dcm series
+mri_filename = sub_files{isT1};
+fprintf("T1 MRI file successfully detected in subject folder: %s \n", mri_filename)
+% mri = ft_read_mri([subid '_MR_acpc.nii']); % we used the dcm series
 mri = ft_read_mri(mri_filename);
 
 
@@ -181,7 +181,7 @@ lighting gouraud; camlight
 %  the CT scan comes in the format of a single file with an .img or .nii 
 % extension, or a folder containing a series of files with a .dcm or .ima 
 % extension
-ct = ft_read_mri([subjID '_CT_acpc_f.nii']); % we used the dcm series
+ct = ft_read_mri([subid '_CT_acpc_f.nii']); % we used the dcm series
 
 % 10) In case this cannot be done on the basis of knowledge of the 
 % laterality of electrode implantation, determine the native orientation of
@@ -245,7 +245,7 @@ ct_acpc_f = ft_volumerealign(cfg, ct_acpc, fsmri_acpc);
 
 % 15) Write the MRI-fused anatomical CT out to file
 cfg           = [];
-cfg.filename  = [subjID '_CT_acpc_f'];
+cfg.filename  = [subid '_CT_acpc_f'];
 cfg.filetype  = 'nifti';
 cfg.parameter = 'anatomy';
 ft_volumewrite(cfg, ct_acpc_f);
@@ -261,7 +261,7 @@ ft_volumewrite(cfg, ct_acpc_f);
 %  collected from the recording file, obviating the need to sort and rename
 %  electrodes to match the electrophysiological data.
 
-load([subjID '_hdr.mat']);
+load([subid '_hdr.mat']);
 hdr = ft_read_header(hdr);
 
 
