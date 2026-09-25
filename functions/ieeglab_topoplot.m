@@ -154,17 +154,21 @@ if isempty(surfFiles) && isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') &&
     surfFiles = EEG.ieeglab.opt.surf_files;
 end
 if ischar(surfFiles) || isstring(surfFiles), surfFiles = cellstr(surfFiles); end
+meshes = {};
 for k = 1:numel(surfFiles)
     fk = char(surfFiles{k});
     if exist(fk,'file') ~= 2 && isfield(EEG,'filepath'), fk = fullfile(EEG.filepath, fk); end
     if exist(fk,'file') == 2
         try
-            h = ieeg_RenderGifti(ieeglab_read_gifti(fk)); h.FaceAlpha = 0.08;
+            g = ieeglab_read_gifti(fk);
+            h = ieeg_RenderGifti(g); h.FaceAlpha = 0.08;
+            meshes{end+1} = g; %#ok<AGROW>
         catch ME
             warning('ieeglab_topoplot:surface', 'Could not render %s: %s', fk, ME.message);
         end
     end
 end
+if ~isempty(meshes), ieeglab_check_coords(xyz(hasXYZ,:), meshes); end
 nv = hasXYZ & ~isfinite(vals);
 if any(nv)
     scatter3(xyz(nv,1), xyz(nv,2), xyz(nv,3), 12, [0.6 0.6 0.6], 'filled');

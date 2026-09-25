@@ -2,6 +2,12 @@
 
 ## Unreleased (2026-09-25)
 
+- **Electrodes and surfaces checked for a shared space.** `ieeglab_check_coords`,
+  called by the electrode plots, warns when more than 10% of contacts lie outside
+  the surfaces drawn (`ieeglab_check_coords:spaceMismatch`), which usually means
+  the coordinates and surfaces are in different spaces. On ds004696 sub-02 all
+  211 contacts are inside the published pial surfaces (median 3.4 mm away).
+
 - **ICA re-referencing** (`ieeglab_icaref`; method `'ica'` in iEEG
   re-referencing), after Michelmann et al. (2018): runica on the good contacts
   with as many components as the data's effective rank (estimated, or given),

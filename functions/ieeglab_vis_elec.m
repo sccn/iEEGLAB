@@ -84,6 +84,7 @@ if ~isempty(surf_files)
     % hemisphere. surf_files{logicalMask} with more than one match assigned a
     % comma-separated list to a scalar, which was a hard error.
     nRendered = 0;
+    meshes = {};
     for iSurf = 1:numel(surf_files)
         f = surf_files{iSurf};
         if exist(f,'file') ~= 2
@@ -95,6 +96,7 @@ if ~isempty(surf_files)
             tH = ieeg_RenderGifti(g);
             tH.FaceAlpha = 0.1;
             nRendered = nRendered + 1;
+            meshes{end+1} = g; %#ok<AGROW>
         catch ME
             warning('ieeglab_vis_elec:renderFailed', ...
                 'Could not render %s: %s', f, ME.message);
@@ -104,6 +106,8 @@ if ~isempty(surf_files)
         error('ieeglab_vis_elec:noSurfaceRendered', ...
             'None of the %d selected surface file(s) could be rendered. See the warnings above.', numel(surf_files));
     end
+    % Warn when the contacts do not sit inside the surfaces (different spaces)
+    ieeglab_check_coords(XYZ(hasXYZ,:), meshes);
 
     % Plot all electrodes that have coordinates, in one call. Hemisphere is no
     % longer inferred from sign(X) - a depth lead crossing the midline broke

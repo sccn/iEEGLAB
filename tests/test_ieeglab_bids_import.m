@@ -84,3 +84,19 @@ tc.verifyEqual(sort(bad), {'RA15','RB14','RB15'});
 ty = unique(cellfun(@(x) char(string(x)), {E.event.type}, 'UniformOutput', false));
 tc.verifyEqual(ty, {'RA2-RA3','RA3-RA4','RA4-RA5'});
 end
+
+function test_coordinates_inside_surfaces(tc)
+% The tutorial contacts lie inside the pial surfaces they are drawn on; the
+% same contacts shifted by 40 mm do not, which triggers the space warning.
+tut = fullfile(tc.TestData.root, 'tutorial', 'ieeglab_tutorial_seeg');
+tc.assumeTrue(isfolder(tut), 'Native-rate tutorial dataset not present.');
+T = readtable(fullfile(tut, 'sub-02', 'ses-ieeg01', 'ieeg', 'sub-02_ses-ieeg01_electrodes.tsv'), ...
+    'FileType', 'text', 'Delimiter', '\t', 'TreatAsEmpty', 'n/a');
+xyz = [T.x T.y T.z];
+d = fullfile(tut, 'derivatives', 'freesurfer', 'sub-02');
+m = {ieeglab_read_gifti(fullfile(d, 'pial.L.surf.gii')), ieeglab_read_gifti(fullfile(d, 'pial.R.surf.gii'))};
+[ok, info] = ieeglab_check_coords(xyz, m);
+tc.verifyTrue(ok);
+tc.verifyEqual(info.n_outside, 0);
+tc.verifyWarning(@() ieeglab_check_coords(xyz + [0 0 60], m), 'ieeglab_check_coords:spaceMismatch');
+end
