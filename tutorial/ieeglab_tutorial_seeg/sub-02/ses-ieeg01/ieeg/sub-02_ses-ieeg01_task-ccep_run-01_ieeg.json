@@ -1,0 +1,42 @@
+{
+  "TaskName": "Cortico-Cortical Evoked Potentials -CCEPs",
+  "SamplingFrequency": 2048,
+  "PowerLineFrequency": 60,
+  "SoftwareFilters": "n/a",
+  "HardwareFilters": {
+    "HighpassFilter": {
+      "CutoffFrequency": 0.01
+    },
+    "LowpassFilter": {
+      "CutoffFrequency": 878
+    }
+  },
+  "Manufacturer": "n/a",
+  "ManufacturersModelName": "",
+  "TaskDescription": "intracranial EEG (iEEG) recordings during single pulse electrical stimulation",
+  "Instructions": "",
+  "InstitutionName": "Mayo Clinic Rochester, MN",
+  "InstitutionAddress": "",
+  "DeviceSerialNumber": "",
+  "ECOGChannelCount": 0,
+  "SEEGChannelCount": 18,
+  "EEGChannelCount": 0,
+  "EOGChannelCount": 0,
+  "ECGChannelCount": 0,
+  "EMGChannelCount": 0,
+  "MiscChannelCount": 0,
+  "TriggerChannelCount": 0,
+  "RecordingDuration": 193.50244140625,
+  "RecordingType": "continuous",
+  "EpochLength": 0,
+  "SubjectArtefactDescription": "",
+  "SoftwareVersions": "",
+  "iEEGReference": "intracranial",
+  "ElectrodeManufacturer": "",
+  "ElectrodeManufacturersModelName": "",
+  "iEEGGround": "",
+  "iEEGPlacementScheme": "",
+  "iEEGElectrodeGroups": "",
+  "ElectricalStimulation": true,
+  "ElectricalStimulationParameters": "CCEPs of 6mA of 200microseconds duration"
+}

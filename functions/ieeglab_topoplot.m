@@ -157,9 +157,9 @@ if ischar(surfFiles) || isstring(surfFiles), surfFiles = cellstr(surfFiles); end
 for k = 1:numel(surfFiles)
     fk = char(surfFiles{k});
     if exist(fk,'file') ~= 2 && isfield(EEG,'filepath'), fk = fullfile(EEG.filepath, fk); end
-    if exist(fk,'file') == 2 && exist('gifti','file') ~= 0
+    if exist(fk,'file') == 2
         try
-            h = ieeg_RenderGifti(gifti(fk)); h.FaceAlpha = 0.08;
+            h = ieeg_RenderGifti(ieeglab_read_gifti(fk)); h.FaceAlpha = 0.08;
         catch ME
             warning('ieeglab_topoplot:surface', 'Could not render %s: %s', fk, ME.message);
         end

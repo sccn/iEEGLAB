@@ -1,0 +1,32 @@
+{
+  "Name": "iEEGLAB tutorial, ECoG: extract of ds004080 sub-ccepAgeUMCU02",
+  "BIDSVersion": "1.9.0",
+  "DatasetType": "raw",
+  "License": "CC0",
+  "Authors": [
+    "D. van Blooijs",
+    "M.A. van den Boom",
+    "J.F. van der Aar",
+    "G.J.M. Huiskamp",
+    "G. Castegnaro",
+    "M. Demuru",
+    "W.J.E.M. Zweiphenning",
+    "P. van Eijsden",
+    "K. J. Miller",
+    "F.S.S. Leijten",
+    "D. Hermes"
+  ],
+  "HowToAcknowledge": "Please cite the source dataset (doi:10.18112/openneuro.ds004080) and its paper.",
+  "SourceDatasets": [
+    {
+      "DOI": "doi:10.18112/openneuro.ds004080",
+      "URL": "https://openneuro.org/datasets/ds004080"
+    }
+  ],
+  "GeneratedBy": [
+    {
+      "Name": "iEEGLAB make_tutorial_datasets",
+      "CodeURL": "https://github.com/sccn/iEEGLAB"
+    }
+  ]
+}

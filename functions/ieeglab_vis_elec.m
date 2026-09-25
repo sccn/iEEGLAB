@@ -1,10 +1,15 @@
 function EEG = ieeglab_vis_elec(EEG, opt)
-% ieeglab_vis_elec
-% - If subject pial *.gii surfaces exist in EEG.filepath, uses your original code (unchanged).
-% - Else: uses high-res cortex from 'cortex.mat' (variable cortex_highres),
-%         auto-aligns electrodes (orientation + rigid PCA + uniform scale),
-%         and plots a single rotatable 3D.
-% - If cortex.mat is missing, falls back to dipfit/standard_BEM (smooth).
+% ieeglab_vis_elec() - Draw the electrodes in 3D, on the brain surfaces if given.
+%
+% Usage:
+%   EEG = ieeglab_vis_elec(EEG)                                    % file picker
+%   EEG = ieeglab_vis_elec(EEG, struct('surf_files', {{'pial.L.surf.gii','pial.R.surf.gii'}}))
+%
+% - Surfaces (.gii) given in opt.surf_files or picked in the dialog are drawn
+%   under the electrodes; they must be in the same space as the coordinates.
+% - Without surfaces, a template cortex ('cortex.mat', variable cortex_highres)
+%   is used, with the electrodes aligned to it (orientation, rigid PCA, uniform
+%   scale); without it, the dipfit standard BEM head.
 
 
 % -------- resolve surface files: explicit opt, then file picker, then folder scan --------
@@ -58,15 +63,10 @@ end
 figure('color','w'); hold on
 try icadefs; set(gcf, 'color', BACKCOLOR); catch, end  % eeglab color
 
-% Subject pial-surface plotting from vistasoft
+% Subject pial-surface plotting (GIfTI read by ieeglab_read_gifti)
 if ~isempty(surf_files)        
         
     try icadefs; set(gcf, 'color', BACKCOLOR); catch; end  % eeglab color
-
-    assert(exist('gifti','file') ~= 0, ...
-        ['The gifti toolbox is required to read .gii surfaces but is not on the MATLAB path.\n' ...
-         'Install vistasoft (https://github.com/vistalab/vistasoft) and add it with addpath(genpath(...)), ' ...
-         'or run ieeglab_check_install for details.']);
 
     % Electrode coordinates, keeping the mapping back to EEG.chanlocs intact.
     % [EEG.chanlocs.X] silently drops channels with an empty X, which used to
@@ -91,7 +91,7 @@ if ~isempty(surf_files)
             continue
         end
         try
-            g  = gifti(f);
+            g  = ieeglab_read_gifti(f);
             tH = ieeg_RenderGifti(g);
             tH.FaceAlpha = 0.1;
             nRendered = nRendered + 1;

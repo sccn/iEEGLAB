@@ -1,8 +1,9 @@
 function [EEG, wasCanceled] = ieeglab_gui_preprocess(EEG)
 % iEEGLAB: Preprocessing Options GUI
-% - CAR kept
+% - Re-referencing is not here: it has its own dialog, pop_ieeglab_reref
+%   (menu iEEGLAB > iEEG re-referencing), run after this step
 % - Single global filter type (noncausal vs minimum-phase) for ALL filters
-% - If no events exist, Epoch/CAR/Baseline controls are disabled and values forced OFF
+% - If no events exist, Epoch/Baseline controls are disabled and values forced OFF
 
 wasCanceled = false;
 
@@ -39,16 +40,14 @@ choices.apply_epoch       = true;
 choices.epoch_window      = [-500 900]; % ms
 choices.reject_trials     = false;      % automatic outlier-trial rejection
 
-% CAR (enabled by default IF events exist)
-choices.apply_car        = true;
-choices.car_fraction      = 0.25;
-choices.car_timewin       = [10 300];   % ms, as the CARLA reference implementation
+% Re-referencing: done by pop_ieeglab_reref, never by this dialog
+choices.apply_car        = false;
 
 % Baseline (enabled by default IF events exist)
 choices.apply_baseline    = true;
 choices.baseline_method   = 1;          % 1=median, 2=mean, 3=trimmed mean
 choices.baseline_period   = [-500 -50]; % ms
-choices.baseline_mode     = 1;          % 1=subtract, 2=divide
+choices.baseline_mode     = 'subtract'; % the only mode (ieeglab_rm_baseline)
 
 % Downsample default
 if ds_should_enable
@@ -117,11 +116,9 @@ cb_lp  = local_cb_toggle({'lbl_lowpass','lowpass'});
 % these depend on events
 if haveEv
     cb_seg = local_cb_toggle({'lbl_epoch','epoch_window','lbl_rej','reject_trials'});
-    cb_car= local_cb_toggle({'car_fraction','car_timewin','lbl_car_fraction','lbl_car_timewin'});
-    cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period','lbl_bl_mode','bl_mode'});
+    cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period'});
 else
     cb_seg = @(h,~) set(h,'value',0);
-    cb_car= @(h,~) set(h,'value',0);
     cb_bl  = @(h,~) set(h,'value',0);
 end
 
@@ -132,7 +129,6 @@ onoff_no  = iff(choices.apply_notch,'on','off');
 onoff_lp  = iff(choices.apply_lowpass,'on','off');
 
 onoff_seg = iff(haveEv && choices.apply_epoch,'on','off');
-onoff_car = iff(haveEv && choices.apply_car,'on','off');
 onoff_bl  = iff(haveEv && choices.apply_baseline,'on','off');
 
 % -------------------------------------------------------------------------
@@ -177,14 +173,11 @@ uigeom = {
     [0.06 0.64 0.30]
     [0.06 0.64 0.30]
 
-    % CAR
-    [0.70 0.30]
-    [0.06 0.64 0.30]
-    [0.06 0.64 0.30]
+    % Re-referencing: its own dialog (iEEG re-referencing)
+    1
 
-    % Baseline
+    % Baseline (subtraction only)
     [0.70 0.30]
-    [0.06 0.64 0.30]
     [0.06 0.64 0.30]
     [0.06 0.64 0.30]
 };
@@ -274,16 +267,8 @@ append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_rej' 'string' 'Reject outlier trials automatically:' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'checkbox' 'tag' 'reject_trials' 'value' choices.reject_trials 'string' '' 'enable' onoff_seg});
 
-% CAR
-append({'style' 'text' 'string' iff(isCCEP,'Re-referencing (CARLA, CCEP):','Re-referencing (common average):') 'horizontalalignment' 'left'});
-append({'style' 'checkbox' 'tag' 'apply_car' 'value' choices.apply_car ...
-        'string' 'Enable' 'callback' cb_car 'enable' iff(haveEv,'on','off')});
-append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_car_fraction' 'string' 'Fraction of channels (legacy method only):' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'car_fraction' 'string' num2str(choices.car_fraction) 'enable' onoff_car});
-append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_car_timewin' 'string' 'Response window for ranking [ms]:' 'horizontalalignment' 'left' 'enable' onoff_car});
-append({'style' 'edit' 'tag' 'car_timewin' 'string' sprintf('%d %d',choices.car_timewin) 'enable' onoff_car});
+% Re-referencing has its own dialog, so the methods and their options sit together
+append({'style' 'text' 'string' 'Re-referencing: iEEGLAB > iEEG re-referencing, after this step.' 'horizontalalignment' 'left'});
 
 % Baseline
 append({'style' 'text' 'string' 'Remove baseline:' 'horizontalalignment' 'left'});
@@ -295,9 +280,6 @@ append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_period' 'string' 'Baseline period [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_bl});
 append({'style' 'edit' 'tag' 'bl_period' 'string' sprintf('%d %d',choices.baseline_period) 'enable' onoff_bl});
-append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_bl_mode' 'string' 'Mode:' 'horizontalalignment' 'left' 'enable' onoff_bl});
-append({'style' 'popupmenu' 'tag' 'bl_mode' 'string' {'Subtract (default)' 'Divide'} 'value' choices.baseline_mode 'enable' onoff_bl});
 
 % -------------------------------------------------------------------------
 %  Launch
@@ -362,18 +344,9 @@ if isfield(out,'epoch_window') && ~isempty(out.epoch_window)
     tw = sscanf(out.epoch_window,'%f'); if numel(tw)>=2, choices.epoch_window = tw(1:2).'; end
 end
 
-choices.apply_car = isfield(out,'apply_car') && logical(out.apply_car);
-if isfield(out,'car_fraction') && ~isempty(out.car_fraction)
-    choices.car_fraction = max(0, min(1, str2double(out.car_fraction)));
-end
-if isfield(out,'car_timewin') && ~isempty(out.car_timewin)
-    tw = sscanf(out.car_timewin,'%f'); if numel(tw)>=2, choices.car_timewin = tw(1:2).'; end
-end
-
-% Map the dialog's controls onto the option names ieeglab_car actually reads.
-% The GUI always selects CARLA; the legacy fixed-fraction method is reachable
-% from the command line with car_method='varsubset'.
-choices.car_method  = iff(isCCEP, 'carla', 'car');
+% Re-referencing is done in its own dialog (pop_ieeglab_reref), not here. The
+% command-line ieeglab_preprocess keeps apply_car for scripts.
+choices.apply_car = false;
 
 choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
 bl_labels = {'median','mean','trimmed mean'};
@@ -382,9 +355,7 @@ choices.baseline_method = bl_labels{min(max(bl_idx,1),4)};
 if isfield(out,'bl_period') && ~isempty(out.bl_period)
     bp = sscanf(out.bl_period,'%f'); if numel(bp)>=2, choices.baseline_period = bp(1:2).'; end
 end
-bm_labels = {'subtract','divide'};
-if isfield(out,'bl_mode') && ~isempty(out.bl_mode), bm_idx = out.bl_mode; else, bm_idx = choices.baseline_mode; end
-choices.baseline_mode = bm_labels{min(max(bm_idx,1),2)};
+choices.baseline_mode = 'subtract';
 
 % FINAL consistency: if no events, force these OFF (ignores any GUI value)
 if ~haveEv

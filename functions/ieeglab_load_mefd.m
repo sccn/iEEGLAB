@@ -1,14 +1,19 @@
 function [metadata, data] = ieeglab_load_mefd(sessPath, password, channels, rangeType, varargin)
-% Optimized MEF3 reader: fewer dynamic allocations, vectorized indexing,
-% optional parallelization (uses parfor if a pool is already open).
+% ieeglab_load_mefd() - Read selected channels and samples of a MEF3 session.
 %
-% Signature and behavior match your original:
-% - If called for metadata only (nargout==1), no data are read
-% - channels can be {}, cellstr, string, char (single), or numeric indices (new convenience)
+% Usage:
+%   metadata = ieeglab_load_mefd(sessPath)                      % metadata only
+%   [metadata, data] = ieeglab_load_mefd(sessPath, [], {'RA1','RA2'}, 'samples', [s0 s1])
+%
+% - channels: {} (all), cellstr, string, char, or numeric indices
 % - rangeType: 'samples' (default) or 'time'
-% - ranges as Nx2 or (rangeStart, rangeEnd)
+% - ranges as Nx2 or (rangeStart, rangeEnd), 0-based, end exclusive (as meflib)
+% - data are in microvolts; a parfor is used when a pool is already open
 %
-% Requires: read_mef_session_metadata, read_mef_ts_data (meflib)
+% Unlike pop_MEF3, which loads the whole session, only the requested channels
+% and samples are read.
+%
+% Requires the EEGLAB MEF3 plugin (read_mef_session_metadata, read_mef_ts_data).
 
 metadata = [];
 data = [];

@@ -23,11 +23,39 @@ function p = ieeglab_bids_sibling(EEG, suffix)
 % Cedric Cannard, iEEGLAB, 2026
 
 p = '';
-if ~isfield(EEG,'filepath') || isempty(EEG.filepath) || ~isfolder(char(EEG.filepath)), return; end
-d = char(EEG.filepath);
+% Where to look, in order: next to the dataset file; next to the raw BIDS file it
+% was imported from, when EEGLAB's BIDS import recorded it (EEG.BIDS.sourcefile);
+% and, for datasets saved by that import in its default output folder
+% <root>/derivatives/<pipeline>/sub-..., the matching folder of the raw dataset.
+% Without the last two, nothing is found after File > Import data > BIDS, since
+% the imported .set lives in derivatives and the sidecars do not.
+places = {};
+if isfield(EEG,'filepath') && ~isempty(EEG.filepath)
+    fname = '';
+    if isfield(EEG,'filename'), fname = char(EEG.filename); end
+    places(end+1,:) = {char(EEG.filepath), fname};
+end
+if isfield(EEG,'BIDS') && isstruct(EEG.BIDS) && isfield(EEG.BIDS,'sourcefile') && ~isempty(EEG.BIDS.sourcefile)
+    [sd, sn, se] = fileparts(char(EEG.BIDS.sourcefile));
+    places(end+1,:) = {sd, [sn se]};
+end
+if ~isempty(places)
+    tok = regexp(places{1,1}, '^(.*)[\\/]derivatives[\\/][^\\/]+[\\/](sub-[^\\/]+.*)$', 'tokens', 'once');
+    if ~isempty(tok), places(end+1,:) = {fullfile(tok{1}, tok{2}), places{1,2}}; end
+end
+for i = 1:size(places, 1)
+    if isfolder(places{i,1})
+        p = local_find(places{i,1}, places{i,2}, suffix);
+        if ~isempty(p), return; end
+    end
+end
+end
+
+function p = local_find(d, fname, suffix)
+p = '';
 stem = '';
-if isfield(EEG,'filename') && ~isempty(EEG.filename)
-    stem = regexprep(char(EEG.filename), '_(ieeg|eeg)\.[^.]+$', '');
+if ~isempty(fname)
+    stem = regexprep(fname, '_(ieeg|eeg)\.[^.]+$', '');
     stem = regexprep(stem, '\.[^.]+$', '');
 end
 ents = local_entities(stem);
@@ -58,7 +86,7 @@ if isempty(ok)
     warning('ieeglab_bids_sibling:noMatch', ...
         ['Found %d *_%s.tsv file(s) in %s, but none belongs to %s (BIDS entities differ, ' ...
          'e.g. another run). Not using any; pass the file explicitly if it is right.'], ...
-        numel(g), suffix, d, char(EEG.filename));
+        numel(g), suffix, d, fname);
     return
 end
 % Most specific match wins (run-level beats session-level); a tie is ambiguous.
@@ -68,7 +96,7 @@ if numel(best) == 1
 else
     warning('ieeglab_bids_sibling:ambiguous', ...
         'Several *_%s.tsv files match %s equally well (%s). Pass the one to use explicitly.', ...
-        suffix, char(EEG.filename), strjoin(cellfun(@local_name, ok(best), 'UniformOutput', false), ', '));
+        suffix, fname, strjoin(cellfun(@local_name, ok(best), 'UniformOutput', false), ', '));
 end
 end
 

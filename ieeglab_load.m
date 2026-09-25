@@ -133,6 +133,31 @@ else
     fprintf('No events: continuous mode.\n');
 end
 
+% ---------- labels after EEGLAB's BIDS import ----------
+% EEG-BIDS (bids_importchanlocs, up to at least 2026-05) takes channel labels
+% from channels.tsv, then overwrites them row by row with electrodes.tsv. When
+% electrodes.tsv lists fewer contacts or another order, which BIDS allows, data
+% rows get the wrong labels (ds004696 sub-02: 27 of 30 wrong). channels.tsv rows
+% follow the data order, so while every channel is still there, restore them.
+if ~isempty(opt.channels_tsv) && isfield(EEG,'BIDS') && isstruct(EEG.BIDS)
+    ct = readtable(opt.channels_tsv, 'FileType', 'text', 'Delimiter', '\t', 'TextType', 'char');
+    if ismember('name', ct.Properties.VariableNames) && height(ct) == EEG.nbchan
+        tsvNames = strtrim(cellstr(ct.name))';
+        if ~isequal({EEG.chanlocs.labels}, tsvNames)
+            nWrong = nnz(~strcmp({EEG.chanlocs.labels}, tsvNames));
+            warning('ieeglab_load:bidsImportLabels', ...
+                ['%d of %d channel labels differ from the row order of %s, which is the data order. ' ...
+                 'EEGLAB''s BIDS import assigns electrodes.tsv rows to channels by position; restoring ' ...
+                 'the labels from channels.tsv and matching coordinates by name.'], ...
+                nWrong, EEG.nbchan, local_short(opt.channels_tsv));
+            [EEG.chanlocs.labels] = tsvNames{:};
+            for f = {'X','Y','Z','theta','radius','sph_theta','sph_phi','sph_radius'}
+                if isfield(EEG.chanlocs, f{1}), [EEG.chanlocs.(f{1})] = deal([]); end
+            end
+        end
+    end
+end
+
 % ---------- coordinates ----------
 if ~isempty(elecs)
     EEG = get_elec_coor(EEG, elecs);
@@ -165,7 +190,7 @@ if interactive
     end
 elseif isfield(opt,'events') && istable(opt.events) && ~isempty(opt.events) ...
         && (~isfield(opt,'event_field') || isempty(opt.event_field))
-    [opt.event_field, opt.events] = local_default_event_field(opt.events);
+    [opt.event_field, opt.events] = local_default_event_field(opt.events, local_bids_event_map(EEG, opt.events_from_tsv));
 end
 if ~isfield(opt,'event_field'), opt.event_field = ''; end
 opt.event_field = char(opt.event_field);
@@ -173,8 +198,15 @@ opt.event_field = char(opt.event_field);
 % ---------- place the events ----------
 if opt.events_from_tsv && isfield(opt,'events') && ~isempty(opt.events)
     EEG = local_place_tsv_events(EEG, opt);
-elseif ~opt.events_from_tsv && isfield(EEG,'event') && ~isempty(EEG.event) ...
-        && ~isempty(opt.event_field) && ~strcmp(opt.event_field, 'type')
+elseif ~opt.events_from_tsv && isfield(EEG,'event') && ~isempty(EEG.event) && ~isempty(opt.event_field)
+    % EEGLAB's BIDS import moves the events.tsv column chosen as event type into
+    % EEG.event.type and records the move in EEG.BIDS.eInfo: follow it.
+    map = local_bids_event_map(EEG, false);
+    if ~isfield(EEG.event, opt.event_field) && isfield(map, opt.event_field)
+        fprintf('Event column "%s" was imported as EEG.event.%s by EEGLAB''s BIDS import; using it.\n', ...
+            opt.event_field, map.(opt.event_field));
+        opt.event_field = map.(opt.event_field);
+    end
     EEG = local_retype_dataset_events(EEG, opt.event_field);
 end
 opt = local_align_table(EEG, opt);
@@ -363,9 +395,11 @@ for k = 1:numel(b), if isempty(b(k).tsv_row), b(k).tsv_row = NaN; end, end
 ev = [a(:); b(:)]';
 end
 
-function [f, T] = local_default_event_field(T)
+function [f, T] = local_default_event_field(T, map)
+% map: BIDS column -> EEG.event field, for columns EEGLAB's BIDS import renamed.
 vn = T.Properties.VariableNames;
 for c = {'electrical_stimulation_site','trial_type','type','value'}
+    if isfield(map, c{1}) && ismember(map.(c{1}), vn), f = map.(c{1}); return; end
     if ismember(c{1}, vn), f = c{1}; return; end
 end
 rest = setdiff(vn, {'onset','duration','sample','sample_start','tsv_row','latency','urevent'}, 'stable');
@@ -377,6 +411,21 @@ if isempty(rest)
     f = 'event_type';
 else
     f = rest{1};
+end
+end
+
+function map = local_bids_event_map(EEG, fromTsv)
+% Columns that EEGLAB's BIDS import (EEG-BIDS) stored under another EEG.event
+% field, from the {column, field} pairs it keeps in EEG.BIDS.eInfo. Only
+% relevant for events already in the dataset, not for events read from a file.
+map = struct();
+if fromTsv || ~isfield(EEG,'BIDS') || ~isstruct(EEG.BIDS) || ~isfield(EEG.BIDS,'eInfo'), return; end
+e = EEG.BIDS.eInfo;
+if ~iscell(e) || size(e, 2) < 2, return; end
+for k = 1:size(e, 1)
+    if ischar(e{k,1}) && ischar(e{k,2}) && isvarname(e{k,1}) && ~strcmp(e{k,1}, e{k,2})
+        map.(e{k,1}) = e{k,2};
+    end
 end
 end
 

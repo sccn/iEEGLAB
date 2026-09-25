@@ -87,14 +87,17 @@ if opt.honor_previous && isfield(EEG.chanlocs, 'status')
         if ~isempty(s0) && strcmpi(string(s0), "bad")
             status(c) = "bad";
             source(c) = "previous";
-            if isfield(EEG.chanlocs,'status_description') && ~isempty(EEG.chanlocs(c).status_description)
-                reason(c) = string(EEG.chanlocs(c).status_description);
+            % EEGLAB's BIDS import can leave NaN or 'n/a' here (bids_loadfile reads n/a as NaN)
+            d0 = "";
+            if isfield(EEG.chanlocs,'status_description'), d0 = local_text(EEG.chanlocs(c).status_description); end
+            if strlength(d0) > 0
+                reason(c) = d0;
             else
                 reason(c) = "marked bad earlier";
             end
         end
-        if isfield(EEG.chanlocs,'clinical_zone') && ~isempty(EEG.chanlocs(c).clinical_zone)
-            zone(c) = string(EEG.chanlocs(c).clinical_zone);
+        if isfield(EEG.chanlocs,'clinical_zone') && strlength(local_text(EEG.chanlocs(c).clinical_zone)) > 0
+            zone(c) = local_text(EEG.chanlocs(c).clinical_zone);
         end
     end
 end
@@ -347,4 +350,12 @@ end
 
 function s = local_short(p)
 [~, n, e] = fileparts(char(p)); s = [n e];
+end
+
+function s = local_text(x)
+% A free-text field as a string; "" for empty, NaN, missing or n/a.
+s = "";
+if isempty(x) || (isnumeric(x) && all(isnan(x(:)))), return; end
+s = strtrim(string(x));
+if numel(s) ~= 1 || ismissing(s) || strcmpi(s, "n/a"), s = ""; end
 end

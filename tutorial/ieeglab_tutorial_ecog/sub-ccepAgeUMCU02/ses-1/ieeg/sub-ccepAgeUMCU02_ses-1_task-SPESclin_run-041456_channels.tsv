@@ -1,0 +1,21 @@
+name	type	units	low_cutoff	high_cutoff	reference	group	sampling_frequency	notch	status	status_description
+FB49	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB50	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB51	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB52	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB53	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB54	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB55	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB56	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB57	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB58	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB59	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB60	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB61	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB62	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB63	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+FB64	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+F05	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+F06	ECOG	µV	468	0.15	G2	grid	2048	n/a	good	included
+F07	ECOG	µV	468	0.15	G2	grid	2048	n/a	bad	electrode on top of other electrode
+F08	ECOG	µV	468	0.15	G2	grid	2048	n/a	bad	electrode on top of other electrode

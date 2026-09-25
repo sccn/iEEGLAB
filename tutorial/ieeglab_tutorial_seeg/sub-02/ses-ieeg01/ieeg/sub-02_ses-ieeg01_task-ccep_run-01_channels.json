@@ -1,0 +1,14 @@
+{
+  "name": "Name of the channel",
+  "type": "Short identifier of the type of channel",
+  "units": "Measurement units for the recorded data",
+  "low_cutoff": "Frequencies used for the high-pass filter applied to the channel in Hz",
+  "high_cutoff": "Frequencies used for the low-pass filter applied to the channel in Hz",
+  "reference": "General description of the reference scheme used",
+  "group": "n/a",
+  "sampling_frequency": "Sampling rate of the channel in Hz",
+  "notch": "n/a",
+  "status": "Data quality observed on the channel",
+  "status_description": "Freeform text description of noise or artifact affecting data quality on the channel",
+  "headbox": "headbox the channel was recording from"
+}

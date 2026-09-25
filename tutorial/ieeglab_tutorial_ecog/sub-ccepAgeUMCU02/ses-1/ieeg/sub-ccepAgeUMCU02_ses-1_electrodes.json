@@ -1,0 +1,17 @@
+{
+	"name": "Name of the electrode",
+	"x": "x position of the electrode on the brain of the subject",
+	"y": "y position of the electrode on the brain of the subject",
+    "z": "z position of the electrode on the brain of the subject",
+    "size": "Surface size in mm2 of the electrode",
+	"material": "Material of the electrode. This is platinum in most situations",
+	"manufacturer": "Manufacturer of the electrode",
+	"group": "Group to which electrode belongs, this can be grid, strip, depth or other",
+	"hemisphere": "Hemisphere where electrodes are placed. This can be right\/left\/right and left",
+	"silicon": "When an electrode is overlapping with another electrode, the electrode on top is recording silicon. These electrodes should be excluded from analysis!",
+	"soz": "An electrode located on the seizure onset zone",
+	"resected": "An electrode located on tissue that is resected after recordings during surgery",
+	"edge": "An electrode located on the edge of the resected area. It is unclear whether it is resected or not.",
+	"Destrieux_label": "Electrode location in a region according to Destrieux et al. NeuroImage2011",
+	"Destrieux_label_text": "Electrode location in a region according to Destrieux et al. NeuroImage2011: 0 = Unknown, 1 = G&S_frontomargin, 2 = G&S_occipital_inf, 3 = G&S_paracentral, 4 = G&S_subcentral, 5 = G&S_transv_frontopol, 6 = G&S_cingul-Ant, 7 = G&S_cingul-Mid-Ant, 8 = G&S_cingul-Mid-Post, 9 = G_cingul-Post-dorsal, 10 = G_cingul-Post-ventral, 11 = G_cuneus, 12 = G_front_inf-Opercular, 13 = G_front_inf-Orbital, 14 = G_front_inf-Triangul, 15 = G_front_middle, 16 = G_front_sup, 17 = G_Ins_lg&S_cent_ins, 18 = G_insular_short, 19 = G_occipital_middle, 20 = G_occipital_sup, 21 = G_oc-temp_lat-fusifor, 22 = G_oc-temp_med-Lingual, 23 = G_oc-temp_med-Parahip, 24 = G_orbital, 25 = G_pariet_inf-Angular, 26 = G_pariet_inf-Supramar, 27 = G_parietal_sup, 28 = G_postcentral, 29 = G_precentral, 30 = G_precuneus, 31 = G_rectus, 32 = G_subcallosal, 33 = G_temp_sup-G_T_transv, 34 = G_temp_sup-Lateral, 35 = G_temp_sup-Plan_polar, 36 = G_temp_sup-Plan_tempo, 37 = G_temporal_inf, 38 = G_temporal_middle, 39 = Lat_Fis-ant-Horizont, 40 = Lat_Fis-ant-Vertical, 41 = Lat_Fis-post, 42 = Pole_occipital, 43 = Pole_temporal, 44 = S_calcarine, 45 = S_central, 46 = S_cingul-Marginalis, 47 = S_circular_insula_ant, 48 = S_circular_insula_inf, 49 = S_circular_insula_sup, 50 = S_collat_transv_ant, 51 = S_collat_transv_post, 52 = S_front_inf, 53 = S_front_middle, 54 = S_front_sup, 55 = S_interm_prim-Jensen, 56 = S_intrapariet&P_trans, 57 = S_oc_middle&Lunatus, 58 = S_oc_sup&transversal, 59 = S_occipital_ant, 60 = S_oc-temp_lat, 61 = S_oc-temp_med&Lingual, 62 = S_orbital_lateral, 63 = S_orbital_med-olfact, 64 = S_orbital-H_Shaped, 65 = S_parieto_occipital, 66 = S_pericallosal, 67 = S_postcentral, 68 = S_precentral-inf-part, 69 = S_precentral-sup-part, 70 = S_suborbital, 71 = S_subparietal, 72 = S_temporal_inf, 73 = S_temporal_sup, 74 = S_temporal_transverse, 75 = Medial_wall"
+}

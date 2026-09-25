@@ -1,0 +1,7 @@
+{
+    "iEEGCoordinateSystem": "fsaverage",
+    "iEEGCoordinateUnits": "mm",
+    "iEEGCoordinateSystemDescription": "The fsaverage is a dual template providing both volumetric and surface coordinates references. The volumetric template corresponds to a FreeSurfer variant of MNI305 space.",
+    "iEEGCoordinateProcessingDescription": "Surface projection to correct for brain-shift and fsaverage positions were calculated using Freesurfer's surface based transformations to MNI305 space. While the surface based transformation distorts the grid dimensions, it maintains accurate gyral electrode positions",
+    "iEEGCoordinateProcessingReference": "Hermes et al., 2008 JNeuroMeth and Branco et al., 2018 JNeuroMeth"
+}

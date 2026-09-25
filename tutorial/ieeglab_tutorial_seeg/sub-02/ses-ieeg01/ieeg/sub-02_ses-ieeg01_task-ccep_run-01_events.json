@@ -1,0 +1,46 @@
+{
+ "onset": {
+    "Description": "Position of event marker in seconds relative to the start.",
+    "Units": "s"
+  },
+ "duration": {
+    "Description": "Duration of the event in seconds.",
+    "Units": "s"
+  },
+  "trial_type": {
+    "Description": "description of type of trial"
+  },
+  "electrodes_involved_onset": {
+    "Description":  "electrodes involved in onset"
+  },
+  "electrodes_involved_offset": {
+    "Description": "electrodes involved in offset"
+  },
+  "sample_start": {
+    "Description": "start time in samples"
+  },
+  "sample_end": {
+    "Description": "end time in samples"
+  },
+  "electrical_stimulation_type": {
+    "Description": "type of electrical stimulation"
+  },
+  "electrical_stimulation_site": {
+    "Description": "sites used during the electrical stimulation"
+  },
+  "electrical_stimulation_site_num": {
+    "Description": "channel number of sites used during the electrical stimulation"
+  },
+  "electrical_stimulation_current": {
+    "Description": "current used during the electrical stimulation"
+  },
+  "notes": {
+    "Description": "additional notes"
+  },
+  "status": {
+    "Description": "good or bad trial"
+  },
+  "status_description": {
+    "Description": "additional notes describing the trial"
+  }
+}

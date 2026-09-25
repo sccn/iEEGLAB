@@ -1,6 +1,49 @@
 # Changelog
 
-## Unreleased (2026-09-21)
+## Unreleased (2026-09-25)
+
+- **iEEG re-referencing is its own step (issue #11).** New menu item iEEGLAB >
+  iEEG re-referencing (`pop_ieeglab_reref`): method (CARLA per stimulation site
+  for CCEP data; common average; the lowest-covariance subset of Ojeda Valencia
+  et al., 2023) and its options in one dialog, where bipolar, Laplacian and
+  ICA-based referencing will be added. It runs on preprocessed epochs; when a
+  baseline was removed it is removed again afterwards, which gives
+  exactly the result of re-referencing inside preprocessing (checked in
+  `tests/test_ieeglab_reref.m`, CARLA and CAR). The Preprocess dialog no longer
+  re-references; `ieeglab_preprocess` keeps `apply_car` for scripts.
+
+- **Works after EEGLAB's BIDS import (File > Import data > BIDS).** Sidecars are
+  found next to the raw BIDS file (from `EEG.BIDS.sourcefile` when EEG-BIDS
+  records it, else by mapping its default `derivatives/<pipeline>/sub-...`
+  output folder back to the raw dataset). The event column EEG-BIDS moved into
+  `EEG.event.type` is followed through `EEG.BIDS.eInfo`, so the stimulation site
+  is used instead of `trial_type` (which labelled every pulse the same).
+- **Channel labels restored after EEGLAB's BIDS import.** EEG-BIDS assigns
+  electrodes.tsv rows to channels by position; on ds004696 sub-02 this gives most
+  contacts the wrong label. While every channel is present, labels are restored
+  from channels.tsv (data order) with warning `ieeglab_load:bidsImportLabels`,
+  and coordinates are matched by name. The fix itself is on branch
+  `fix-chanlocs-by-name` of EEG-BIDS (2c03423), to be proposed upstream.
+- **No vistasoft needed (issue #8).** `ieeglab_read_gifti` reads .surf.gii files
+  (ASCII, base64, gzip; either array order), identical to the @gifti class on all
+  tutorial surfaces. `ieeglab_check_install` now lists the MEF3, bva-io and
+  EEG-BIDS plugins instead of vistasoft and matmef.
+- **Issue #9:** the variance in the legacy fixed-fraction CAR no longer uses
+  `var(..., 'omitnan')`, which failed on some MATLAB installations.
+- **Native-rate tutorial datasets** `tutorial/ieeglab_tutorial_seeg` (ds004696
+  sub-02, 18 contacts, 3 sites, 2048 Hz) and `tutorial/ieeglab_tutorial_ecog`
+  (ds004080 sub-ccepAgeUMCU02, 20 contacts, 3 sites, 2048 Hz), each a small BIDS
+  dataset, built and checked against the source by `tutorial/make_tutorial_datasets.m`.
+- **Test: `tests/test_ieeglab_bids_import.m`** (GIfTI reader, sidecar lookup,
+  loading after `pop_importbids`).
+- **Divisive baseline correction removed.** It is not meaningful for
+  time-domain iEEG (the baseline mean is near zero after high-pass filtering);
+  only subtraction is offered.
+- **Tutorial rewritten** for the native-rate datasets (`ieeglab_tutorial.m` and
+  the README), sEEG with CRP and ECoG with N1.
+- Events whose type is empty or `n/a` are dropped whichever event field is used.
+
+## 2026-09-21
 
 - **N1 detection gains erdetect's rule as options.** `ieeglab_detect_n1` now
   takes `polarity` ('abs' default, 'negative' as erdetect, 'positive') and
@@ -37,8 +80,8 @@
   baseline correction, and broke Hermitian symmetry so part of the signal was
   discarded.
 - **Baseline correction is guarded** against windows outside the epoch, windows
-  crossing t = 0, too few samples, unsafe divisive baselining, and overlap with
-  the blanked stimulation window.
+  crossing t = 0, too few samples, and overlap with the blanked stimulation
+  window. Only subtractive baselines are offered.
 - **Removing a contact no longer drops unrelated trials.** Several steps matched
   stimulation sites with a substring test, so removing `RA1` also removed every
   `RA10-RA9` trial.
@@ -46,7 +89,7 @@
   label matched, the loader relabelled every channel by TSV row and reported a
   100% match.
 
-### Adversarial audit — 48 confirmed findings, all fixed
+### Other fixes
 
 - **N1 significance ignored that the peak was searched for.** The z-score of
   the largest deflection in the window was tested as if the latency were fixed.

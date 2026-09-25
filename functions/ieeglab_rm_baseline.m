@@ -8,7 +8,7 @@ function EEG = ieeglab_rm_baseline(EEG)
 %   EEG.ieeglab.opt fields  :
 %       baseline_method     : 'median' | 'mean' | 'trimmed mean'
 %       baseline_period     : [start_ms end_ms]
-%       baseline_mode       : 'subtract' | 'divide'
+%       baseline_mode       : 'subtract' (the only mode; see below)
 %
 % Output:
 %   EEG.data (baseline-corrected)
@@ -63,7 +63,14 @@ end
 
 assert(any(method==valid_methods), ...
     'Invalid baseline_method "%s". Valid options: %s', method, strjoin(cellstr(valid_methods), ', '));
-assert(any(mode==["subtract","divide"]), 'Invalid baseline_mode: %s', mode);
+% Only subtraction: dividing by a baseline assumes a multiplicative model, and
+% on high-passed time-domain data the baseline mean is near zero, so the ratio
+% explodes and its sign is arbitrary (see Gyurkovics et al., 2021, on why even
+% time-frequency ratio baselines misattribute broadband changes).
+if mode ~= "subtract"
+    error('ieeglab_rm_baseline:onlySubtract', ...
+        'Only baseline_mode = "subtract" is supported for time-domain iEEG data (got "%s").', mode);
+end
 
 % ---------- baseline indices from EEG.times (ms) ----------
 % The requested window is snapped to the nearest samples. That snapping is
@@ -164,43 +171,6 @@ switch method
                 % broadband time-domain signal actually is.
                 X = X - repmat(bsl_vals, [1 T 1]);
 
-            case "divide"
-                % Divisive baselining assumes a MULTIPLICATIVE model: that
-                % everything in the epoch scales by a common factor relative to
-                % baseline. Gyurkovics et al. (2021, NeuroImage 237:118192)
-                % show that when signal and background are instead independent
-                % ADDITIVE contributors, divisive/dB baselining misattributes
-                % broadband (1/f) changes to narrowband effects. Their analysis
-                % is about time-frequency POWER, where the quantity is
-                % positive and a ratio is at least well defined.
-                %
-                % In the time domain it is worse: the signal is signed, and
-                % after a high-pass filter the pre-stimulus mean is near zero
-                % by construction, so the ratio explodes and its sign is
-                % arbitrary. Refuse unless the baseline is large enough for the
-                % ratio to mean anything.
-                sigSD  = std(X(:), 'omitnan');
-                bslMag = median(abs(bsl_vals(:)), 'omitnan');
-                if ~isfinite(bslMag) || bslMag < 0.1*sigSD
-                    error('ieeglab_rm_baseline:unsafeDivide', ...
-                        ['Divisive baseline correction refused: the typical baseline ' ...
-                         'magnitude (%.3g) is small relative to the signal (SD %.3g), ' ...
-                         'so dividing by it produces exploding and sign-unstable values.\n' ...
-                         'This is expected for high-pass filtered time-domain data, ' ...
-                         'where the pre-stimulus mean is near zero by construction.\n' ...
-                         'Use baseline_mode = "subtract". Divisive and dB baselining ' ...
-                         'belong to time-frequency POWER analysis, and even there see ' ...
-                         'Gyurkovics et al. (2021) NeuroImage 237:118192 on how they ' ...
-                         'misattribute broadband 1/f changes to narrowband effects.'], ...
-                         bslMag, sigSD);
-                end
-                warning('ieeglab_rm_baseline:divisiveBaseline', ...
-                    ['Using divisive baseline correction on time-domain data. This ' ...
-                     'assumes a multiplicative model; see Gyurkovics et al. (2021) ' ...
-                     'NeuroImage 237:118192. "subtract" is the appropriate choice for ' ...
-                     'evoked potentials.']);
-                denom = max(eps, abs(bsl_vals));
-                X = bsxfun(@rdivide, X, denom);
         end
 end
 

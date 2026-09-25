@@ -9,4 +9,17 @@ Thumbs.db
 *acpc.nii
 *tmp.nii
 **/freesurfer/
+!tutorial/ieeglab_tutorial_seeg/derivatives/freesurfer/
 **/fsaverage
+
+# EEGLAB BIDS import output when running the tutorial
+tutorial/*/derivatives/eeglab/
+
+# Local notes, papers and old scripts: kept locally, not distributed with the plugin
+.claude/
+worklog/
+TODO.md
+ressources/
+archive/
+ieeglab_prep_tuto_datasets.m
+*.docx

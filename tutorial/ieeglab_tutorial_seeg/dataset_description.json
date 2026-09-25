@@ -1,0 +1,34 @@
+{
+  "Name": "iEEGLAB tutorial, sEEG: extract of ds004696 sub-02",
+  "BIDSVersion": "1.9.0",
+  "DatasetType": "raw",
+  "License": "CC0",
+  "Authors": [
+    "Ojeda Valencia, G.",
+    "Gregg, N.",
+    "Huang, H.",
+    "Lundstrom, B.",
+    "Brinkmann, B.",
+    "Pal Attia1, T.",
+    " Van Gompel, J.",
+    "Bernstein,M.",
+    "In, M.",
+    "Huston, J.",
+    "Worrell1, G.",
+    "Miller, K.",
+    "Hermes, D."
+  ],
+  "HowToAcknowledge": "Please cite the source dataset (doi:10.18112/openneuro.ds004696.v1.0.1) and its paper.",
+  "SourceDatasets": [
+    {
+      "DOI": "doi:10.18112/openneuro.ds004696.v1.0.1",
+      "URL": "https://openneuro.org/datasets/ds004696"
+    }
+  ],
+  "GeneratedBy": [
+    {
+      "Name": "iEEGLAB make_tutorial_datasets",
+      "CodeURL": "https://github.com/sccn/iEEGLAB"
+    }
+  ]
+}

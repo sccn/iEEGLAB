@@ -314,7 +314,7 @@ for b = 1:ceil(C/64)
     pool = setdiff(blk(:), excl);
     if isempty(pool), continue; end
     Xi = reshape(X(pool, tmask, :), numel(pool), []);
-    v  = var(Xi, 0, 2, 'omitnan');
+    v  = local_nanvar(Xi);
     th = quantile(v, frac);
     sel = pool(v <= th);
     if isempty(sel), sel = pool; end
@@ -335,4 +335,19 @@ X2 = X2 - mean(X2, 2, 'omitnan');
 X2(~isfinite(X2)) = 0;
 e = eig(cov(X2'));
 r = sum(e > max(e)*1e-7);
+end
+
+function v = local_nanvar(X)
+% Row variance ignoring NaN, without var(..., 'omitnan'): that option errors on
+% some MATLAB installs (issue #9, "Invalid option.
+% Option must be 'omitnan' or 'includenan'"), likely from a toolbox var.m
+% shadowing MATLAB's. Same result as var(X, 0, 2, 'omitnan').
+X = double(X);
+ok = ~isnan(X);
+n = sum(ok, 2);
+X(~ok) = 0;
+m = sum(X, 2) ./ n;
+D = (X - m) .* ok;
+v = sum(D.^2, 2) ./ (n - 1);
+v(n < 2) = NaN;
 end

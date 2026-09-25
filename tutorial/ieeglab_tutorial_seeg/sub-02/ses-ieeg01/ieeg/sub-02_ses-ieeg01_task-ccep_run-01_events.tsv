@@ -1,0 +1,35 @@
+onset	duration	trial_type	electrodes_involved_onset	electrodes_involved_offset	sample_start	electrical_stimulation_type	electrical_stimulation_site	electrical_stimulation_site_num	electrical_stimulation_current	notes	status	status_description
+5	0.0002	electrical_stimulation	n/a	n/a	10240	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+9.5830078125	0.0002	electrical_stimulation	n/a	n/a	19626	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+14.57177734375	0.0002	electrical_stimulation	n/a	n/a	29843	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+18.40869140625	0.0002	electrical_stimulation	n/a	n/a	37701	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+22.9287109375	0.0002	electrical_stimulation	n/a	n/a	46958	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+27.9697265625	0.0002	electrical_stimulation	n/a	n/a	57282	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+32.328125	0.0002	electrical_stimulation	n/a	n/a	66208	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+36.87451171875	0.0002	electrical_stimulation	n/a	n/a	75519	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+41.34765625	0.0002	electrical_stimulation	n/a	n/a	84680	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+45.7109375	0.0002	electrical_stimulation	n/a	n/a	93616	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+50.423828125	0.0002	electrical_stimulation	n/a	n/a	103268	biphasic	RA2-RA3	2-3	6.0 mA	n/a	good	n/a
+65.3134765625	0.0002	electrical_stimulation	n/a	n/a	133762	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+69.10986328125	0.0002	electrical_stimulation	n/a	n/a	141537	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+73.87451171875	0.0002	electrical_stimulation	n/a	n/a	151295	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+79.77587890625	0.0002	electrical_stimulation	n/a	n/a	163381	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+84.546875	0.0002	electrical_stimulation	n/a	n/a	173152	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+89.18603515625	0.0002	electrical_stimulation	n/a	n/a	182653	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	artifact fixed when referencing
+92.42919921875	0.0002	electrical_stimulation	n/a	n/a	189295	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+97.63720703125	0.0002	electrical_stimulation	n/a	n/a	199961	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+103.55419921875	0.0002	electrical_stimulation	n/a	n/a	212079	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+107.3857421875	0.0002	electrical_stimulation	n/a	n/a	219926	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+111.9736328125	0.0002	electrical_stimulation	n/a	n/a	229322	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+124.25634765625	0.0002	electrical_stimulation	n/a	n/a	254477	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+129.20361328125	0.0002	electrical_stimulation	n/a	n/a	264609	biphasic	RA3-RA4	3-4	6.0 mA	n/a	good	n/a
+149.615234375	0.0002	electrical_stimulation	n/a	n/a	306412	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+153.87451171875	0.0002	electrical_stimulation	n/a	n/a	315135	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+159.29638671875	0.0002	electrical_stimulation	n/a	n/a	326239	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+163.5498046875	0.0002	electrical_stimulation	n/a	n/a	334950	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+168.1591796875	0.0002	electrical_stimulation	n/a	n/a	344390	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+172.8564453125	0.0002	electrical_stimulation	n/a	n/a	354010	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+176.93310546875	0.0002	electrical_stimulation	n/a	n/a	362359	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+182.12060546875	0.0002	electrical_stimulation	n/a	n/a	372983	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+185.91552734375	0.0002	electrical_stimulation	n/a	n/a	380755	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a
+189.50244140625	0.0002	electrical_stimulation	n/a	n/a	388101	biphasic	RA4-RA5	4-5	6.0 mA	n/a	good	n/a

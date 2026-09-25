@@ -1,6 +1,6 @@
 function tests = test_crp_vs_python
-% Cross-check run_CRP.m against the Python port used for the 2026-09-20 worklog
-% numbers. Compute-only, no figures, safe under MATLAB -batch.
+% Cross-check run_CRP.m against an independent Python implementation on fixed
+% synthetic data. Compute-only, no figures, safe under MATLAB -batch.
 %
 %   results = runtests('tests/test_crp_vs_python.m')
 tests = functiontests(localfunctions);

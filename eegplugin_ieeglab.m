@@ -28,8 +28,7 @@ if nargin < 3
          'To check your installation, run: ieeglab_check_install']);
 end
 
-% Add paths to subfolders. archive/ is dead code and ressources/ holds PDFs;
-% neither belongs on the MATLAB path.
+% Add the plugin folder and its functions to the path.
 plugin_path = fileparts(which('eegplugin_ieeglab.m'));
 addpath(plugin_path);
 addpath(fullfile(plugin_path, 'functions'));
@@ -41,6 +40,7 @@ addpath(fullfile(plugin_path, 'functions'));
 cb_load       = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_load(EEG);'           catch_strings.new_and_hist];
 cb_vis_elec   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG); LASTCOM = ''EEG = ieeglab_vis_elec(EEG);'';' catch_strings.new_and_hist];
 cb_preprocess = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_preprocess(EEG);'     catch_strings.new_and_hist];
+cb_reref      = [try_strings.no_check '[EEG, LASTCOM] = pop_ieeglab_reref(EEG);'      catch_strings.new_and_hist];
 cb_stats      = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_stats_subject(EEG);'  catch_strings.new_and_hist];
 cb_matrix     = [try_strings.no_check '[ok_, why_] = ieeglab_matrix_current(EEG); if ok_, ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix); else, errordlg([''Cannot plot the connectivity matrix: '' why_ ''. Run iEEGLAB > CCEP analysis.''],''iEEGLAB''); end; clear ok_ why_; LASTCOM = '''';' catch_strings.add_to_hist];
 cb_topo       = [try_strings.no_check 'LASTCOM = pop_ieeglab_topoplot(EEG);' catch_strings.add_to_hist];
@@ -61,6 +61,7 @@ menu_root = uimenu(fig, ...
 uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load);
 uimenu(menu_root, 'Label', 'Visualize electrodes', 'Callback', cb_vis_elec);
 uimenu(menu_root, 'Label', 'Preprocess iEEG data', 'Callback', cb_preprocess);
+uimenu(menu_root, 'Label', 'iEEG re-referencing', 'Callback', cb_reref);
 uimenu(menu_root, 'Label', 'CCEP analysis (N1, CRP, connectivity)', 'Callback', cb_stats, 'Separator', 'on');
 uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix);
 uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo);
@@ -83,7 +84,7 @@ end
 % Fail loudly at load time if a menu callback points at a function that does not
 % exist, rather than at click time. ieeglab_stats_subject was missing for months
 % because nothing checked this.
-for f = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','ieeglab_stats_subject', ...
+for f = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','pop_ieeglab_reref','ieeglab_stats_subject', ...
          'ieeglab_plot_ccep_matrix','pop_ieeglab_topoplot','ieeglab_export'}
     if isempty(which(f{1}))
         warning('eegplugin_ieeglab:missingCallback', ...

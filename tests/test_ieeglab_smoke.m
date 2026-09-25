@@ -336,10 +336,10 @@ tc.verifyLessThan(max(abs(perTrial)), 5, ...
     'Baseline looks pooled across trials: per-trial drift survived correction.');
 end
 
-function test_divisive_baseline_refused_on_zero_mean_data(tc)
+function test_divisive_baseline_not_offered(tc)
 % Divisive baselining assumes a multiplicative model (Gyurkovics et al. 2021).
 % On high-passed time-domain data the baseline mean is near zero, so the ratio
-% explodes and its sign is arbitrary. It must refuse rather than return noise.
+% explodes and its sign is arbitrary. Only subtraction is supported.
 srate = 1000; t = -500:1000/srate:1000; T = numel(t);
 rng(4);
 X = randn(6,T,15)*20;                       % zero-mean, like high-passed data
@@ -348,7 +348,7 @@ E = struct('data',X, 'times',t, 'srate',srate, 'nbchan',6, 'pnts',T, 'trials',15
 E.chanlocs = struct('labels', arrayfun(@(k) sprintf('C%d',k), 1:6, 'UniformOutput', false));
 E.ieeglab.opt = struct('baseline_period',[-500 -50], 'baseline_mode','divide', 'baseline_method','median');
 
-tc.verifyError(@() ieeglab_rm_baseline(E), 'ieeglab_rm_baseline:unsafeDivide');
+tc.verifyError(@() ieeglab_rm_baseline(E), 'ieeglab_rm_baseline:onlySubtract');
 end
 
 function test_aperiodic_baseline_is_gone(tc)
