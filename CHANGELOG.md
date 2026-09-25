@@ -2,6 +2,18 @@
 
 ## Unreleased (2026-09-25)
 
+- **ICA re-referencing** (`ieeglab_icaref`; method `'ica'` in iEEG
+  re-referencing), after Michelmann et al. (2018): runica on the good contacts
+  with as many components as the data's effective rank (estimated, or given),
+  a chi-square test of how uniformly each component's mixing weights spread
+  over the contacts, removal of the broad components (p > 0.2), back-projection
+  of the local ones. Weights are normalized per component before the test, so
+  it does not depend on the data's units (on raw microvolt weights no component
+  ever tests as broad); `weights = 'raw'` keeps the literal form. For CCEP data
+  the unmixing is estimated on the pre-stimulus samples. runica runs on one
+  thread (about 100 times faster at these matrix sizes on a loaded machine) and
+  with a fixed seed, so results are reproducible.
+
 - **N1 follows the ECoG convention.** `ieeglab_stats_subject` runs N1 by default
   on ECoG CCEP data only (channel types), counting negative peaks with a 50 uV
   floor on the baseline SD, as erdetect does (`n1_polarity`,

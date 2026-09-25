@@ -73,9 +73,11 @@ EEG = ieeglab_preprocess(EEG, struct( ...
 % Menu: iEEGLAB > iEEG re-referencing.
 % CARLA chooses, for each stimulation site, the channels whose common average
 % does not contain the evoked response (Huang et al., 2024). The stimulated pair
-% and the bad contacts are always left out. A plain common average is kept for
-% comparison.
+% and the bad contacts are always left out. A plain common average and ICA
+% re-referencing (Michelmann et al., 2018: components spread uniformly over the
+% contacts are removed) are kept for comparison.
 EEG_car = pop_ieeglab_reref(EEG, 'method', 'car');
+EEG_ica = pop_ieeglab_reref(EEG, 'method', 'ica');
 EEG     = pop_ieeglab_reref(EEG, 'method', 'carla');
 
 %% A7. CCEP analysis: CRP and the connectivity matrix

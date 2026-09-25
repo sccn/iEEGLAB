@@ -18,7 +18,7 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 | Electrode coordinates, events and clinician channel labels from the BIDS files | Load electrode coordinates and events | `ieeglab_load` |
 | Electrodes on the brain | Visualize electrodes | `ieeglab_vis_elec` |
 | Stimulation-artifact blanking, filtering, epoching, trial and channel rejection, baseline | Preprocess iEEG data | `ieeglab_preprocess` |
-| Re-referencing: CARLA (CCEP), common average | iEEG re-referencing | `pop_ieeglab_reref` |
+| Re-referencing: CARLA (CCEP), common average, ICA-based | iEEG re-referencing | `pop_ieeglab_reref` |
 | CRP (sEEG) and N1 (ECoG) with permutation statistics; connectivity matrix | CCEP analysis (N1, CRP, connectivity) | `ieeglab_stats_subject` |
 | Connectivity matrix and values on the brain | Plot connectivity matrix; Plot electrode values on brain | `ieeglab_plot_ccep_matrix`, `ieeglab_topoplot` |
 | Export (TSV, JSON, MAT) | Export results | `ieeglab_export` |
@@ -99,10 +99,13 @@ EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
 **5. Re-reference.** *iEEGLAB > iEEG re-referencing*. CARLA chooses, for each
 stimulation site, the channels whose common average carries no evoked
 response (Huang et al., 2024); the stimulated pair and bad contacts are always
-left out. Keep a common-average copy to compare.
+left out. Keep a common-average copy and an ICA re-referenced copy (Michelmann
+et al., 2018: independent components spread uniformly over the contacts, such
+as the reference, are removed) to compare.
 
 ```matlab
 EEG_car = pop_ieeglab_reref(EEG, 'method', 'car');
+EEG_ica = pop_ieeglab_reref(EEG, 'method', 'ica');
 EEG     = pop_ieeglab_reref(EEG, 'method', 'carla');
 ```
 
@@ -181,6 +184,7 @@ comes from Dora Hermes and the Multimodal Neuroimaging Lab
 ([github.com/MultimodalNeuroimagingLab](https://github.com/MultimodalNeuroimagingLab)).
 
 - Huang, H., Ojeda Valencia, G., Gregg, N. M., Osman, G. M., Montoya, M. N., Worrell, G. A., Miller, K. J., & Hermes, D. (2024). CARLA: Adjusted common average referencing for cortico-cortical evoked potential data. *Journal of Neuroscience Methods, 407*, 110153.
+- Michelmann, S., Treder, M. S., Griffiths, B., Kerrén, C., Roux, F., Wimber, M., Rollings, D., Sawlani, V., Chelvarajah, R., Gollwitzer, S., Kreiselmeyer, G., Hamer, H., Bowman, H., Staresina, B., & Hanslmayr, S. (2018). Data-driven re-referencing of intracranial EEG based on independent component analysis (ICA). *Journal of Neuroscience Methods, 307*, 125-137.
 - Miller, K. J., Müller, K.-R., Ojeda Valencia, G., Huang, H., Gregg, N. M., Worrell, G. A., & Hermes, D. (2023). Canonical response parameterization: Quantifying the structure of responses to single-pulse intracranial electrical brain stimulation. *PLOS Computational Biology, 19*(5), e1011105.
 - Ojeda Valencia, G., Gregg, N. M., Huang, H., Lundstrom, B. N., Brinkmann, B. H., Pal Attia, T., Van Gompel, J. J., Bernstein, M. A., In, M.-H., Huston, J., Worrell, G. A., Miller, K. J., & Hermes, D. (2023). Signatures of electrical stimulation driven network interactions in the human limbic system. *Journal of Neuroscience, 43*(39), 6697-6711.
 - van Blooijs, D., Leijten, F. S. S., van Rijen, P. C., Meijer, H. G. E., & Huiskamp, G. J. M. (2018). Evoked directional network characteristics of epileptogenic tissue derived from single pulse electrical stimulation. *Human Brain Mapping, 39*(11), 4611-4622.
