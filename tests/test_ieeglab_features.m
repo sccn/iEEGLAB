@@ -33,8 +33,8 @@ opt = struct('apply_highpass',true,'highpass',0.5,'apply_notch',false,'apply_low
     'apply_baseline',true,'baseline_period',[-500 -50],'plot',false,'verbose',false);
 [~, E] = evalc('ieeglab_preprocess(EEG, opt)');
 [~, E] = evalc(['ieeglab_stats_subject(E, struct(''run_n1'',true,''run_crp'',true,' ...
-    '''run_matrix'',true,''min_trials'',8,''crp_window'',[15 400],''n1_window'',[15 100],' ...
-    '''verbose'',false))']);
+    '''run_matrix'',true,''matrix_source'',''n1'',''n1_polarity'',''abs'',''min_trials'',8,' ...
+    '''crp_window'',[15 400],''n1_window'',[15 100],''verbose'',false))']);
 tc.TestData.E = E;
 end
 
@@ -386,8 +386,24 @@ tc.verifyFalse(isfield(E.ieeglab, 'stats'), 'CRP was switched off.');
 tc.verifyFalse(isfield(E.ieeglab, 'ccep_matrix'), 'The matrix was switched off.');
 d = fullfile(tc.TestData.tmp, 'orchestrated');
 [~, E] = evalc(['ieeglab_stats_subject(E0, struct(''run_n1'',true,''run_crp'',false,' ...
-    '''run_matrix'',true,''min_trials'',8,''export_dir'',d,''verbose'',false))']);
+    '''run_matrix'',true,''matrix_source'',''n1'',''min_trials'',8,''export_dir'',d,''verbose'',false))']);
 tc.verifyTrue(isfield(E.ieeglab, 'ccep_matrix'));
 tc.verifyNotEmpty(dir(fullfile(d, '*_desc-ccepresponse_ieeglab.tsv')), 'export_dir must trigger an export.');
 tc.verifyEmpty(findall(0,'Type','figure'));
+end
+
+function test_n1_defaults_follow_modality(tc)
+% N1 is an ECoG measure: by default it runs on ECoG only, counting negative
+% peaks as erdetect does; on sEEG the matrix is built from CRP.
+E0 = tc.TestData.E;
+E0.ieeglab = rmfield(E0.ieeglab, intersect(fieldnames(E0.ieeglab), {'n1','stats','ccep_matrix'}));
+[~, E] = evalc('ieeglab_stats_subject(E0, struct(''min_trials'',8,''n_perm'',200,''verbose'',false))');
+tc.verifyFalse(isfield(E.ieeglab, 'n1'), 'N1 must not run by default on sEEG.');
+tc.verifyEqual(E.ieeglab.ccep_matrix.source, 'crp');
+tc.verifyWarning(@() ieeglab_stats_subject(E0, struct('run_n1',true,'run_crp',false,'run_matrix',false, ...
+    'min_trials',8,'n_perm',200,'verbose',false)), 'ieeglab_stats_subject:n1NotECoG');
+Ee = E0; [Ee.chanlocs.type] = deal('ECOG');
+[~, Ee] = evalc('ieeglab_stats_subject(Ee, struct(''run_crp'',false,''min_trials'',8,''n_perm'',200,''verbose'',false))');
+tc.verifyTrue(isfield(Ee.ieeglab, 'n1'), 'N1 must run by default on ECoG.');
+tc.verifyEqual(Ee.ieeglab.ccep_matrix.source, 'n1');
 end

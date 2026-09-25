@@ -203,10 +203,12 @@ end
 
 % ---------------------------------------------------------------- re-referencing
 
-function test_varsubset_matches_archive(tc)
+function test_varsubset_matches_reference(tc)
+% apply_ieeg_car (tests/reference) is the HAPwave implementation of the legacy
+% lowest-variance subset CAR that car_method 'varsubset' reproduces.
 root = tc.TestData.root;
-addpath(fullfile(root, 'archive'));
-c = onCleanup(@() rmpath(fullfile(root, 'archive')));
+addpath(fullfile(root, 'tests', 'reference'));
+c = onCleanup(@() rmpath(fullfile(root, 'tests', 'reference')));
 E = tc.TestData.E;
 % Non-CCEP labelling, so there is one group and no contact exclusion
 for k = 1:numel(E.event), E.event(k).type = 'stim'; end

@@ -8,11 +8,14 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %   EEG = ieeglab_stats_subject(EEG, opt)     % headless
 %
 % Every stage can be switched on or off (dialog checkboxes, or these fields):
-%   .run_n1        N1 amplitude and latency per site x contact. Default: on for CCEP data.
+%   .run_n1        N1 amplitude and latency per site x contact. Default: on for ECoG
+%                  CCEP data only. N1 detection is an ECoG measure; on sEEG the
+%                  response is described by CRP, and asking for N1 there warns.
 %   .run_crp       Canonical Response Parameterization. Default: on.
 %   .run_matrix    connectivity matrix, sites x contacts. Default: on for CCEP data.
 %                  Built from THIS call's results: its source stage is run too.
-%   .matrix_source 'n1' (default) or 'crp' - which detector defines a response
+%   .matrix_source 'n1' or 'crp' - which detector defines a response. Default
+%                  'n1' for ECoG, 'crp' for sEEG.
 %   .export_dir    write TSV/JSON/MAT results there. '' (default) = no export.
 %   .plot          CRP summary and connectivity-matrix figures. Default: on in
 %                  the dialog, off when opt is passed, so scripts stay headless.
@@ -26,6 +29,8 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 % CRP:     .crp_window  [15 500] ms, after the stimulation artifact
 % N1:      .n1_window   [10 100] ms   .n1_baseline [-500 -10] ms
 %          .n1_method   'permutation' (default) | 'sd'   .n1_threshold 3.4 (sd only)
+%          .n1_polarity 'negative' (default, as erdetect) | 'abs' | 'positive'
+%          .n1_min_baseline_sd  50 uV (floor on the baseline SD, as erdetect)
 %
 % CRP significance: run_CRP chooses the response duration tau_R as the argmax
 % of the mean cross-projection profile, so a t-test at tau_R is biased by that
@@ -54,7 +59,9 @@ interactive = (nargin < 2 || isempty(opt));
 if interactive, opt = struct(); end
 
 isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
-def = struct('run_n1',isCCEP, 'run_crp',true, 'run_matrix',isCCEP, 'matrix_source','n1', ...
+isECoG = local_is_ecog(EEG);
+def = struct('run_n1',isCCEP && isECoG, 'run_crp',true, 'run_matrix',isCCEP, ...
+    'matrix_source',iff(isECoG,'n1','crp'), 'n1_polarity','negative', 'n1_min_baseline_sd',50, ...
     'export_dir','', 'plot',interactive, 'alpha',0.05, 'correct','fdr', 'min_trials',5, ...
     'exclude_stim',true, 'n_perm',1000, 'verbose',true, 'crp_window',[15 500], ...
     'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','permutation', 'n1_threshold',3.4);
@@ -64,7 +71,7 @@ for ii = 1:numel(fn)
         opt.(fn{ii}) = def.(fn{ii});
     end
 end
-for f = {'matrix_source','correct','n1_method','export_dir'}
+for f = {'matrix_source','correct','n1_method','n1_polarity','export_dir'}
     opt.(f{1}) = char(string(opt.(f{1})));
 end
 
@@ -123,10 +130,17 @@ end
 
 % ---------------- N1 ----------------
 if opt.run_n1
+    if ~isECoG
+        warning('ieeglab_stats_subject:n1NotECoG', ...
+            ['N1 detection is an ECoG measure; these data are not ECoG (channel types). ' ...
+             'On sEEG, describe the responses with CRP (run_crp) and build the matrix from it ' ...
+             '(matrix_source = ''crp'').']);
+    end
     EEG = ieeglab_detect_n1(EEG, struct('n1_window', opt.n1_window, 'baseline', opt.n1_baseline, ...
         'method', opt.n1_method, 'threshold', opt.n1_threshold, 'n_perm', opt.n_perm, ...
         'alpha', opt.alpha, 'correct', opt.correct, 'min_trials', opt.min_trials, ...
-        'exclude_stim', opt.exclude_stim, 'verbose', opt.verbose));
+        'exclude_stim', opt.exclude_stim, 'polarity', opt.n1_polarity, ...
+        'min_baseline_sd', opt.n1_min_baseline_sd, 'verbose', opt.verbose));
 end
 
 % ---------------- connectivity matrix ----------------
@@ -325,7 +339,7 @@ uilist = { ...
     {'style' 'text' 'string' 'Correction across contacts'}, ...
     {'style' 'popupmenu' 'string' {'FDR (Benjamini-Hochberg)','Bonferroni','None'} 'tag' 'corr'}, ...
     {'style' 'checkbox' 'string' 'Skip the stimulated contacts for their own site' 'value' opt.exclude_stim 'tag' 'exclStim'}, ...
-    {'style' 'checkbox' 'string' 'Detect N1 responses (amplitude, latency)' 'value' opt.run_n1 'tag' 'runN1' 'enable' ccepOn}, ...
+    {'style' 'checkbox' 'string' 'Detect N1 responses (ECoG; negative peaks, as erdetect)' 'value' opt.run_n1 'tag' 'runN1' 'enable' ccepOn}, ...
     {'style' 'checkbox' 'string' 'Canonical Response Parameterization (CRP)' 'value' opt.run_crp 'tag' 'runCRP'}, ...
     {'style' 'checkbox' 'string' 'Build the connectivity matrix (sites x contacts)' 'value' opt.run_matrix 'tag' 'runMat' 'enable' ccepOn}, ...
     {'style' 'checkbox' 'string' 'Plot figures' 'value' 1 'tag' 'doPlot'}, ...
@@ -400,4 +414,12 @@ end
 
 function out = iff(c, a, b)
 if c, out = a; else, out = b; end
+end
+
+function tf = local_is_ecog(EEG)
+% ECoG when ECOG channels outnumber SEEG ones (BIDS channel types).
+tf = false;
+if ~isfield(EEG,'chanlocs') || ~isfield(EEG.chanlocs,'type'), return; end
+ty = upper(cellfun(@(x) char(string(x)), {EEG.chanlocs.type}, 'UniformOutput', false));
+tf = nnz(strcmp(ty,'ECOG')) > nnz(strcmp(ty,'SEEG'));
 end

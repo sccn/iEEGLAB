@@ -26,7 +26,10 @@ for m = {'carla', 'car'}
     b = tc.TestData.pre; b.apply_car = false;
     [~, B] = evalc('ieeglab_preprocess(tc.TestData.EEG, b)');
     rng(1); [~, B, com] = evalc('pop_ieeglab_reref(B, ''method'', m{1})');
-    tc.verifyEqual(double(B.data), double(A.data), 'AbsTol', 1e-3, ...
+    % single-precision data: tolerance scaled to its rounding step (CI on Linux
+    % rounds differently from Windows), near the artifact values reach 3e4 uV
+    tol = 8 * double(eps(single(max(abs(A.data(:))))));
+    tc.verifyEqual(double(B.data), double(A.data), 'AbsTol', tol, ...
         sprintf('%s after baseline differs from %s inside preprocessing.', m{1}, m{1}));
     tc.verifyEqual(B.ref, A.ref);
     tc.verifyTrue(contains(com, ['''method'', ''' m{1} '''']), 'The history line must replay the method.');

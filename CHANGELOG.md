@@ -2,6 +2,12 @@
 
 ## Unreleased (2026-09-25)
 
+- **N1 follows the ECoG convention.** `ieeglab_stats_subject` runs N1 by default
+  on ECoG CCEP data only (channel types), counting negative peaks with a 50 uV
+  floor on the baseline SD, as erdetect does (`n1_polarity`,
+  `n1_min_baseline_sd`). On sEEG the connectivity matrix is built from CRP by
+  default, and requesting N1 warns (`ieeglab_stats_subject:n1NotECoG`).
+
 - **iEEG re-referencing is its own step (issue #11).** New menu item iEEGLAB >
   iEEG re-referencing (`pop_ieeglab_reref`): method (CARLA per stimulation site
   for CCEP data; common average; the lowest-covariance subset of Ojeda Valencia

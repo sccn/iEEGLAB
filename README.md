@@ -142,7 +142,8 @@ ieeglab_export(EEG, 'results_seeg');
 The same steps, with three differences: the coordinates are in fsaverage space
 (no individual MRI is shared, so electrodes are drawn on their own or on an
 fsaverage surface), the line noise is 50 Hz, and the CCEP measure is the N1
-(van Blooijs et al., 2018).
+(van Blooijs et al., 2018): the first negative peak 10-100 ms after the pulse,
+counted as in erdetect (negative peaks only, baseline SD at least 50 uV).
 
 ```matlab
 bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ieeglab_tutorial_ecog');
