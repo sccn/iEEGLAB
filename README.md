@@ -34,7 +34,8 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 3. Start EEGLAB and run *iEEGLAB > Check installation*
    (`ieeglab_check_install`), which lists anything missing.
 
-MATLAB's Signal Processing and Statistics toolboxes are recommended.
+CARLA needs MATLAB's Statistics and Machine Learning Toolbox; the Signal
+Processing Toolbox is recommended.
 
 ## Tutorial
 
@@ -47,7 +48,9 @@ native sampling rate (2048 Hz):
 | `tutorial/ecog` | ECoG, 20 contacts, 3 stimulation sites, 30 pulses | OpenNeuro [ds004080](https://openneuro.org/datasets/ds004080) sub-ccepAgeUMCU02 (van Blooijs et al., 2023) |
 
 The steps below are also in [`ieeglab_tutorial.m`](ieeglab_tutorial.m), which
-runs the whole analysis in about a minute. The same steps work on the full
+runs the whole analysis in about a minute, and in
+`iEEGLAB_GUI_walkthrough.html` (open it in a browser), which lists what each
+menu step should produce. The same steps work on the full
 recordings downloaded from OpenNeuro.
 
 ### Part A: sEEG

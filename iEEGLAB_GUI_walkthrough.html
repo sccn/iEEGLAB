@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iEEGLAB walkthrough</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --ink: #1f2328; --muted: #5d6570; --line: #e3e0d8;
+    --accent: #2b6cb0; --accent-soft: #e8f0fa; --expect: #f1f7ee; --expect-line: #b9d6ad;
+    --note: #fdf6e7; --note-line: #ecd29a; --code: #f3f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181b; --panel: #1d2024; --ink: #e6e6e3; --muted: #a2a8b0; --line: #30343a;
+      --accent: #7fb0e6; --accent-soft: #1f2c3b; --expect: #1c271c; --expect-line: #3d5a36;
+      --note: #2a2517; --note-line: #5e5230; --code: #26292e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181b; --panel: #1d2024; --ink: #e6e6e3; --muted: #a2a8b0; --line: #30343a;
+    --accent: #7fb0e6; --accent-soft: #1f2c3b; --expect: #1c271c; --expect-line: #3d5a36;
+    --note: #2a2517; --note-line: #5e5230; --code: #26292e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  h2 { font-size: 1.25rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  nav a { color: var(--accent); background: var(--accent-soft); text-decoration: none;
+          padding: 4px 12px; border-radius: 999px; font-size: 0.9rem; }
+  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  ol.steps > li { counter-increment: step; background: var(--panel); border: 1px solid var(--line);
+                  border-radius: 10px; padding: 14px 16px 14px 56px; margin: 0 0 12px; position: relative; }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 14px; top: 13px;
+                  width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--bg);
+                  font-weight: 600; display: grid; place-items: center; font-size: 0.9rem; }
+  .menu { font-weight: 600; }
+  .expect { background: var(--expect); border-left: 3px solid var(--expect-line);
+            padding: 8px 12px; margin-top: 10px; border-radius: 0 6px 6px 0; font-size: 0.95rem; }
+  .expect b { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .ref { display: block; margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+  .ref a, .expect a { color: var(--accent); }
+  .open { display: block; margin-top: 6px; font-size: 0.9rem; }
+  .progress { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0 12px; margin-bottom: 8px; }
+  .progress .bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .progress .fill { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.25s ease; }
+  .progress .label { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress button { font: inherit; font-size: 0.8rem; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; }
+  details.cmd { margin-top: 8px; font-size: 0.88rem; }
+  details.cmd summary { cursor: pointer; color: var(--accent); }
+  details.cmd pre { background: var(--code); padding: 10px 12px; border-radius: 6px; overflow-x: auto; margin: 6px 0 0; }
+  details.cmd pre code { background: none; padding: 0; font-size: 0.85rem; overflow-wrap: normal; }
+  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 8px;
+          padding: 10px 14px; margin: 12px 0; font-size: 0.95rem; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.9em;
+         font-family: ui-monospace, "Cascadia Code", Consolas, monospace; overflow-wrap: anywhere; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; background: var(--panel); }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--accent-soft); }
+  .tablewrap { overflow-x: auto; }
+  ul.tight { margin: 6px 0 0; padding-left: 20px; }
+  label.done { float: right; font-size: 0.8rem; color: var(--muted); cursor: pointer; user-select: none; }
+  li.checked { opacity: 0.55; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.85rem; }
+  @media print { nav, label.done, .progress { display: none; } ol.steps > li { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Trying iEEGLAB</h1>
+  <p class="sub">The two tutorial datasets through the EEGLAB menus, with what you should see at each step and the equivalent command line.</p>
+
+  <div class="progress" role="status" aria-live="polite">
+    <div class="label"><span id="progtext">0 of 0 steps done</span><button type="button" id="progreset">Reset</button></div>
+    <div class="bar"><div class="fill" id="progfill"></div></div>
+  </div>
+
+  <nav>
+    <a href="#install">1. Install</a>
+    <a href="#seeg">2. sEEG walkthrough</a>
+    <a href="#ecog">3. ECoG walkthrough</a>
+    <a href="#report">4. What to report</a>
+  </nav>
+
+  <h2 id="install">1. Install</h2>
+  <ol class="steps">
+    <li><span class="menu">iEEGLAB</span> from <a href="https://github.com/sccn/iEEGLAB">github.com/sccn/iEEGLAB</a>
+      (<i>Code &gt; Download ZIP</i>, about 250 MB, or <code>git clone</code>), into <code>eeglab/plugins/</code>.
+      The version in the extension manager is older: please use GitHub.</li>
+    <li>Restart EEGLAB. An <span class="menu">iEEGLAB</span> menu appears. Run <span class="menu">iEEGLAB &gt; Check installation</span>.
+      <div class="expect"><b>Expect</b>No required item missing. MEF3 and bva-io may be listed as missing: they are only
+      needed for raw MEF3 or BrainVision recordings, not for the tutorial.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>eeglab
+ieeglab_check_install</code></pre></details></li>
+  </ol>
+
+  <h2 id="seeg">2. sEEG walkthrough (<code>tutorial/seeg</code>)</h2>
+  <ol class="steps">
+    <li><span class="menu">File &gt; Import data &gt; From BIDS folder structure</span>. Select <code>tutorial/seeg</code>;
+      event type: <code>electrical_stimulation_site</code>.
+      <div class="expect"><b>Expect</b>One dataset: 18 channels, 2048 Hz, about 193 s, 34 events.
+      <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004696">OpenNeuro ds004696</a>, sub-02 (<a href="https://doi.org/10.1523/JNEUROSCI.2201-22.2023">Ojeda Valencia et al., 2023, <i>J Neurosci</i></a>).</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'seeg');
+[~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
+    'eventtype', 'electrical_stimulation_site');
+EEG = ALLEEG(1);</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>. Check that the electrodes, events and
+      channels files point to the dataset; keep all channels and events.
+      <div class="expect"><b>Expect</b>In the command window: RA15, RB14 and RB15 have no coordinates and are marked bad
+      (from <code>channels.tsv</code>); 34 events typed by stimulation site (RA2-RA3, RA3-RA4, RA4-RA5).
+      You may see the warning <code>ieeglab_load:bidsImportLabels</code>: EEGLAB's BIDS import assigned some
+      electrode labels by position, and iEEGLAB has restored them. This is expected until the EEG-BIDS fix is released.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Visualize electrodes</span>. Select both <code>pial.L.surf.gii</code> and
+      <code>pial.R.surf.gii</code> in <code>tutorial/seeg/derivatives/freesurfer/sub-02</code>.
+      <div class="expect"><b>Expect</b>A 3D brain with 15 contacts (RA lead and RB13), inside the surface.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>surf = fullfile(bids, 'derivatives', 'freesurfer', 'sub-02', {'pial.L.surf.gii', 'pial.R.surf.gii'});
+EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>. Blank stimulation artifact: on. High-pass: 0.5 Hz.
+      Notch: <code>60 120 180</code>. Epoch: <code>-1000 1000</code> ms. Reject outlier trials: on. Remove bad channels: on.
+      Baseline: <code>-500 -50</code> ms (subtraction).
+      <div class="expect"><b>Expect</b>3 channels removed (15 left); 11.5 ms blanked around 34 pulses; 2 of 34 trials
+      rejected (32 epochs: 11, 12 and 9 per site). A warning from EEGLAB about the "single-trial ERP baseline" is harmless.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
+    'apply_highpass', true, 'highpass', 0.5, 'apply_notch', true, 'notch', [60 120 180], ...
+    'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
+    'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>. Method: CARLA; other fields as they are.
+      <div class="expect"><b>Expect</b>For each site, the channels used as reference are printed: 8, 7 and 5 of 15. The stimulated
+      pair is always left out. To try another method, first go back to the preprocessed dataset
+      (<span class="menu">Datasets</span> menu): Common average gives 13 of 15 per site, ICA removes 9 of 15 components.
+      <span class="ref">CARLA: <a href="https://doi.org/10.1016/j.jneumeth.2024.110153">Huang et al., 2024, <i>J Neurosci Methods</i></a>. For each stimulation site it picks the channels whose common average carries no evoked response.</span>
+      <span class="ref">ICA re-referencing: <a href="https://doi.org/10.1016/j.jneumeth.2018.06.021">Michelmann et al., 2018, <i>J Neurosci Methods</i></a>. ICA splits the recording into components and removes those spread evenly
+      over all contacts (the reference and other shared signals), keeping the local ones. A chi-square test decides:
+      a component is "broad" when p &gt; 0.2.</span>
+      <span class="open"><b style="display:inline;text-transform:none;letter-spacing:0;font-size:0.9rem">Open question:</b>
+      the paper does not say how the component weights are scaled before the test. On raw weights in microvolts no component
+      ever counts as broad, so the method would do nothing; iEEGLAB rescales each component first. With that, 9 of 15
+      components are removed on this single sEEG lead (1 of 18 on the ECoG grid), and moving the threshold between
+      p &gt; 0.05 and p &gt; 0.5 changes this only to 10 or 8. On one lead much real brain activity reaches every contact,
+      so the test may remove brain signal along with the reference.</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG_car = pop_ieeglab_reref(EEG, 'method', 'car');   % to compare
+EEG_ica = pop_ieeglab_reref(EEG, 'method', 'ica');   % to compare
+EEG     = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; CCEP analysis (N1, CRP, connectivity)</span>. On sEEG, use CRP (N1 off) and build the
+      connectivity matrix.
+      <div class="expect"><b>Expect</b>"28 of 39 tested pairs respond"; most connected site RA3-RA4 (11 contacts).
+      About 20 to 30 s (1000 permutations).
+      <span class="ref">CRP, Canonical Response Parameterization: <a href="https://doi.org/10.1371/journal.pcbi.1011105">Miller et al., 2023, <i>PLOS Comput Biol</i></a>. Response duration, shape and explained variance
+      per site and contact; significance by permutation test.</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, ...
+    'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>, then <span class="menu">Plot electrode values on brain</span>
+      (in-degree; CRP explained variance for site RA3-RA4) with the pial surfaces.
+      <div class="expect"><b>Expect</b>A 3 sites x 15 contacts matrix; contact values on the brain.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix);
+ieeglab_topoplot(EEG, 'in_degree', 'surf_files', surf);
+ieeglab_topoplot(EEG, 'crp_explained_var', 'site', 'RA3-RA4', 'surf_files', surf);</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Export results</span>, to a folder of your choice.
+      <div class="expect"><b>Expect</b>TSV tables (channels, CRP), a JSON record of every option used, and a MAT file.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_export(EEG, 'results_seeg');</code></pre></details></li>
+  </ol>
+
+  <h2 id="ecog">3. ECoG walkthrough (<code>tutorial/ecog</code>)</h2>
+  <ol class="steps">
+    <li>Import <code>tutorial/ecog</code> as above (event type <code>electrical_stimulation_site</code>).
+      <div class="expect"><b>Expect</b>20 channels, 2048 Hz, about 173 s.
+      <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004080">OpenNeuro ds004080</a>, sub-ccepAgeUMCU02 (<a href="https://doi.org/10.1038/s41593-023-01272-0">van Blooijs et al., 2023, <i>Nat Neurosci</i></a>).</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
+[~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
+    'eventtype', 'electrical_stimulation_site');
+EEG = ALLEEG(1);</code></pre></details></li>
+    <li><span class="menu">Load electrode coordinates and events</span>.
+      <div class="expect"><b>Expect</b>F07 and F08 marked bad ("electrode on top of other electrode"); 2 of 32 events dropped
+      (no site); 30 events at FB53-FB54, FB54-FB55 and FB54-FB62.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
+    <li><span class="menu">Visualize electrodes</span>: cancel the surface selection.
+      <div class="expect"><b>Expect</b>The 18 grid contacts drawn on their own (fsaverage coordinates, no individual MRI).</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_vis_elec(EEG, struct('surf_files', {{}}));</code></pre></details></li>
+    <li><span class="menu">Preprocess</span> as for sEEG, but notch <code>50 100 150</code>.
+      <div class="expect"><b>Expect</b>18 channels, 30 epochs, no trial rejected.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
+    'apply_highpass', true, 'highpass', 0.5, 'apply_notch', true, 'notch', [50 100 150], ...
+    'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
+    'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
+    <li><span class="menu">iEEG re-referencing</span>: Common average.
+      <div class="expect"><b>Expect</b>16 of 18 channels per site.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
+    <li><span class="menu">CCEP analysis</span>: N1 on, CRP off.
+      <div class="expect"><b>Expect</b>"11 of 48 tested pairs respond", latencies 14 to 99 ms (median 21). One warning of a
+      response above 1000 uV: very likely residual stimulation artifact.
+      <span class="ref">N1: <a href="https://doi.org/10.1002/hbm.24309">van Blooijs et al., 2018, <i>Hum Brain Mapp</i></a>. iEEGLAB's default
+      keeps the negative peak between 10 and 100 ms and tests it with a sign-flip permutation test across trials. The rule of
+      <a href="https://pypi.org/project/erdetect/">erdetect</a> (<a href="https://doi.org/10.1038/s41593-023-01272-0">van Blooijs et al., 2023, <i>Nat Neurosci</i></a>),
+      a negative peak 9-90 ms larger than 3.4 times the baseline SD taken as at least 50 uV, is an option: on the full recording
+      it finds 71 of erdetect's 72 responses.</span>
+      <span class="open"><b style="display:inline;text-transform:none;letter-spacing:0;font-size:0.9rem">Open question:</b>
+      on the full recording the permutation test finds all 72 of erdetect's responses plus 221 smaller ones that are consistent
+      across trials but below erdetect's 170 uV criterion. Which should be the default on ECoG?</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, ...
+    'run_matrix', true, 'matrix_source', 'n1'));</code></pre></details></li>
+    <li>Plot the matrix (latency) and N1 amplitude on the grid for site FB54-FB62; export.
+      <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix, 'latency_ms');
+ieeglab_topoplot(EEG, 'n1_amplitude', 'site', 'FB54-FB62');
+ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
+  </ol>
+
+  <h2 id="report">4. What to report</h2>
+  <ul class="tight">
+    <li>Any step whose result differs from the "Expect" box.</li>
+    <li>Any error: a screenshot of the message and of the MATLAB command window.</li>
+    <li>Anything unclear in a dialog (labels, defaults, order of steps).</li>
+    <li>Your MATLAB and EEGLAB versions, and operating system.</li>
+  </ul>
+
+  <footer>iEEGLAB, Cedric Cannard. Tick the box on each step as you go (saved in this browser only).</footer>
+</main>
+<script>
+  // Per-step "done" boxes, remembered in this browser only, with a progress bar.
+  var steps = document.querySelectorAll('ol.steps > li'), boxes = [];
+  function progress() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    document.getElementById('progtext').textContent = n + ' of ' + boxes.length + ' steps done' + (n === boxes.length ? ': all done' : '');
+    document.getElementById('progfill').style.width = (100 * n / boxes.length) + '%';
+  }
+  steps.forEach(function (li, i) {
+    var key = 'ieeglab-walkthrough-' + i, box = document.createElement('input'), lab = document.createElement('label');
+    box.type = 'checkbox'; lab.className = 'done'; lab.append(box, ' done');
+    try { box.checked = localStorage.getItem(key) === '1'; } catch (e) {}
+    li.classList.toggle('checked', box.checked);
+    box.addEventListener('change', function () {
+      li.classList.toggle('checked', box.checked);
+      try { localStorage.setItem(key, box.checked ? '1' : '0'); } catch (e) {}
+      progress();
+    });
+    li.prepend(lab);
+    boxes.push(box);
+  });
+  document.getElementById('progreset').addEventListener('click', function () {
+    boxes.forEach(function (b) { if (b.checked) { b.checked = false; b.dispatchEvent(new Event('change')); } });
+  });
+  progress();
+</script>
+</body>
+</html>

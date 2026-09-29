@@ -30,6 +30,7 @@ D = { ...
   'inputgui',        'required', 'all dialogs',                               'Part of EEGLAB (functions/guifunc).';
   'readtable',       'required', 'reading BIDS .tsv electrode and event files','Base MATLAB.';
   'pop_eegfiltnew',  'feature',  'filtering',                                 'Enable the firfilt plugin from the EEGLAB plugin manager.';
+  'corr',            'feature',  'CARLA (channel correlations)',              'Statistics and Machine Learning Toolbox.';
   'trimmean',        'feature',  'trimmed-mean averaging in plots and CAR',   'Statistics and Machine Learning Toolbox.';
   'designfilt',      'feature',  'CARLA''s line-noise notch before ranking',  'Signal Processing Toolbox. CARLA still runs without it, slightly less robustly.';
   'dipfitdefs',      'feature',  'template-brain fallback when no surfaces',  'Enable the dipfit plugin from the EEGLAB plugin manager.';
