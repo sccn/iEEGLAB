@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased (2026-09-25)
+## Unreleased (2026-09-28)
+
+- **Contacts next to the stimulated pair can be left out of the reference.**
+  `pop_ieeglab_reref(..., 'neighbors', n)` (a row of the iEEG re-referencing
+  dialog; `car_neighbors` in `ieeglab_car`) keeps the contacts of the same lead
+  within n of either stimulated contact out of every site's reference, as the
+  CARLA publication scripts do with n = 2. With it, CARLA on ds004977 sub-1, site
+  RMO8-RMO9, selects the 154 of 206 channels of Huang et al. (2024, Figure 5).
+  `EEG.ieeglab.car.groups` records, per site, the reference and excluded channels
+  and the CARLA statistics.
+- **Tutorial folders renamed** `tutorial/seeg` and `tutorial/ecog`.
 
 - **Electrodes and surfaces checked for a shared space.** `ieeglab_check_coords`,
   called by the electrode plots, warns when more than 10% of contacts lie outside
@@ -54,8 +64,8 @@
   EEG-BIDS plugins instead of vistasoft and matmef.
 - **Issue #9:** the variance in the legacy fixed-fraction CAR no longer uses
   `var(..., 'omitnan')`, which failed on some MATLAB installations.
-- **Native-rate tutorial datasets** `tutorial/ieeglab_tutorial_seeg` (ds004696
-  sub-02, 18 contacts, 3 sites, 2048 Hz) and `tutorial/ieeglab_tutorial_ecog`
+- **Native-rate tutorial datasets** `tutorial/seeg` (ds004696
+  sub-02, 18 contacts, 3 sites, 2048 Hz) and `tutorial/ecog`
   (ds004080 sub-ccepAgeUMCU02, 20 contacts, 3 sites, 2048 Hz), each a small BIDS
   dataset, built and checked against the source by `tutorial/make_tutorial_datasets.m`.
 - **Test: `tests/test_ieeglab_bids_import.m`** (GIfTI reader, sidecar lookup,

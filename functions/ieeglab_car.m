@@ -26,6 +26,12 @@ function [EEG, out] = ieeglab_car(EEG, opt)
 %   .car_persite  logical, run the selection independently per stimulation site.
 %                 Default true. Set false to pool all trials (not recommended
 %                 for CCEP data - responsive channels are site-specific).
+%   .car_neighbors integer n: also keep out of the reference the contacts of the
+%                 same lead within n contacts of either stimulated contact (e.g.
+%                 RMO6-RMO11 for site RMO8-RMO9 with n = 2), as the CARLA
+%                 publication scripts do (getNeighborChs). Default 0 (only the
+%                 stimulated pair). Leads and contact numbers are read from the
+%                 labels (letters, then a trailing number).
 %
 % Outputs:
 %   EEG - re-referenced. EEG.ref and EEG.ieeglab.car record what was done.
@@ -63,7 +69,7 @@ end
 % ---------------- defaults ----------------
 def = struct('car_method','carla', 'car_timewin',[10 300], 'car_fraction',0.25, ...
              'car_nboot',100, 'car_sens',false, 'car_linefreq',60, ...
-             'car_persite',true, 'bad_channels',[], 'verbose',true);
+             'car_persite',true, 'car_neighbors',0, 'bad_channels',[], 'verbose',true);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
     if ~isfield(opt, fn{ii}) || isempty(opt.(fn{ii}))
@@ -128,6 +134,12 @@ if opt.verbose
     else
         fprintf('[CAR] Stimulated contacts resolved for %d/%d epochs across %d site(s).\n', ...
             nResolved, N, numel(unique(siteName(siteName~=""))));
+    end
+end
+if opt.car_neighbors > 0 && nResolved > 0
+    stimExcl = local_add_neighbors(stimExcl, siteName, labels, opt.car_neighbors);
+    if opt.verbose
+        fprintf('[CAR] Contacts within %d of each stimulated contact (same lead) are also left out.\n', opt.car_neighbors);
     end
 end
 
@@ -248,7 +260,11 @@ switch lower(opt.car_method)
     case 'car',       EEG.ref = 'CAR';
 end
 EEG.ieeglab.car = struct('method', opt.car_method, 'timewin_ms', opt.car_timewin, ...
-    'persite', persite, 'n_groups', numel(out));
+    'persite', persite, 'neighbors', opt.car_neighbors, 'n_groups', numel(out), ...
+    'groups', struct('site', {out.group}, ...
+        'reference', cellfun(@(c) cellstr(labels(c)), {out.car_channels}, 'UniformOutput', false), ...
+        'excluded', cellfun(@(c) cellstr(labels(c)), {out.excluded_channels}, 'UniformOutput', false), ...
+        'stats', {out.stats}));
 
 r_after = local_rank_proxy(X);
 if r_after < r_before
@@ -322,6 +338,38 @@ for b = 1:ceil(C/64)
     st.blocks{end+1} = struct('block', blk, 'selected', sel(:)', 'threshold', th);
 end
 carCh = unique(carCh);
+end
+
+function stimExcl = local_add_neighbors(stimExcl, siteName, labels, n)
+% Add to each epoch's stimulated contacts the contacts of the same lead within
+% n contact numbers, read from the site name so that the neighbours of a
+% stimulated contact removed as bad are still found.
+[leadL, numL] = local_lead_number(labels);
+[uSites, ~, idx] = unique(siteName);
+for s = 1:numel(uSites)
+    if uSites(s) == "", continue; end
+    [leadS, numS] = local_lead_number(ieeglab_site_tokens(uSites(s), labels));
+    nb = false(numel(labels), 1);
+    for t = find(~isnan(numS))
+        nb = nb | (leadL(:) == leadS(t) & abs(numL(:) - numS(t)) <= n);
+    end
+    for k = find(idx(:)' == s)
+        stimExcl{k} = unique([stimExcl{k}(:); find(nb)]);
+    end
+end
+end
+
+function [lead, num] = local_lead_number(names)
+% 'RMO8' -> "RMO", 8; "LA'3" -> "LA", 3 (punctuation ignored, as the site parser does).
+names = upper(regexprep(strtrim(string(names)), '[^A-Za-z0-9]', ''));
+tok = regexp(names, '^(.*?)(\d+)$', 'tokens', 'once');
+if ~iscell(tok), tok = {tok}; end
+lead = strings(size(names)); num = nan(size(names));
+for i = 1:numel(names)
+    if numel(tok{i}) == 2
+        lead(i) = tok{i}(1); num(i) = str2double(tok{i}(2));
+    end
+end
 end
 
 function s = local_refname(EEG)

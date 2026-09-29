@@ -4,6 +4,7 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 % Usage:
 %   [EEG, com] = pop_ieeglab_reref(EEG)                       % dialog
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'carla')           % CCEP data
+%   EEG = pop_ieeglab_reref(EEG, 'method', 'carla', 'sensitive', true, 'neighbors', 2)
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'car')
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.25)
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'ica')                % rank estimated
@@ -24,6 +25,9 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 %   'sensitive'  CARLA's sensitive cutoff (true/false). Default false.
 %   'persite'    choose the reference separately for each stimulation site
 %                (true/false). Default true.
+%   'neighbors'  also leave out of the reference the contacts within this many
+%                contacts of the stimulated pair, on the same lead (carla, car,
+%                varsubset). Default 0. The CARLA publication scripts use 2.
 %   'fraction'   share of channels kept by 'varsubset' (0-1). Default 0.25.
 %   'rank'       number of ICA components ('ica'). Default [] = the effective rank
 %                of the data, estimated; give it when known (e.g. after a common
@@ -56,7 +60,8 @@ prev = struct();
 if isfield(EEG, 'ieeglab') && isfield(EEG.ieeglab, 'opt') && isstruct(EEG.ieeglab.opt), prev = EEG.ieeglab.opt; end
 g = struct('method', iff(isCCEP, 'carla', 'car'), 'timewin', local_prev(prev, 'car_timewin', [10 300]), ...
     'sensitive', local_prev(prev, 'car_sens', false), 'persite', local_prev(prev, 'car_persite', true), ...
-    'fraction', local_prev(prev, 'car_fraction', 0.25), 'rank', [], 'p_broad', 0.2);
+    'fraction', local_prev(prev, 'car_fraction', 0.25), 'neighbors', local_prev(prev, 'car_neighbors', 0), ...
+    'rank', [], 'p_broad', 0.2);
 
 if nargin < 2
     % ---- dialog
@@ -79,6 +84,8 @@ if nargin < 2
         {'style' 'checkbox' 'string' '' 'value' double(g.persite) 'tag' 'persite'}, ...
         {'style' 'text' 'string' 'Sensitive cutoff (CARLA)'}, ...
         {'style' 'checkbox' 'string' '' 'value' double(g.sensitive) 'tag' 'sensitive'}, ...
+        {'style' 'text' 'string' 'Also leave out contacts within N of the stimulated pair'}, ...
+        {'style' 'edit' 'string' num2str(g.neighbors) 'tag' 'neighbors'}, ...
         {'style' 'text' 'string' 'Share of channels kept (subset method, 0-1)'}, ...
         {'style' 'edit' 'string' num2str(g.fraction) 'tag' 'fraction'}, ...
         {'style' 'text' 'string' 'Number of components (ICA; empty = estimated rank)'}, ...
@@ -86,7 +93,10 @@ if nargin < 2
         {'style' 'text' 'string' 'Broad component if chi-square p above (ICA)'}, ...
         {'style' 'edit' 'string' num2str(g.p_broad) 'tag' 'p_broad'}, ...
         {'style' 'text' 'string' note} };
-    geom = {[1.3 1] [1.3 1] [1.3 1] [1.3 1] [1.3 1] [1.3 1] [1.3 1] 1};
+    if ~isCCEP   % the neighbour row only applies to CCEP data
+        uilist(9:10) = [];
+    end
+    geom = [repmat({[1.3 1]}, 1, (numel(uilist)-1)/2) {1}];
     [res, ~, ~, out] = inputgui(geom, uilist, 'pophelp(''pop_ieeglab_reref'')', 'iEEGLAB - iEEG re-referencing');
     if isempty(res), return; end
     g.method = methods{out.method};
@@ -98,6 +108,7 @@ if nargin < 2
     g.persite = logical(out.persite);
     g.sensitive = logical(out.sensitive);
     g.fraction = str2double(out.fraction);
+    if isfield(out, 'neighbors'), g.neighbors = str2double(out.neighbors); end
     g.rank = str2double(out.rank); if ~isfinite(g.rank), g.rank = []; end
     g.p_broad = str2double(out.p_broad);
 else
@@ -122,6 +133,9 @@ if strcmp(g.method, 'carla') && ~isCCEP
         ['CARLA needs CCEP data: it ranks channels against each epoch''s stimulated pair, and the ' ...
          'event types of this dataset do not name contact pairs. Use ''car''.']);
 end
+if ~(isscalar(g.neighbors) && isfinite(g.neighbors) && g.neighbors >= 0 && g.neighbors == round(g.neighbors))
+    error('pop_ieeglab_reref:neighbors', 'neighbors must be a whole number of contacts (0 = only the stimulated pair).');
+end
 if strcmp(g.method, 'varsubset') && ~(isscalar(g.fraction) && g.fraction > 0 && g.fraction <= 1)
     error('pop_ieeglab_reref:fraction', 'The share of channels kept must be between 0 and 1.');
 end
@@ -139,6 +153,7 @@ opt.car_timewin = g.timewin;
 opt.car_sens    = logical(g.sensitive);
 opt.car_persite = logical(g.persite);
 opt.car_fraction = g.fraction;
+opt.car_neighbors = g.neighbors;
 opt.bad_channels = [];          % bad channels reach ieeglab_car through chanlocs.status
 if strcmp(g.method, 'ica')
     EEG = ieeglab_icaref(EEG, struct('rank', g.rank, 'p_broad', g.p_broad, 'verbose', true));
@@ -147,7 +162,7 @@ else
 end
 if ~isfield(EEG, 'ieeglab'), EEG.ieeglab = struct(); end
 if ~isfield(EEG.ieeglab, 'opt') || ~isstruct(EEG.ieeglab.opt), EEG.ieeglab.opt = struct(); end
-for f = {'car_method', 'car_timewin', 'car_sens', 'car_persite', 'car_fraction'}
+for f = {'car_method', 'car_timewin', 'car_sens', 'car_persite', 'car_fraction', 'car_neighbors'}
     EEG.ieeglab.opt.(f{1}) = opt.(f{1});
 end
 if hadBaseline
@@ -160,6 +175,7 @@ args = {'''method''', ['''' g.method '''']};
 if ismember(g.method, {'carla', 'varsubset'}), args = [args {'''timewin''', mat2str(g.timewin)}]; end
 if strcmp(g.method, 'carla'), args = [args {'''sensitive''', mat2str(logical(g.sensitive)), '''persite''', mat2str(logical(g.persite))}]; end
 if strcmp(g.method, 'varsubset'), args = [args {'''fraction''', num2str(g.fraction)}]; end
+if ~strcmp(g.method, 'ica') && g.neighbors > 0, args = [args {'''neighbors''', num2str(g.neighbors)}]; end
 if strcmp(g.method, 'ica')
     if ~isempty(g.rank), args = [args {'''rank''', num2str(g.rank)}]; end
     args = [args {'''p_broad''', num2str(g.p_broad)}];
