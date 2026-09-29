@@ -1,6 +1,6 @@
 function tests = test_ieeglab_bids_import
 % Loading after EEGLAB's BIDS import (EEG-BIDS), and the built-in GIfTI reader.
-% Headless. Uses the native-rate tutorial datasets in tutorial/ieeglab_tutorial_*.
+% Headless. Uses the native-rate tutorial datasets in tutorial/seeg and tutorial/ecog.
 tests = functiontests(localfunctions);
 end
 
@@ -45,7 +45,7 @@ end
 function test_sidecars_found_from_derivatives_folder(tc)
 % pop_importbids saves to <root>/derivatives/eeglab/sub-.../ieeg by default;
 % the sidecars stay in <root>/sub-.../ieeg.
-tut = fullfile(tc.TestData.root, 'tutorial', 'ieeglab_tutorial_seeg');
+tut = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(tut), 'Native-rate tutorial dataset not present.');
 src = tempname; mkdir(fullfile(src, 'sub-02', 'ses-ieeg01'));
 c = onCleanup(@() rmdir(src, 's'));
@@ -67,7 +67,7 @@ function test_load_after_eeglab_bids_import(tc)
 % 2026-05) assigns electrodes.tsv rows to channels by position, which on this
 % subject gives most contacts the wrong label.
 tc.assumeNotEmpty(which('pop_importbids'), 'EEG-BIDS plugin not installed.');
-src = fullfile(tc.TestData.root, 'tutorial', 'ieeglab_tutorial_seeg');
+src = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(src), 'Native-rate tutorial dataset not present.');
 work = tempname; copyfile(src, work); c = onCleanup(@() rmdir(work, 's'));
 [~, ~, ALLEEG] = evalc(['pop_importbids(work, ''bidsevent'', ''on'', ''bidschanloc'', ''on'', ' ...
@@ -88,7 +88,7 @@ end
 function test_coordinates_inside_surfaces(tc)
 % The tutorial contacts lie inside the pial surfaces they are drawn on; the
 % same contacts shifted by 40 mm do not, which triggers the space warning.
-tut = fullfile(tc.TestData.root, 'tutorial', 'ieeglab_tutorial_seeg');
+tut = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(tut), 'Native-rate tutorial dataset not present.');
 T = readtable(fullfile(tut, 'sub-02', 'ses-ieeg01', 'ieeg', 'sub-02_ses-ieeg01_electrodes.tsv'), ...
     'FileType', 'text', 'Delimiter', '\t', 'TreatAsEmpty', 'n/a');

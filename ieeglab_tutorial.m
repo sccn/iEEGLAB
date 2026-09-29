@@ -4,12 +4,12 @@
 % from the command line. Each step names the menu item that does the same in
 % the EEGLAB window, so the tutorial can be followed either way.
 %
-%   tutorial/ieeglab_tutorial_seeg  sEEG, OpenNeuro ds004696 sub-02 (Ojeda Valencia
-%                                   et al., 2023): 18 contacts, 3 stimulation sites,
-%                                   34 pulses, 2048 Hz, with the pial surfaces
-%   tutorial/ieeglab_tutorial_ecog  ECoG, OpenNeuro ds004080 sub-ccepAgeUMCU02 (van
-%                                   Blooijs et al., 2023): 20 contacts, 3 sites,
-%                                   30 pulses, 2048 Hz, coordinates in fsaverage
+%   tutorial/seeg  sEEG, OpenNeuro ds004696 sub-02 (Ojeda Valencia et al., 2023):
+%                  18 contacts, 3 stimulation sites, 34 pulses, 2048 Hz, with the
+%                  pial surfaces
+%   tutorial/ecog  ECoG, OpenNeuro ds004080 sub-ccepAgeUMCU02 (van Blooijs et al.,
+%                  2023): 20 contacts, 3 sites, 30 pulses, 2048 Hz, coordinates in
+%                  fsaverage
 %
 % Both are small BIDS datasets cut from the original recordings at their native
 % sampling rate (tutorial/make_tutorial_datasets.m). On sEEG the CCEP measure is
@@ -35,7 +35,7 @@ outroot = fullfile(tempdir, 'ieeglab_tutorial_results');
 %% A2. Import the BIDS dataset
 % Menu: File > Import data > From BIDS folder structure. EEGLAB saves the
 % imported dataset under derivatives/eeglab of the BIDS folder.
-bids_seeg = fullfile(plugin_path, 'tutorial', 'ieeglab_tutorial_seeg');
+bids_seeg = fullfile(plugin_path, 'tutorial', 'seeg');
 [~, ALLEEG] = pop_importbids(bids_seeg, 'bidsevent', 'on', 'bidschanloc', 'on', ...
     'eventtype', 'electrical_stimulation_site');
 EEG = ALLEEG(1);
@@ -105,7 +105,7 @@ ieeglab_export(EEG, fullfile(outroot, 'seeg'));
 %% ===== Part B: ECoG =====================================================
 
 %% B2-B3. Import and load the sidecars
-bids_ecog = fullfile(plugin_path, 'tutorial', 'ieeglab_tutorial_ecog');
+bids_ecog = fullfile(plugin_path, 'tutorial', 'ecog');
 [~, ALLEEG] = pop_importbids(bids_ecog, 'bidsevent', 'on', 'bidschanloc', 'on', ...
     'eventtype', 'electrical_stimulation_site');
 EEG = ieeglab_load(ALLEEG(1), struct('event_field', 'electrical_stimulation_site'));

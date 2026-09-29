@@ -9,7 +9,7 @@ Thumbs.db
 *acpc.nii
 *tmp.nii
 **/freesurfer/
-!tutorial/ieeglab_tutorial_seeg/derivatives/freesurfer/
+!tutorial/seeg/derivatives/freesurfer/
 **/fsaverage
 
 # EEGLAB BIDS import output when running the tutorial

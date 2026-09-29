@@ -42,8 +42,8 @@ native sampling rate (2048 Hz):
 
 | Folder | Data | Source |
 |---|---|---|
-| `tutorial/ieeglab_tutorial_seeg` | sEEG, 18 contacts, 3 stimulation sites, 34 pulses, pial surfaces | OpenNeuro [ds004696](https://openneuro.org/datasets/ds004696) sub-02 (Ojeda Valencia et al., 2023) |
-| `tutorial/ieeglab_tutorial_ecog` | ECoG, 20 contacts, 3 stimulation sites, 30 pulses | OpenNeuro [ds004080](https://openneuro.org/datasets/ds004080) sub-ccepAgeUMCU02 (van Blooijs et al., 2023) |
+| `tutorial/seeg` | sEEG, 18 contacts, 3 stimulation sites, 34 pulses, pial surfaces | OpenNeuro [ds004696](https://openneuro.org/datasets/ds004696) sub-02 (Ojeda Valencia et al., 2023) |
+| `tutorial/ecog` | ECoG, 20 contacts, 3 stimulation sites, 30 pulses | OpenNeuro [ds004080](https://openneuro.org/datasets/ds004080) sub-ccepAgeUMCU02 (van Blooijs et al., 2023) |
 
 The steps below are also in [`ieeglab_tutorial.m`](ieeglab_tutorial.m), which
 runs the whole analysis in about a minute. The same steps work on the full
@@ -52,12 +52,12 @@ recordings downloaded from OpenNeuro.
 ### Part A: sEEG
 
 **1. Import the dataset.** *File > Import data > From BIDS folder structure*,
-select `tutorial/ieeglab_tutorial_seeg`, and choose
+select `tutorial/seeg`, and choose
 `electrical_stimulation_site` as the event type.
 
 ```matlab
 eeglab
-bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ieeglab_tutorial_seeg');
+bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'seeg');
 [~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
     'eventtype', 'electrical_stimulation_site');
 EEG = ALLEEG(1);
@@ -149,7 +149,7 @@ fsaverage surface), the line noise is 50 Hz, and the CCEP measure is the N1
 counted as in erdetect (negative peaks only, baseline SD at least 50 uV).
 
 ```matlab
-bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ieeglab_tutorial_ecog');
+bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
 [~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
     'eventtype', 'electrical_stimulation_site');
 EEG = ieeglab_load(ALLEEG(1), struct('event_field', 'electrical_stimulation_site'));
