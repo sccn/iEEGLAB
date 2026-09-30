@@ -24,7 +24,7 @@ show_figures = true;
 %% 1. Start EEGLAB
 % Needs EEGLAB with the firfilt and EEG-BIDS plugins (File > Manage EEGLAB
 % extensions). iEEGLAB > Check installation lists anything missing.
-eeglab nogui
+eeglab
 plugin_path = fileparts(which('eegplugin_ieeglab'));
 addpath(plugin_path, fullfile(plugin_path, 'functions'));   % if iEEGLAB is not in eeglab/plugins
 ieeglab_check_install;
