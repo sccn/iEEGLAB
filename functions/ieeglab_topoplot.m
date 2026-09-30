@@ -161,7 +161,7 @@ for k = 1:numel(surfFiles)
     if exist(fk,'file') == 2
         try
             g = ieeglab_read_gifti(fk);
-            h = ieeg_RenderGifti(g); h.FaceAlpha = 0.08;
+            h = ieeg_RenderGifti(g, ieeglab_surface_sulc(g)); h.FaceAlpha = 0.1;
             meshes{end+1} = g; %#ok<AGROW>
         catch ME
             warning('ieeglab_topoplot:surface', 'Could not render %s: %s', fk, ME.message);
@@ -180,6 +180,7 @@ cb = colorbar; ylabel(cb, desc);
 axis equal off
 if exist('ieeg_viewLight','file'), ieeg_viewLight(90, 0); else, view(3); end
 title(info.title, 'Interpreter','tex', 'FontWeight','normal');
+ieeglab_rotate3d(gcf);
 end
 
 % ======================= helpers =======================

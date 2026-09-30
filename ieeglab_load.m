@@ -32,6 +32,7 @@ function [EEG, com] = ieeglab_load(EEG, opt)
 % Cedric Cannard, iEEGLAB, 2025-2026
 
 com = '';
+ieeglab_require_data(EEG, 'ieeglab_load');
 EEG_in = EEG;
 interactive = (nargin < 2 || isempty(opt));
 if interactive, opt = struct(); end

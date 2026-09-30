@@ -10,7 +10,8 @@ wasCanceled = false;
 % ------------------------------------------------------------------------
 %  Defaults
 % -------------------------------------------------------------------------
-ds_should_enable = EEG.srate > 512;
+% Downsampling is off by default: CCEP measures (N1 latency, blanking, CRP) need
+% the native rate. The rate offered when it is switched on is 512 Hz.
 ds_default_rate  = 512;
 
 choices = struct();
@@ -21,7 +22,7 @@ choices.remove_no_coords  = true;
 choices.remove_bad_channels = true;   % clinician-marked (channels.tsv status)
 choices.exclude_soz       = false;     % seizure-onset-zone contacts
 
-choices.apply_ds          = ds_should_enable;
+choices.apply_ds          = false;
 
 choices.apply_highpass    = true;
 choices.highpass          = 0.1;        % Hz
@@ -50,11 +51,7 @@ choices.baseline_period   = [-500 -50]; % ms
 choices.baseline_mode     = 'subtract'; % the only mode (ieeglab_rm_baseline)
 
 % Downsample default
-if ds_should_enable
-    choices.downsample    = ds_default_rate;
-else
-    choices.downsample    = max(1, EEG.srate);
-end
+choices.downsample        = min(ds_default_rate, EEG.srate);
 
 % -------------------------------------------------------------------------
 %  Events availability (prefer stored table; fallback to EEG.event)
@@ -79,6 +76,13 @@ choices.apply_blank = isCCEP && EEG.srate >= 500;   % blanking needs the native 
 nBadMarked = 0;
 if isfield(EEG.chanlocs,'status')
     nBadMarked = sum(cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status}));
+end
+% Seizure-onset-zone labels come from the seizure_zone or soz column of
+% electrodes.tsv (recorded by ieeglab_load in chanlocs.clinical_zone)
+nSOZ = 0;
+if isfield(EEG.chanlocs,'clinical_zone')
+    z = lower(string(cellfun(@(x) char(string(x)), {EEG.chanlocs.clinical_zone}, 'UniformOutput', false)));
+    nSOZ = nnz(contains(z, "soz") | contains(z, "seizure"));
 end
 
 if haveEv
@@ -107,29 +111,21 @@ else
     btn_en = 'off';
 end
 
-% generic togglers
-cb_ds  = local_cb_toggle({'lbl_ds_rate','ds_rate'});
-cb_hp  = local_cb_toggle({'lbl_highpass','highpass'});
-cb_no  = local_cb_toggle({'lbl_notch','notch'});
-cb_lp  = local_cb_toggle({'lbl_lowpass','lowpass'});
+% Every checkbox re-evaluates which options apply (local_refresh), so an option
+% is only editable when the step it belongs to will run.
+cb_all = @(h,~) local_refresh(ancestor(h,'figure'), haveEv);
+[cb_ds, cb_hp, cb_no, cb_lp, cb_seg, cb_bl, cb_rare] = deal(cb_all);
 
-% these depend on events
-if haveEv
-    cb_seg = local_cb_toggle({'lbl_epoch','epoch_window','lbl_rej','reject_trials'});
-    cb_bl  = local_cb_toggle({'lbl_bl_method','bl_method','lbl_bl_period','bl_period'});
-else
-    cb_seg = @(h,~) set(h,'value',0);
-    cb_bl  = @(h,~) set(h,'value',0);
-end
-
-% initial enable states
+% initial enable states (the same rules as local_refresh)
 onoff_ds  = iff(choices.apply_ds,'on','off');
 onoff_hp  = iff(choices.apply_highpass,'on','off');
 onoff_no  = iff(choices.apply_notch,'on','off');
 onoff_lp  = iff(choices.apply_lowpass,'on','off');
+onoff_ft  = iff(choices.apply_highpass || choices.apply_notch || choices.apply_lowpass,'on','off');
+onoff_rare = iff(haveEv && choices.remove_rare_cond,'on','off');
 
 onoff_seg = iff(haveEv && choices.apply_epoch,'on','off');
-onoff_bl  = iff(haveEv && choices.apply_baseline,'on','off');
+onoff_bl  = iff(haveEv && choices.apply_epoch && choices.apply_baseline,'on','off');
 
 % -------------------------------------------------------------------------
 %  Geometry (rows match UI controls order)
@@ -196,12 +192,12 @@ append({'style' 'text' 'string' 'Events' 'fontweight' 'bold' 'horizontalalignmen
 append({'style' 'text' 'string' 'Choose which event types to analyse:' 'horizontalalignment' 'left'});
 append({'style' 'pushbutton' 'string' 'Open selector…' 'callback' cb_ev 'enable' btn_en});
 
-append({'style' 'text' 'string' 'Drop conditions with too few trials:' 'horizontalalignment' 'left'});
-append({'style' 'checkbox' 'tag' 'remove_rare_cond' 'value' choices.remove_rare_cond 'string' 'Enable'});
+append({'style' 'text' 'string' 'Drop stimulation sites / conditions with too few trials:' 'horizontalalignment' 'left' 'enable' iff(haveEv,'on','off')});
+append({'style' 'checkbox' 'tag' 'remove_rare_cond' 'value' choices.remove_rare_cond 'string' 'Enable' 'callback' cb_rare 'enable' iff(haveEv,'on','off')});
 
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'string' 'Minimum trials per condition:' 'horizontalalignment' 'left'});
-append({'style' 'edit' 'tag' 'min_trials' 'string' num2str(choices.min_trials)});
+append({'style' 'text' 'tag' 'lbl_min_trials' 'string' 'Minimum trials per site / condition:' 'horizontalalignment' 'left' 'enable' onoff_rare});
+append({'style' 'edit' 'tag' 'min_trials' 'string' num2str(choices.min_trials) 'enable' onoff_rare});
 
 % hidden event filter store
 append({'style' 'edit' 'tag' 'evsel_json' 'string' '' 'visible' 'off'});
@@ -212,35 +208,36 @@ append({'style' 'text' 'string' 'Remove electrodes with no XYZ coordinates?' 'ho
 append({'style' 'checkbox' 'tag' 'rm_no_coords' 'value' choices.remove_no_coords 'string' ''});
 append({'style' 'text' 'string' sprintf('Remove clinician-marked bad channels (%d marked)?', nBadMarked) 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'rm_bad' 'value' choices.remove_bad_channels 'string' ''});
-append({'style' 'text' 'string' 'Also remove seizure-onset-zone contacts?' 'horizontalalignment' 'left'});
-append({'style' 'checkbox' 'tag' 'rm_soz' 'value' choices.exclude_soz 'string' ''});
+append({'style' 'text' 'string' sprintf('Remove seizure-onset-zone contacts (%d labelled in electrodes.tsv)?', nSOZ) ...
+        'horizontalalignment' 'left' 'enable' iff(nSOZ > 0,'on','off')});
+append({'style' 'checkbox' 'tag' 'rm_soz' 'value' choices.exclude_soz && nSOZ > 0 'string' '' 'enable' iff(nSOZ > 0,'on','off')});
 
 % Signal Processing header
 append({'style' 'text' 'string' 'Signal Processing' 'fontweight' 'bold' 'horizontalalignment' 'left'});
 
 % Stimulation-artifact blanking: CCEP only, and first, before any filter can ring on it
-append({'style' 'text' 'string' 'Blank stimulation artifact (CCEP, before filtering):' 'horizontalalignment' 'left' 'enable' iff(isCCEP,'on','off')});
+append({'style' 'text' 'string' 'Blank the stimulation artifact (CCEP; done first, so filters cannot spread it):' 'horizontalalignment' 'left' 'enable' iff(isCCEP,'on','off')});
 append({'style' 'checkbox' 'tag' 'apply_blank' 'value' choices.apply_blank 'string' 'Enable' 'enable' iff(isCCEP,'on','off')});
 
 % Downsample
-append({'style' 'text' 'string' 'Downsample:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Downsample (CCEP latencies and blanking need the native rate):' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_ds' 'value' choices.apply_ds 'string' 'Enable' 'callback' cb_ds});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_ds_rate' 'string' 'Target rate (Hz):' 'horizontalalignment' 'left' 'enable' onoff_ds});
 append({'style' 'edit' 'tag' 'ds_rate' 'string' num2str(choices.downsample) 'enable' onoff_ds});
 
 % High-pass
-append({'style' 'text' 'string' 'High-pass filter:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'High-pass filter (removes slow drifts):' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_highpass' 'value' choices.apply_highpass 'string' 'Enable' 'callback' cb_hp});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_highpass' 'string' 'Cutoff (Hz):' 'horizontalalignment' 'left' 'enable' onoff_hp});
 append({'style' 'edit' 'tag' 'highpass' 'string' num2str(choices.highpass) 'enable' onoff_hp});
 
 % Notch
-append({'style' 'text' 'string' 'Notch filter:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Notch filter (line noise: 60 Hz in the Americas, 50 Hz elsewhere):' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_notch' 'value' choices.apply_notch 'string' 'Enable' 'callback' cb_no});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_notch' 'string' 'Center(s) (Hz):' 'horizontalalignment' 'left' 'enable' onoff_no});
+append({'style' 'text' 'tag' 'lbl_notch' 'string' 'Frequencies, with harmonics (Hz):' 'horizontalalignment' 'left' 'enable' onoff_no});
 append({'style' 'edit' 'tag' 'notch' 'string' num2str(choices.notch) 'enable' onoff_no});
 
 % Low-pass
@@ -251,29 +248,29 @@ append({'style' 'text' 'tag' 'lbl_lowpass' 'string' 'Cutoff (Hz):' 'horizontalal
 append({'style' 'edit' 'tag' 'lowpass' 'string' iff(isempty(choices.lowpass),'',num2str(choices.lowpass)) 'enable' onoff_lp});
 
 % Global filter type (applies to all filters)
-append({'style' 'text'  'string' 'Filter type (all filters):' 'horizontalalignment' 'left'});
+append({'style' 'text' 'tag' 'lbl_filter_type' 'string' 'Filter type (all filters above):' 'horizontalalignment' 'left' 'enable' onoff_ft});
 append({'style' 'popupmenu' 'tag' 'filter_type' ...
-        'string' {'Noncausal zero-phase (default)' 'Minimum-phase'} ...
-        'value' choices.filter_type});
+        'string' {'Zero-phase (keeps latencies; default)' 'Minimum-phase (causal)'} ...
+        'value' choices.filter_type 'enable' onoff_ft});
 
 % Segmentation
-append({'style' 'text' 'string' 'Segmentation (epoching):' 'horizontalalignment' 'left'});
+append({'style' 'text' 'string' 'Cut epochs around each event:' 'horizontalalignment' 'left' 'enable' iff(haveEv,'on','off')});
 append({'style' 'checkbox' 'tag' 'apply_epoch' 'value' choices.apply_epoch ...
         'string' 'Enable' 'callback' cb_seg 'enable' iff(haveEv,'on','off')});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_epoch' 'string' 'Epoch window [ms] (start end):' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'edit' 'tag' 'epoch_window' 'string' sprintf('%d %d',choices.epoch_window) 'enable' onoff_seg});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_rej' 'string' 'Reject outlier trials automatically:' 'horizontalalignment' 'left' 'enable' onoff_seg});
+append({'style' 'text' 'tag' 'lbl_rej' 'string' 'Reject outlier trials (artifact on >= 25% of contacts):' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'checkbox' 'tag' 'reject_trials' 'value' choices.reject_trials 'string' '' 'enable' onoff_seg});
 
 % Re-referencing has its own dialog, so the methods and their options sit together
 append({'style' 'text' 'string' 'Re-referencing: iEEGLAB > iEEG re-referencing, after this step.' 'horizontalalignment' 'left'});
 
 % Baseline
-append({'style' 'text' 'string' 'Remove baseline:' 'horizontalalignment' 'left'});
+append({'style' 'text' 'tag' 'lbl_apply_baseline' 'string' 'Remove the pre-stimulus baseline (per trial; needs epochs):' 'horizontalalignment' 'left' 'enable' onoff_seg});
 append({'style' 'checkbox' 'tag' 'apply_baseline' 'value' choices.apply_baseline ...
-        'string' 'Enable' 'callback' cb_bl 'enable' iff(haveEv,'on','off')});
+        'string' 'Enable' 'callback' cb_bl 'enable' onoff_seg});
 append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_bl_method' 'string' 'Method:' 'horizontalalignment' 'left' 'enable' onoff_bl});
 append({'style' 'popupmenu' 'tag' 'bl_method' 'string' {'Median (default)' 'Mean' 'Trimmed mean'} 'value' choices.baseline_method 'enable' onoff_bl});
@@ -286,7 +283,7 @@ append({'style' 'edit' 'tag' 'bl_period' 'string' sprintf('%d %d',choices.baseli
 % -------------------------------------------------------------------------
 [res, ~, ~, out] = inputgui('geometry', uigeom, 'uilist', uilist, ...
                             'title', 'iEEGLAB: Preprocessing Options', ...
-                            'minwidth', 440);
+                            'minwidth', 620);
 if isempty(res) || isempty(out)
     fprintf('iEEGLAB preprocess dialog canceled\n');
     wasCanceled = true;
@@ -348,7 +345,7 @@ end
 % command-line ieeglab_preprocess keeps apply_car for scripts.
 choices.apply_car = false;
 
-choices.apply_baseline = isfield(out,'apply_baseline') && logical(out.apply_baseline);
+choices.apply_baseline = choices.apply_epoch && isfield(out,'apply_baseline') && logical(out.apply_baseline);
 bl_labels = {'median','mean','trimmed mean'};
 if isfield(out,'bl_method') && ~isempty(out.bl_method), bl_idx = out.bl_method; else, bl_idx = choices.baseline_method; end
 choices.baseline_method = bl_labels{min(max(bl_idx,1),4)};
@@ -377,27 +374,36 @@ end
 %  Sub-GUI: event selector
 % ========================================================================
 function local_open_event_selector(srcBtn, evT, showCols)
-lists = cell(1,numel(showCols)); tags = cell(1,numel(showCols));
+% Only columns that can actually filter: at least two values, and not one
+% value per event (row numbers, sample indices). Each value shows its count.
+nEv = height(evT);
+keep = false(1,numel(showCols)); lists = cell(1,numel(showCols)); shown = lists; tags = lists;
 for k = 1:numel(showCols)
     col = showCols{k}; vals = evT.(col);
-    if iscell(vals), vals = string(vals); end
-    if iscategorical(vals), vals = string(vals); end
-    if isnumeric(vals), vals = string(vals); end
-    u = unique(vals(~ismissing(vals)));
+    if iscell(vals) || iscategorical(vals) || isnumeric(vals) || islogical(vals), vals = string(vals); end
+    vals = strtrim(vals(:));
+    u = unique(vals(~ismissing(vals) & vals ~= ""));
+    keep(k) = ~strcmp(col, 'tsv_row') && numel(u) >= 2 && (numel(u) < nEv || nEv < 10);
+    n = arrayfun(@(x) nnz(vals == x), u);
     lists{k} = [{'All'}; cellstr(u(:))];
+    shown{k} = [{sprintf('All (%d events)', nEv)}; cellstr(compose("%s   (%d)", u(:), n(:)))];
     tags{k}  = ['fld_' regexprep(col,'[^\w]','_')];
 end
-nRows = 1+numel(showCols); uigeom = cell(nRows,1); gvert = ones(1,nRows);
-uilist = cell(0,1);
-uilist{end+1} = {'style' 'text' 'string' 'Select events to KEEP (leave at "All")' 'fontweight' 'bold'};
-uigeom{1} = [1]; gvert(1)=1; ii=2;
-for k=1:numel(showCols)
-    uigeom{ii}=[1 1]; gvert(ii)=1.4;
-    uilist{end+1}={'style' 'text' 'string' showCols{k} 'horizontalalignment' 'left'};
-    uilist{end+1}={'style' 'listbox' 'tag' tags{k} 'string' lists{k} 'value' 1 'min' 0 'max' 2};
-    ii=ii+1;
+if ~any(keep)
+    warndlg('Every event has the same value in each column: there is nothing to select.', 'iEEGLAB');
+    return
 end
-[res,~,~,out]=inputgui('geometry',uigeom,'geomvert',gvert,'uilist',uilist,'title','Select events of interest','minwidth',440);
+idx = find(keep);
+uilist = {{'style' 'text' 'string' 'Select the events to KEEP (Ctrl/Shift-click for several; "All" keeps every event)' 'fontweight' 'bold'}};
+uigeom = {1}; gvert = 1;
+for k = idx
+    label = regexprep(showCols{k}, '_', ' '); label(1) = upper(label(1));
+    uigeom{end+1} = [1 1.3]; gvert(end+1) = min(numel(shown{k}), 6) * 0.9; %#ok<AGROW>
+    uilist{end+1} = {'style' 'text' 'string' sprintf('%s (%d values)', label, numel(lists{k})-1) 'horizontalalignment' 'left'}; %#ok<AGROW>
+    uilist{end+1} = {'style' 'listbox' 'tag' tags{k} 'string' shown{k} 'value' 1 'min' 0 'max' 2}; %#ok<AGROW>
+end
+showCols = showCols(idx); lists = lists(idx); tags = tags(idx);
+[res,~,~,out]=inputgui('geometry',uigeom,'geomvert',gvert,'uilist',uilist,'title','Select events of interest','minwidth',520);
 if isempty(res)||isempty(out), return; end
 filters=struct();
 for k=1:numel(showCols)
@@ -423,7 +429,25 @@ end
 
 function out = iff(cond,a,b), if cond, out=a; else, out=b; end, end
 function s = merge_structs(a,b), s=a; f=fieldnames(b); for i=1:numel(f), s.(f{i})=b.(f{i}); end, end
-function cb = local_cb_toggle(tag_list), cb = @(h,~) local_set_enable(ancestor(h,'figure'), tag_list, get(h,'value')~=0); end
+function local_refresh(hFig, haveEv)
+% Enable each option only when the step it belongs to will run
+v = @(t) local_value(hFig, t);
+local_set_enable(hFig, {'lbl_min_trials','min_trials'}, haveEv && v('remove_rare_cond'));
+local_set_enable(hFig, {'lbl_ds_rate','ds_rate'}, v('apply_ds'));
+local_set_enable(hFig, {'lbl_highpass','highpass'}, v('apply_highpass'));
+local_set_enable(hFig, {'lbl_notch','notch'}, v('apply_notch'));
+local_set_enable(hFig, {'lbl_lowpass','lowpass'}, v('apply_lowpass'));
+local_set_enable(hFig, {'lbl_filter_type','filter_type'}, v('apply_highpass') || v('apply_notch') || v('apply_lowpass'));
+ep = haveEv && v('apply_epoch');
+local_set_enable(hFig, {'lbl_epoch','epoch_window','lbl_rej','reject_trials','lbl_apply_baseline','apply_baseline'}, ep);
+local_set_enable(hFig, {'lbl_bl_method','bl_method','lbl_bl_period','bl_period'}, ep && v('apply_baseline'));
+end
+
+function tf = local_value(hFig, tag)
+h = findobj(hFig, 'tag', tag);
+tf = ~isempty(h) && get(h(1), 'value') ~= 0;
+end
+
 function local_set_enable(hFig, tag_list, is_on)
     onoff = iff(is_on,'on','off');
     for k = 1:numel(tag_list)

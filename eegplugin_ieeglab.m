@@ -56,17 +56,23 @@ menu_root = uimenu(fig, ...
     'Label',     'iEEGLAB', ...
     'Tag',       'menu_ieeglab', ...
     'Separator', 'on', ...
-    'Position',  7);
+    'Position',  7, ...
+    'userdata',  'study:on');
 
-uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load);
-uimenu(menu_root, 'Label', 'Visualize electrodes', 'Callback', cb_vis_elec);
-uimenu(menu_root, 'Label', 'Preprocess iEEG data', 'Callback', cb_preprocess);
-uimenu(menu_root, 'Label', 'iEEG re-referencing', 'Callback', cb_reref);
-uimenu(menu_root, 'Label', 'CCEP analysis (N1, CRP, connectivity)', 'Callback', cb_stats, 'Separator', 'on');
-uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix);
-uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo);
-uimenu(menu_root, 'Label', 'Export results (TSV / JSON / MAT)', 'Callback', cb_export, 'Separator', 'on');
-uimenu(menu_root, 'Label', 'Check installation', 'Callback', cb_check, 'Separator', 'on');
+% EEGLAB greys out items tagged 'startup:off' until a dataset is loaded, items
+% without 'study:on' while a STUDY is selected, and 'continuous:off' items on
+% continuous data. Check installation stays available in every state.
+ondata  = 'startup:off';
+onepoch = 'startup:off;continuous:off';
+uimenu(menu_root, 'Label', 'Check installation', 'Callback', cb_check, 'userdata', 'study:on');
+uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load, 'Separator', 'on', 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Visualize electrodes', 'Callback', cb_vis_elec, 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Preprocess iEEG data', 'Callback', cb_preprocess, 'userdata', ondata);
+uimenu(menu_root, 'Label', 'iEEG re-referencing', 'Callback', cb_reref, 'userdata', onepoch);
+uimenu(menu_root, 'Label', 'CCEP analysis (N1, CRP, connectivity)', 'Callback', cb_stats, 'Separator', 'on', 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix, 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo, 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Export results (TSV / JSON / MAT)', 'Callback', cb_export, 'Separator', 'on', 'userdata', ondata);
 
 % Also offer the electrode-value plot under EEGLAB's own Plot menu, next to the
 % scalp topographies it replaces for intracranial data.
@@ -76,7 +82,7 @@ try
         old = findobj(plotMenu(1), 'Tag', 'ieeglab_topo');
         if ~isempty(old), delete(old); end
         uimenu(plotMenu(1), 'Label', 'iEEG electrode values on brain (iEEGLAB)', ...
-            'Tag', 'ieeglab_topo', 'Callback', cb_topo, 'Separator', 'on');
+            'Tag', 'ieeglab_topo', 'Callback', cb_topo, 'Separator', 'on', 'userdata', ondata);
     end
 catch
 end

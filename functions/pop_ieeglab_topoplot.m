@@ -15,6 +15,7 @@ function com = pop_ieeglab_topoplot(EEG, what, varargin)
 % Cedric Cannard, iEEGLAB, 2026
 
 com = '';
+ieeglab_require_data(EEG, 'pop_ieeglab_topoplot');
 if nargin >= 2
     ieeglab_topoplot(EEG, what, varargin{:});
     com = local_com(what, varargin);
@@ -40,11 +41,20 @@ end
 defLat = '20';
 if isfield(EEG,'times') && ~isempty(EEG.times), defLat = num2str(round(min(max(20, EEG.times(1)), EEG.times(end)))); end
 
+hasSites = ~strcmp(sites{1}, '(none)');
+note = 'Per-site values need iEEGLAB > CCEP analysis with the connectivity matrix.';
+if hasSites
+    note = 'Amplitudes average the trials of the chosen site, or of all sites.';
+    sites = [{'(all sites)'} sites];
+end
 uilist = { ...
-    {'style' 'text' 'string' 'What to show'}, {'style' 'popupmenu' 'string' kinds 'tag' 'kind'}, ...
-    {'style' 'text' 'string' 'Latency, or "start stop" window (ms)'}, {'style' 'edit' 'string' defLat 'tag' 'lat'}, ...
-    {'style' 'text' 'string' 'Stimulation site'}, {'style' 'popupmenu' 'string' sites 'tag' 'site'} };
-[res, ~, ~, out] = inputgui({[1 1] [1 1] [1 1]}, uilist, 'pophelp(''ieeglab_topoplot'')', ...
+    {'style' 'text' 'string' 'What to show'}, ...
+    {'style' 'popupmenu' 'string' kinds 'tag' 'kind' 'callback' @(h,~) local_update(h, metrics, hasSites)}, ...
+    {'style' 'text' 'string' 'Latency, or "start stop" window (ms)' 'tag' 'lbl_lat'}, {'style' 'edit' 'string' defLat 'tag' 'lat'}, ...
+    {'style' 'text' 'string' 'Stimulation site' 'tag' 'lbl_site' 'enable' iff(hasSites,'on','off')}, ...
+    {'style' 'popupmenu' 'string' sites 'tag' 'site' 'enable' iff(hasSites,'on','off')}, ...
+    {'style' 'text' 'string' note} };
+[res, ~, ~, out] = inputgui({[1 1] [1 1] [1 1] 1}, uilist, 'pophelp(''ieeglab_topoplot'')', ...
     'iEEGLAB - electrode values on brain');
 if isempty(res), return; end
 
@@ -57,17 +67,34 @@ switch m
         end
         if strcmp(m, 'latency'), w = w(1); end
         args = {};
-        if ~strcmp(sites{1}, '(none)') && out.site >= 1, args = {'site', sites{out.site}}; end
+        if hasSites && out.site > 1, args = {'site', sites{out.site}}; end
         ieeglab_topoplot(EEG, w, args{:});
         com = local_com(w, args);
     case 'in_degree'
         ieeglab_topoplot(EEG, 'in_degree');
         com = local_com('in_degree', {});
     otherwise
+        if out.site <= 1
+            error('pop_ieeglab_topoplot:noSite', 'Choose a stimulation site: this value is defined per site.');
+        end
         args = {'site', sites{out.site}};
         ieeglab_topoplot(EEG, m, args{:});
         com = local_com(m, args);
 end
+end
+
+function local_update(h, metrics, hasSites)
+% The latency applies to amplitudes only; a site is required for per-site
+% values, optional for amplitudes, and unused for in-degree.
+fig = ancestor(h, 'figure');
+m = metrics{get(h, 'value')};
+isAmp = ismember(m, {'latency', 'window'});
+set(findobj(fig, '-regexp', 'tag', '^(lbl_)?lat$'), 'enable', iff(isAmp, 'on', 'off'));
+set(findobj(fig, '-regexp', 'tag', '^(lbl_)?site$'), 'enable', iff(hasSites && ~strcmp(m, 'in_degree'), 'on', 'off'));
+end
+
+function out = iff(c, a, b)
+if c, out = a; else, out = b; end
 end
 
 function com = local_com(what, args)

@@ -42,6 +42,7 @@ function [files, com] = ieeglab_export(EEG, outdir, opt)
 
 files = {};
 com = '';
+ieeglab_require_data(EEG, 'ieeglab_export');
 if nargin < 3 || isempty(opt), opt = struct(); end
 def = struct('formats', {{'tsv','json','mat'}}, 'prefix', '', 'overwrite', true, 'verbose', true);
 f = fieldnames(def);

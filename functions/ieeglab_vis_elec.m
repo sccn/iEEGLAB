@@ -17,6 +17,7 @@ function EEG = ieeglab_vis_elec(EEG, opt)
 % picker, so calling the menu a second time silently reused the first choice with
 % no way to change it. The picker now always opens in the interactive path; the
 % cached list is only a starting directory hint. Pass opt.surf_files to skip it.
+ieeglab_require_data(EEG, 'ieeglab_vis_elec');
 if nargin < 2, opt = struct(); end
 
 surf_files = {};   % full paths
@@ -93,8 +94,8 @@ if ~isempty(surf_files)
         end
         try
             g  = ieeglab_read_gifti(f);
-            tH = ieeg_RenderGifti(g);
-            tH.FaceAlpha = 0.1;
+            tH = ieeg_RenderGifti(g, ieeglab_surface_sulc(g));   % sulci darker than gyri
+            tH.FaceAlpha = 0.15;
             nRendered = nRendered + 1;
             meshes{end+1} = g; %#ok<AGROW>
         catch ME
@@ -156,6 +157,7 @@ else
     title('Visualization using standard BEM template (fallback when no Freesurfer pial surface files is detected)','Interpreter','none');
 
 end
+ieeglab_rotate3d(gcf);
 
 end
 

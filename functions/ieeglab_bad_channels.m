@@ -11,8 +11,9 @@ function [EEG, T, com] = ieeglab_bad_channels(EEG, opt)
 %      sibling of the dataset file). A row with status == 'bad' marks the channel
 %      bad and keeps status_description as the reason. Rows whose type is not an
 %      intracranial type (e.g. ECG, EMG, TRIG, MISC, DC) are flagged 'non-iEEG'.
-%   2. electrodes.tsv 'seizure_zone' opt.elec_tsv (path or table). Recorded per
-%      channel as clinical_zone ('SOZ', 'IrritativeZone', ...). Only removed when
+%   2. electrodes.tsv 'seizure_zone' (zone name) or 'soz' (yes/no) column,
+%      opt.elec_tsv (path or table). Recorded per channel as clinical_zone
+%      ('SOZ', 'IrritativeZone', ...). Only removed when
 %      opt.exclude_soz / opt.exclude_irritative ask for it.
 %   3. opt.bad_channels             explicit labels or indices from the user.
 %   4. opt.auto_detect              flat or extreme-variance channels. Off by
@@ -93,7 +94,7 @@ if opt.honor_previous && isfield(EEG.chanlocs, 'status')
             if strlength(d0) > 0
                 reason(c) = d0;
             else
-                reason(c) = "marked bad earlier";
+                reason(c) = "already marked bad in the loaded dataset, no reason given";
             end
         end
         if isfield(EEG.chanlocs,'clinical_zone') && strlength(local_text(EEG.chanlocs(c).clinical_zone)) > 0
@@ -121,14 +122,19 @@ if chTsv ~= ""
             c = find(L == names(r), 1);
             if isempty(c), continue; end
             nMatched = nMatched + 1;
-            if ~isempty(iStat) && strcmpi(strtrim(string(Tc{r, iStat})), "bad") && source(c) ~= "previous"
-                status(c) = "bad";
-                source(c) = "channels.tsv";
-                if ~isempty(iDesc)
-                    d = strtrim(string(Tc{r, iDesc}));
-                    if ~ismissing(d) && d ~= "" && lower(d) ~= "n/a", reason(c) = d; end
+            if ~isempty(iStat) && strcmpi(strtrim(string(Tc{r, iStat})), "bad")
+                % A status the BIDS import already copied into the dataset is
+                % still credited to channels.tsv, where the clinicians set it.
+                if source(c) ~= "previous" || startsWith(reason(c), "already marked bad")
+                    status(c) = "bad";
+                    reason(c) = "";
+                    if ~isempty(iDesc)
+                        d = strtrim(string(Tc{r, iDesc}));
+                        if ~ismissing(d) && d ~= "" && lower(d) ~= "n/a", reason(c) = d; end
+                    end
+                    if reason(c) == "", reason(c) = "status bad in channels.tsv, no reason given"; end
+                    if source(c) ~= "previous", source(c) = "channels.tsv"; end
                 end
-                if reason(c) == "", reason(c) = "marked bad in channels.tsv"; end
             end
             if opt.drop_non_ieeg && ~isempty(iType)
                 ty = upper(strtrim(string(Tc{r, iType})));
@@ -146,20 +152,30 @@ if chTsv ~= ""
     end
 end
 
-% ---------- 2. seizure_zone from electrodes.tsv ----------
+% ---------- 2. seizure zone from electrodes.tsv ----------
+% Two conventions: a 'seizure_zone' column with the zone name (ds004696: SOZ,
+% IrritativeZone, ...) or a 'soz' column with yes/no (ds004080).
 Te = local_electrodes_table(opt.elec_tsv);
 if ~isempty(Te)
     vn = lower(Te.Properties.VariableNames);
     iName = find(strcmp(vn,'name'), 1);
     iZone = find(strcmp(vn,'seizure_zone'), 1);
-    if ~isempty(iName) && ~isempty(iZone)
+    iSoz  = find(strcmp(vn,'soz'), 1);
+    if ~isempty(iName) && (~isempty(iZone) || ~isempty(iSoz))
         names = upper(strtrim(string(Te{:, iName})));
-        zones = strtrim(string(Te{:, iZone}));
+        zones = strings(height(Te), 1);
+        if ~isempty(iZone)
+            zones = strtrim(string(Te{:, iZone}));
+            zones(ismissing(zones) | lower(zones) == "n/a") = "";
+        end
+        if ~isempty(iSoz)
+            s = lower(strtrim(string(Te{:, iSoz})));
+            zones(zones == "" & ismember(s, ["yes" "true" "1"])) = "SOZ";
+        end
         for c = 1:C
             r = find(names == L(c), 1);
             if isempty(r), continue; end
-            z = zones(r);
-            if ~ismissing(z) && z ~= "" && lower(z) ~= "n/a" && zone(c) == "", zone(c) = z; end
+            if zones(r) ~= "" && zone(c) == "", zone(c) = zones(r); end
         end
     end
 end

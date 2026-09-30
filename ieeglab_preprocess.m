@@ -47,6 +47,7 @@ function [EEG, com] = ieeglab_preprocess(EEG, opt)
 % Cedric Cannard, iEEGLAB, 2025-2026
 
 com = '';
+ieeglab_require_data(EEG, 'ieeglab_preprocess');
 interactive = (nargin < 2 || isempty(opt));
 
 stepFields = {'apply_ds','downsample','apply_highpass','apply_notch','apply_lowpass', ...
