@@ -13,7 +13,7 @@ tc.TestData.root = root;
 end
 
 function test_gifti_reader_matches_mesh(tc)
-f = fullfile(tc.TestData.root, 'tutorial', 'dataset_seeg', 'pial.L.surf.gii');
+f = fullfile(tc.TestData.root, 'tutorial', 'seeg', 'derivatives', 'freesurfer', 'sub-02', 'pial.L.surf.gii');
 g = ieeglab_read_gifti(f);
 tc.verifySize(g.vertices, [155488 3]);
 tc.verifyEqual(size(g.faces, 2), 3);

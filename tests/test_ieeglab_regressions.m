@@ -10,7 +10,7 @@ tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
 tc.TestData.root = root;
-d = fullfile(root, 'tutorial', 'dataset_seeg');
+d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 tc.TestData.C = EEG;                                   % continuous, annotated
@@ -30,7 +30,7 @@ rng(1);
 E.data = single(50 * randn(size(E.data)));
 [~, E] = evalc('ieeglab_detect_n1(E, struct(''n_perm'',500,''verbose'',false))');
 T = E.ieeglab.n1.table;
-tc.assertGreaterThan(height(T), 50);
+tc.assertGreaterThan(height(T), 30);
 tc.verifyLessThan(mean(T.significant), 0.05, ...
     sprintf('%d of %d noise pairs called significant.', sum(T.significant), height(T)));
 tc.verifyLessThan(mean(T.p < 0.05), 0.10, 'Uncorrected p-values on noise must be roughly uniform.');
@@ -44,7 +44,7 @@ o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbos
     'n_perm',200,'crp_window',[15 200]);
 [~, E] = evalc('ieeglab_stats_subject(E, o)');
 T = E.ieeglab.stats.table;
-tc.assertGreaterThan(height(T), 50);
+tc.assertGreaterThan(height(T), 30);
 tc.verifyLessThan(mean(T.p < 0.05), 0.12, ...
     sprintf('Selection-corrected CRP p < 0.05 on %.0f%% of noise pairs.', 100*mean(T.p < 0.05)));
 tc.verifyLessThan(mean(T.significant), 0.05);
@@ -82,13 +82,13 @@ end
 
 function test_char_event_filter_equals_cell(tc)
 C = tc.TestData.C; o = tc.TestData.opt;
-o.event_filters = struct('type', 'ROP1-ROP2');
+o.event_filters = struct('type', 'RA3-RA4');
 [~, A] = evalc('ieeglab_preprocess(C, o)');
-o.event_filters = struct('type', {{'ROP1-ROP2'}});
+o.event_filters = struct('type', {{'RA3-RA4'}});
 [~, B] = evalc('ieeglab_preprocess(C, o)');
 tc.verifyEqual(A.trials, B.trials);
 tc.verifyGreaterThan(A.trials, 10);
-tc.verifyTrue(all(ieeglab_epoch_sites(A) == "ROP1-ROP2"));
+tc.verifyTrue(all(ieeglab_epoch_sites(A) == "RA3-RA4"));
 end
 
 function test_filter_removing_everything_errors(tc)
@@ -98,29 +98,30 @@ tc.verifyError(@() ieeglab_preprocess(C, o), 'ieeglab_preprocess:allEventsFilter
 end
 
 function test_rare_conditions_counted_per_site(tc)
-% ROP2-ROP4 is recorded with both polarities; it must be counted as one site.
+% A site recorded with both polarities must be counted as one site. Record
+% half of the RA4-RA5 pulses as RA5-RA4.
 C = tc.TestData.C;
+k = find(strcmp({C.event.type}, 'RA4-RA5'));
+[C.event(k(1:2:end)).type] = deal('RA5-RA4');
 types = string({C.event.type});
-tc.assumeTrue(any(types == "ROP2-ROP4") && any(types == "ROP4-ROP2"), 'Tutorial lacks the mixed-polarity site.');
-nSite = nnz(types == "ROP2-ROP4" | types == "ROP4-ROP2");
-nMax  = max(nnz(types == "ROP2-ROP4"), nnz(types == "ROP4-ROP2"));
+nSite = nnz(types == "RA4-RA5" | types == "RA5-RA4");
+nMax  = max(nnz(types == "RA4-RA5"), nnz(types == "RA5-RA4"));
 o = tc.TestData.opt; o.remove_rare_cond = true; o.min_trials = nMax + 1;
-tc.assumeLessThan(nMax + 1, nSite + 1);
 [~, E] = evalc('ieeglab_preprocess(C, o)');
-tc.verifyGreaterThan(nnz(ieeglab_epoch_sites(E) == "ROP2-ROP4"), nMax, ...
+tc.verifyEqual(nnz(ieeglab_epoch_sites(E) == "RA4-RA5"), nSite, ...
     'A site with enough trials in total was removed because each polarity alone was rare.');
 end
 
 function test_boundary_events_survive_selection(tc)
 C = tc.TestData.C; o = tc.TestData.opt;
-lat = C.event(find(strcmp({C.event.type}, 'ROP1-ROP2'), 1, 'last')).latency;
+lat = C.event(find(strcmp({C.event.type}, 'RA3-RA4'), 1, 'last')).latency;
 B = C;
 B.event(end+1).type = 'boundary';
 B.event(end).latency = lat + round(0.1 * C.srate);
 B.event(end).duration = 0;
 B = eeg_checkset(B, 'eventconsistency');
 o.remove_rare_cond = true; o.min_trials = 5;
-o.event_filters = struct('type', {{'ROP1-ROP2'}});
+o.event_filters = struct('type', {{'RA3-RA4'}});
 [~, E0] = evalc('ieeglab_preprocess(C, o)');
 [~, E1] = evalc('ieeglab_preprocess(B, o)');
 tc.verifyEqual(E1.trials, E0.trials - 1, 'The epoch spanning the boundary must be rejected.');
@@ -224,7 +225,7 @@ end
 function test_carla_ignores_all_nan_sample(tc)
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);
-tr = find(sites == "ROP1-ROP2");
+tr = find(sites == "RA3-RA4");
 [~, stimIdx] = ieeglab_epoch_sites(E);
 V = double(E.data(:, :, tr));
 V(unique(vertcat(stimIdx{tr})), :, :) = NaN;

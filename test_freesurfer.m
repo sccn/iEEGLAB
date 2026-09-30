@@ -11,16 +11,16 @@
 clear; close all; clc
 eeglab; close
 plugin_path = fileparts(which('eegplugin_ieeglab'));
-filepath = fullfile(plugin_path, 'tutorial', 'dataset_seeg');
-cd(filepath)
+filepath = fullfile(plugin_path, 'tutorial', 'seeg', 'sub-02', 'ses-mri01', 'anat');   % T1 MRI (input)
 addpath('/Users/cedriccannard/Documents/MATLAB/fieldtrip')
 
 % Fieldtrip defaults
 ft_defaults
 
-% Subject folder and ID
-subdir = filepath;  % parent folder only
+% Subject ID and output folder (FreeSurfer files are written here)
+subdir = fullfile(plugin_path, 'tutorial', 'seeg', 'derivatives', 'freesurfer', 'sub-02');
 subid  = 'sub-02';
+cd(subdir)
 
 % Create directories
 orig_dir = fullfile(subdir, 'freesurfer', 'orig');
@@ -35,7 +35,7 @@ end
 mri_filename = sub_files{isT1};
 fprintf("T1 MRI file successfully detected in subject folder: %s \n", mri_filename)
 % mri = ft_read_mri([subid '_MR_acpc.nii']); % we used the dcm series
-mri = ft_read_mri(mri_filename);
+mri = ft_read_mri(fullfile(filepath, mri_filename));
 
 
 % 2) Determine the native orientation of the anatomical MRI's left-right 

@@ -21,9 +21,19 @@ tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
 set(0, 'DefaultFigureVisible', 'off');
-tc.TestData.seegDir = fullfile(root, 'tutorial', 'dataset_seeg');
+tc.TestData.seegDir = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 tc.TestData.set = 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set';
 tc.TestData.tmp = tempname; mkdir(tc.TestData.tmp);
+
+% The tutorial sites (RA2-RA3, RA3-RA4, RA4-RA5) contain no label that is a
+% substring of another. A copy of its events file renames two sites so that
+% removing RA1 must drop RA1-RA2 but keep RA10-RA9.
+ev = readtable(fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_task-ccep_run-01_events.tsv'), ...
+    'FileType','text', 'Delimiter','\t');
+ev.electrical_stimulation_site(strcmp(ev.electrical_stimulation_site, 'RA2-RA3')) = {'RA1-RA2'};
+ev.electrical_stimulation_site(strcmp(ev.electrical_stimulation_site, 'RA4-RA5')) = {'RA10-RA9'};
+tc.TestData.relabelled_events = fullfile(tc.TestData.tmp, 'events_relabelled.tsv');
+writetable(ev, tc.TestData.relabelled_events, 'FileType','text', 'Delimiter','\t');
 
 % One loaded + preprocessed + analysed dataset shared by the read-only tests
 EEG = local_load_headless(tc, struct());
@@ -87,10 +97,16 @@ end
 
 function test_epoch_sites_are_order_independent(tc)
 E = tc.TestData.E;
+% Record half of the RA4-RA5 pulses with the opposite polarity, RA5-RA4.
+sites0 = ieeglab_epoch_sites(E);
+tr = find(sites0 == "RA4-RA5");
+for t = reshape(tr(1:2:end), 1, [])
+    E.epoch(t).eventtype = repmat({'RA5-RA4'}, size(cellstr(E.epoch(t).eventtype)));
+end
 [sites, stimIdx] = ieeglab_epoch_sites(E);
 tc.verifyNumElements(sites, E.trials);
-tc.verifyFalse(any(sites == "ROP4-ROP2"), 'ROP4-ROP2 must be canonicalised to ROP2-ROP4.');
-tc.verifyTrue(any(sites == "ROP2-ROP4"));
+tc.verifyFalse(any(sites == "RA5-RA4"), 'RA5-RA4 must be canonicalised to RA4-RA5.');
+tc.verifyEqual(nnz(sites == "RA4-RA5"), numel(tr));
 tc.verifyTrue(all(cellfun(@numel, stimIdx) == 2), 'Every CCEP epoch should resolve both stimulated contacts.');
 end
 
@@ -98,8 +114,11 @@ end
 
 function test_load_headless_finds_bids_siblings(tc)
 EEG = local_load_headless(tc, struct());
-tc.verifyEqual(numel(EEG.event), 169, 'All 169 stimulation events should be placed.');
-tc.verifyTrue(all(arrayfun(@(c) ~isempty(c.X) && isfinite(c.X), EEG.chanlocs)), 'Every channel should get coordinates.');
+tc.verifyEqual(numel(EEG.event), 34, 'All 34 stimulation events should be placed.');
+% electrodes.tsv lists every contact except the three clinician-bad ones
+hasXYZ = arrayfun(@(c) ~isempty(c.X) && isfinite(c.X), EEG.chanlocs);
+tc.verifyEqual(sort({EEG.chanlocs(~hasXYZ).labels}), {'RA15','RB14','RB15'}, ...
+    'Every contact listed in electrodes.tsv should get coordinates.');
 tc.verifyEqual(EEG.ieeglab.opt.event_field, 'electrical_stimulation_site');
 tc.verifyNumElements(EEG.urevent, numel(EEG.event), 'urevent must be built so trials stay traceable.');
 tc.verifyEqual([EEG.event.urevent], 1:numel(EEG.event), 'Event k must be events.tsv row k.');
@@ -128,16 +147,17 @@ T.status(1:3) = {'bad'};
 f = fullfile(tc.TestData.tmp, 'events_with_bad.tsv');
 writetable(T, f, 'FileType','text', 'Delimiter','\t');
 EEG = local_load_headless(tc, struct('events_tsv', f));
-tc.verifyEqual(numel(EEG.event), 166, 'Events with status=bad must be dropped at load.');
+tc.verifyEqual(numel(EEG.event), height(T) - 3, 'Events with status=bad must be dropped at load.');
 EEG = local_load_headless(tc, struct('events_tsv', f, 'drop_bad_events', false));
-tc.verifyEqual(numel(EEG.event), 169);
+tc.verifyEqual(numel(EEG.event), height(T));
 end
 
 function test_load_channel_selection_is_exact(tc)
 % Removing RA1 must drop RA1-RA2 trials but keep RA10-RA9 trials.
-EEG0 = local_load_headless(tc, struct());
+ev = tc.TestData.relabelled_events;
+EEG0 = local_load_headless(tc, struct('events_tsv', ev));
 keep = setdiff({EEG0.chanlocs.labels}, {'RA1'}, 'stable');
-EEG = local_load_headless(tc, struct('chan_list', {keep}));
+EEG = local_load_headless(tc, struct('events_tsv', ev, 'chan_list', {keep}));
 types = {EEG.event.type};
 tc.verifyEqual(EEG.nbchan, EEG0.nbchan - 1);
 tc.verifyFalse(any(strcmp(types, 'RA1-RA2')), 'Trials stimulating the removed contact must go.');
@@ -150,20 +170,20 @@ end
 function test_bad_channels_from_channels_tsv_mark(tc)
 EEG = local_load_headless(tc, struct());
 labels = {EEG.chanlocs.labels};
-f = local_channels_tsv(tc, labels, {'RA3','ROP5'}, {'high impedance','n/a'}, {'RA10'});
+f = local_channels_tsv(tc, labels, {'RA3','RB13'}, {'high impedance','n/a'}, {'RA10'});
 % Contacts the tutorial's own channels.tsv marked bad at load stay bad.
 pre = local_marked_at_load(EEG);
 [~, E, T] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'', f, ''action'', ''mark''))');
 tc.verifyEqual(E.nbchan, EEG.nbchan, 'mark must not remove channels.');
 bad = cellstr(T.label(T.status == "bad"));
-tc.verifyEqual(sort(bad(:))', sort(union({'RA3','ROP5','RA10'}, pre)));
+tc.verifyEqual(sort(bad(:))', sort(union({'RA3','RB13','RA10'}, pre)));
 tc.verifyEqual(char(T.reason(T.label == "RA3")), 'high impedance', 'status_description must be kept as the reason.');
 tc.verifySubstring(char(T.reason(T.label == "RA10")), 'ECG', 'Non-iEEG types must be flagged.');
 tc.verifyEqual(E.chanlocs(strcmp(labels,'RA3')).status, 'bad');
 end
 
 function test_bad_channels_remove_drops_their_stim_trials_exactly(tc)
-EEG = local_load_headless(tc, struct());
+EEG = local_load_headless(tc, struct('events_tsv', tc.TestData.relabelled_events));
 labels = {EEG.chanlocs.labels};
 f = local_channels_tsv(tc, labels, {'RA1'}, {'noisy'}, {});
 nRA10 = nnz(strcmp({EEG.event.type}, 'RA10-RA9'));
@@ -198,30 +218,48 @@ end
 function test_mark_then_remove_honours_previous_marks(tc)
 EEG = local_load_headless(tc, struct());
 labels = {EEG.chanlocs.labels};
-f = local_channels_tsv(tc, labels, {'ROP3'}, {'flat'}, {});
+f = local_channels_tsv(tc, labels, {'RA7'}, {'flat'}, {});
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'', f, ''action'', ''mark''))');
 % second pass reads no file at all, as preprocessing does
 [~, E2] = evalc('ieeglab_bad_channels(E, struct(''channels_tsv'', '''', ''action'', ''remove''))');
-tc.verifyFalse(any(strcmp({E2.chanlocs.labels}, 'ROP3')), 'A channel marked at load must be removable later.');
+tc.verifyFalse(any(strcmp({E2.chanlocs.labels}, 'RA7')), 'A channel marked at load must be removable later.');
 end
 
 function test_seizure_zone_is_recorded_and_optionally_excluded(tc)
-% None of the 16 tutorial channels carry a seizure_zone label, so label two of
+% None of the tutorial contacts carry a seizure_zone label, so label two of
 % them in a copy of the real electrodes table.
 EEG = local_load_headless(tc, struct());
 Te = readtable(fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_electrodes.tsv'), ...
     'FileType','text', 'Delimiter','	', 'TextType','string');
 Te.seizure_zone(Te.name == "RA4")  = "SOZ";
-Te.seizure_zone(Te.name == "ROP2") = "IrritativeZone";
+Te.seizure_zone(Te.name == "RB13") = "IrritativeZone";
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''action'',''mark''))');
 lab = {E.chanlocs.labels};
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).clinical_zone, 'SOZ', 'The zone label must be recorded.');
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'good', 'Recording a zone must not by itself mark the contact bad.');
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''exclude_soz'', true, ''action'',''mark''))');
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'bad', 'exclude_soz must mark SOZ contacts bad.');
-tc.verifyEqual(E.chanlocs(strcmp(lab,'ROP2')).status, 'good', 'exclude_soz alone must not touch irritative-zone contacts.');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RB13')).status, 'good', 'exclude_soz alone must not touch irritative-zone contacts.');
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''exclude_irritative'', true, ''action'',''mark''))');
-tc.verifyEqual(E.chanlocs(strcmp(lab,'ROP2')).status, 'bad');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RB13')).status, 'bad');
+end
+
+function test_soz_yes_no_column(tc)
+% ds004080 labels the seizure onset zone with a 'soz' column (yes/no) instead of
+% seizure_zone; both must be read the same way.
+EEG = local_load_headless(tc, struct());
+Te = readtable(fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_electrodes.tsv'), ...
+    'FileType','text', 'Delimiter','\t', 'TextType','string');
+Te = removevars(Te, 'seizure_zone');
+Te.soz = repmat("no", height(Te), 1);
+Te.soz(Te.name == "RA4") = "yes";
+[~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''action'',''mark''))');
+lab = {E.chanlocs.labels};
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).clinical_zone, 'SOZ');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'good', 'Recording a zone must not by itself mark the contact bad.');
+[~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''exclude_soz'', true, ''action'',''mark''))');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'bad');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA5')).status, 'good', 'A "no" in the soz column must not mark the contact.');
 end
 
 function test_preprocess_bad_channel_step(tc)
@@ -233,7 +271,7 @@ opt = struct('remove_bad_channels',true,'bad_channels',{{'RA3'}},'apply_highpass
 tc.verifyFalse(any(strcmp({E.chanlocs.labels}, 'RA3')));
 sites = ieeglab_epoch_sites(E);
 tc.verifyFalse(any(sites == "RA2-RA3" | sites == "RA3-RA4"), 'Trials stimulating RA3 must be gone.');
-tc.verifyTrue(any(sites == "RA10-RA9"));
+tc.verifyTrue(any(sites == "RA4-RA5"));
 end
 
 % ======================= connectivity matrix =======================
@@ -255,13 +293,14 @@ for s = 1:numel(M.sites)
     cols = ismember(upper(M.channels), tok);
     tc.verifyTrue(all(isnan(M.response(s, cols))), sprintf('%s: stimulated contacts must be NaN.', M.sites{s}));
 end
-% Sites follow montage order, not alphabetical: RA10-RA9 (contacts 9,10) comes
-% after RA8-RA9 (8,9), and every RA site precedes every ROP site.
-tc.verifyLessThan(find(strcmp(M.sites,'RA8-RA9')), find(strcmp(M.sites,'RA10-RA9')), ...
-    'RA10-RA9 must follow RA8-RA9 (montage order, not string order).');
-firstROP = find(startsWith(M.sites, 'ROP'), 1);
-lastRA = find(startsWith(M.sites, 'RA'), 1, 'last');
-tc.verifyLessThan(lastRA, firstROP, 'Sites should be ordered by montage position.');
+% Sites follow montage order, not alphabetical. With the results renamed so
+% that string order differs, RA10-RA9 (contacts 9,10) must come after RA8-RA9
+% (8,9), and RA2-RA3 first.
+E.ieeglab.n1.table.site = replace(string(E.ieeglab.n1.table.site), ...
+    ["RA3-RA4" "RA4-RA5"], ["RA10-RA9" "RA8-RA9"]);
+[~, ~, Mr] = evalc('ieeglab_ccep_matrix(E, struct(''source'',''n1'',''verbose'',false))');
+tc.verifyEqual(Mr.sites(:)', {'RA2-RA3','RA8-RA9','RA10-RA9'}, ...
+    'Sites should be ordered by montage position, not string order.');
 end
 
 function test_ccep_matrix_agrees_with_n1_table(tc)
@@ -341,7 +380,8 @@ for t = 1:E.trials, D(stimIdx{t}, :, t) = NaN; end
 [vals, info] = ieeglab_topoplot(E, 30, 'draw', false);
 [~, k] = min(abs(E.times - 30));
 tc.verifyEqual(vals, mean(D(:, k, :), 3, 'omitnan'), 'AbsTol', 1e-9);
-tc.verifyTrue(all(info.has_xyz));
+hasXYZ = arrayfun(@(c) ~isempty(c.X) && isfinite(c.X), E.chanlocs);
+tc.verifyEqual(logical(info.has_xyz(:)), hasXYZ(:), 'has_xyz must follow the channel coordinates.');
 [vals2] = ieeglab_topoplot(E, [20 60], 'draw', false);
 idx = E.times >= 20 & E.times <= 60;
 tc.verifyEqual(vals2, mean(mean(D(:, idx, :), 3, 'omitnan'), 2, 'omitnan'), 'AbsTol', 1e-9);

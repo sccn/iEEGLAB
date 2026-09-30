@@ -8,7 +8,7 @@ root = fileparts(fileparts(mfilename('fullpath')));
 tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
-d = fullfile(root, 'tutorial', 'dataset_seeg');
+d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 tc.TestData.EEG = EEG;

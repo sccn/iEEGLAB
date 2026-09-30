@@ -8,7 +8,7 @@ root = fileparts(fileparts(mfilename('fullpath')));
 tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
-d = fullfile(root, 'tutorial', 'dataset_seeg');
+d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 opt = struct('apply_highpass',true,'highpass',0.5,'apply_notch',false,'apply_lowpass',false, ...
@@ -20,7 +20,7 @@ end
 function test_injected_artifacts_are_found(tc)
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);
-tr = find(sites == "ROP1-ROP2");            % the site with the most trials
+tr = find(sites == "RA3-RA4");              % the site with the most trials
 % Real data can contain real outlier trials, so compare against the flags on
 % the unmodified data rather than assuming none: injecting artifacts must add
 % exactly the injected trials and leave every other decision unchanged.
@@ -38,7 +38,7 @@ end
 function test_mark_uses_eeglab_rejmanual_and_remove_drops(tc)
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);
-tr = find(sites == "ROP1-ROP2");
+tr = find(sites == "RA3-RA4");
 E.data(:, :, tr(3)) = E.data(:, :, tr(3)) * 40;
 [~, Em] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false))');
 tc.verifyEqual(Em.trials, E.trials, 'mark must not remove trials.');
@@ -51,37 +51,33 @@ function test_large_response_on_few_channels_is_kept(tc)
 % A genuinely strong response on two contacts is not an artifact.
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);
-tr = find(sites == "ROP1-ROP2");
+tr = find(sites == "RA3-RA4");
 E.data(1:2, :, tr(4)) = E.data(1:2, :, tr(4)) * 40;
 [~, ~, T] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false))');
-tc.verifyFalse(T.bad(tr(4)), 'Two outlying channels out of 14 usable must not reject the trial.');
+tc.verifyFalse(T.bad(tr(4)), 'Two outlying channels out of 13 usable must not reject the trial.');
 end
 
 function test_preprocess_option_and_clinician_agreement(tc)
-% The tutorial events file marks two stimulation events as artifacts
-% (status_description "... fixed when referencing"). The detector, which never
-% sees those notes, must flag both - and preprocess must remove exactly the
-% flagged trials when reject_trials is on.
+% The tutorial events file marks one stimulation event as an artifact
+% (status_description "artifact fixed when referencing"). The detector, which
+% never sees that note, must flag it at the stage preprocess runs it (before
+% baseline correction, which shrinks this artifact below the threshold) - and
+% preprocess must remove exactly the flagged trials when reject_trials is on.
 root = fileparts(fileparts(mfilename('fullpath')));
-d = fullfile(root, 'tutorial', 'dataset_seeg');
+d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 ev = EEG.ieeglab.opt.events;
 annotated = find(contains(string(ev.status_description), "artif"));
-tc.assumeNumElements(annotated, 2, 'Expected two clinician-annotated artifact events in the tutorial.');
+tc.assertNumElements(annotated, 1, 'Expected one clinician-annotated artifact event in the tutorial.');
 opt = struct('apply_highpass',true,'highpass',0.5,'apply_notch',false,'apply_lowpass',false, ...
     'apply_ds',false,'apply_epoch',true,'epoch_window',[-500 1000],'apply_car',false, ...
-    'apply_baseline',true,'baseline_period',[-500 -50],'plot',false,'verbose',false);
-[~, E] = evalc('ieeglab_preprocess(EEG, opt)');
-tr0 = arrayfun(@(r) local_trial_of_tsv_row(E, ev.tsv_row(r)), annotated);
-tc.assertFalse(any(isnan(tr0)), 'Annotated events must be traceable to trials through tsv_row.');
-[~, ~, T] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false))');
-tc.verifyTrue(all(T.bad(tr0)), sprintf('Both clinician-annotated artifact trials (%s) should be flagged.', mat2str(tr0(:)')));
-% Preprocess rejects before baseline correction, so compare against flags on
-% data at that same stage.
-opt.apply_baseline = false;
+    'apply_baseline',false,'plot',false,'verbose',false);
 [~, Enb] = evalc('ieeglab_preprocess(EEG, opt)');
+tr0 = arrayfun(@(r) local_trial_of_tsv_row(Enb, ev.tsv_row(r)), annotated);
+tc.assertFalse(any(isnan(tr0)), 'Annotated events must be traceable to trials through tsv_row.');
 [~, ~, Tnb] = evalc('ieeglab_reject_trials(Enb, struct(''action'',''mark'',''verbose'',false))');
+tc.verifyTrue(all(Tnb.bad(tr0)), sprintf('The clinician-annotated artifact trial (%s) should be flagged.', mat2str(tr0(:)')));
 opt.reject_trials = true;
 [~, E2] = evalc('ieeglab_preprocess(EEG, opt)');
 tc.verifyEqual(E2.trials, Enb.trials - nnz(Tnb.bad), 'reject_trials in preprocess must remove exactly the flagged trials.');
@@ -101,10 +97,15 @@ end
 function test_stimulated_contacts_do_not_drive_rejection(tc)
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);
-tr = find(sites == "ROP1-ROP2");
+tr = find(sites == "RA3-RA4");
 lab = {E.chanlocs.labels};
-st = find(ismember(lab, {'ROP1','ROP2'}));
-E.data(st, :, tr(6)) = E.data(st, :, tr(6)) * 1000;   % absurd, but only on the stimulated pair
-[~, ~, T] = evalc('ieeglab_reject_trials(E, struct(''action'',''mark'',''verbose'',false,''frac'',0.1))');
-tc.verifyFalse(T.bad(tr(6)), 'The stimulated contacts must be ignored when judging a trial.');
+st = find(ismember(lab, {'RA3','RA4'}));
+% a trial not already flagged at this threshold (trial 17, the annotated
+% artifact, is flagged at frac 0.1 on the real data)
+o = struct('action','mark','verbose',false,'frac',0.1);
+[~, ~, T0] = evalc('ieeglab_reject_trials(E, o)');
+k = tr(find(~T0.bad(tr), 1));
+E.data(st, :, k) = E.data(st, :, k) * 1000;   % absurd, but only on the stimulated pair
+[~, ~, T] = evalc('ieeglab_reject_trials(E, o)');
+tc.verifyFalse(T.bad(k), 'The stimulated contacts must be ignored when judging a trial.');
 end

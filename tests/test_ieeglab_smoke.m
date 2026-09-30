@@ -34,8 +34,8 @@ end
 addpath(tc.TestData.root);
 addpath(fullfile(tc.TestData.root, 'functions'));
 
-tc.TestData.seegDir = fullfile(tc.TestData.root, 'tutorial', 'dataset_seeg');
-tc.TestData.ecogDir = fullfile(tc.TestData.root, 'tutorial', 'dataset_ecog');
+tc.TestData.seegDir = fullfile(tc.TestData.root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
+tc.TestData.ecogDir = fullfile(tc.TestData.root, 'tutorial', 'ecog', 'sub-ccepAgeUMCU02', 'ses-1', 'ieeg');
 set(0, 'DefaultFigureVisible', 'off');
 end
 
@@ -229,30 +229,34 @@ tc.verifyEqual(E.trials, 1, 'Continuous data must stay continuous.');
 tc.verifyNotEqual(E.pnts, 0);
 end
 
-function test_ecog_non_ccep_pipeline(tc)
-% The eCoG dataset has ordinary condition labels, not stimulation pairs.
+function EEG = loadEcogAsErp(tc)
+% ECoG dataset with its stimulation events relabelled as two ordinary
+% conditions, which gives an event-related (non-CCEP) design.
 d = tc.TestData.ecogDir;
-EEG = pop_loadset('filename','sub-02_ses-01_task-visual_run-01_ieeg.set','filepath',d);
-elecs = readtable(fullfile(d,'sub-02_ses-01_electrodes.tsv'),'FileType','text','Delimiter','\t');
-ev    = readtable(fullfile(d,'sub-02_ses-01_task-visual_run-01_events.tsv'),'FileType','text','Delimiter','\t');
+base = 'sub-ccepAgeUMCU02_ses-1';
+EEG = pop_loadset('filename',[base '_task-SPESclin_run-041456_ieeg.set'],'filepath',d);
+elecs = readtable(fullfile(d,[base '_electrodes.tsv']),'FileType','text','Delimiter','\t');
+ev    = readtable(fullfile(d,[base '_task-SPESclin_run-041456_events.tsv']),'FileType','text','Delimiter','\t');
+ev    = ev(strcmp(ev.trial_type, 'electrical_stimulation'), :);
 [~, EEG] = evalc('get_elec_coor(EEG, elecs)');
 EEG.event = [];
+cond = {'face', 'house'};
 for i = 1:height(ev)
-    t = ev.trial_type(i);
-    if iscell(t), t = t{1}; end
-    if ~ischar(t), t = num2str(t); end
-    EEG.event(i).type = t;
+    EEG.event(i).type = cond{mod(i, 2) + 1};
     EEG.event(i).latency = ev.onset(i)*EEG.srate + 1;
 end
 EEG = eeg_checkset(EEG,'eventconsistency');
-EEG.ieeglab.opt.events = ev;
+end
 
+function test_ecog_non_ccep_pipeline(tc)
+% Event types that are ordinary condition labels, not stimulation pairs.
+EEG = loadEcogAsErp(tc);
 opt = defaultOpt();
 opt.epoch_window = [-200 600];
 opt.car_nboot = 15;
 [~, E] = evalc('ieeglab_preprocess(EEG, opt)');
 tc.verifyGreaterThan(E.trials, 1);
-tc.verifyEqual(E.nbchan, 96);
+tc.verifyEqual(E.nbchan, 20);
 end
 
 function test_crp_statistics(tc)
@@ -378,22 +382,9 @@ end
 function test_carla_refuses_non_ccep(tc)
 % CARLA is defined for CCEP only; on other data it must fall back with a warning
 % rather than return an uninterpretable reference.
-d = tc.TestData.ecogDir;
-EEG = pop_loadset('filename','sub-02_ses-01_task-visual_run-01_ieeg.set','filepath',d);
-elecs = readtable(fullfile(d,'sub-02_ses-01_electrodes.tsv'),'FileType','text','Delimiter','\t');
-ev    = readtable(fullfile(d,'sub-02_ses-01_task-visual_run-01_events.tsv'),'FileType','text','Delimiter','\t');
-[~, EEG] = evalc('get_elec_coor(EEG, elecs)');
-EEG.event = [];
-for i = 1:height(ev)
-    t = ev.trial_type(i); if iscell(t), t = t{1}; end
-    if ~ischar(t), t = num2str(t); end
-    EEG.event(i).type = t;
-    EEG.event(i).latency = ev.onset(i)*EEG.srate + 1;
-end
-EEG = eeg_checkset(EEG,'eventconsistency');
-
+EEG = loadEcogAsErp(tc);
 tc.verifyEqual(ieeglab_detect_mode(EEG), 'erp', ...
-    'A visual-task dataset must not be classified as CCEP.');
+    'A dataset with condition labels must not be classified as CCEP.');
 
 opt = defaultOpt(); opt.epoch_window = [-200 600]; opt.car_nboot = 10;
 [~, E] = evalc('ieeglab_preprocess(EEG, opt)');

@@ -196,7 +196,7 @@ function test_no_reference_leak_on_real_tutorial_data(tc)
 % End-to-end on the shipped sEEG CCEP dataset: after per-site CARLA, no
 % stimulated contact may appear in its own reference set.
 root = fileparts(fileparts(mfilename('fullpath')));
-d = fullfile(root, 'tutorial', 'dataset_seeg');
+d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
 tc.assumeTrue(isfolder(d), 'Tutorial sEEG dataset not present.');
 tc.assumeNotEmpty(which('pop_loadset'), 'EEGLAB not on the path.');
 
