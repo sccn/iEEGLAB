@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased (2026-09-28)
+## Unreleased (2026-09-30)
+
+- **Menu follows the dataset state.** Check installation is the first iEEGLAB
+  item and is always available; the other items are greyed out until a dataset
+  is loaded (re-referencing until it is epoched). Called without a dataset, the
+  functions stop with "no dataset is loaded" instead of a MATLAB indexing error.
+- **Clearer dialogs.** Options are greyed out unless the step they belong to
+  runs, and each step carries a short description. The event selector lists only
+  the columns that can filter, with readable names and the number of events per
+  value. Re-referencing has one section per method and a description of the
+  selected one. CCEP analysis is grouped into measures, connectivity matrix,
+  statistics and output; the matrix's measure (CRP or N1) is now a choice and is
+  always run. The seizure-onset-zone option shows how many contacts
+  electrodes.tsv labels, and is greyed out when none. Channels bad in
+  channels.tsv without a reason read "status bad in channels.tsv, no reason
+  given".
+- **Seizure-onset zone from a `soz` column.** electrodes.tsv files that mark the
+  zone with a yes/no `soz` column (ds004080) are read like the `seizure_zone`
+  column (ds004696). On ds004696 sub-02 (native rate), `exclude_soz` removes the 6
+  SOZ contacts and `exclude_irritative` the irritative-zone contacts and their
+  stimulation trials.
+- **Downsampling off by default** in the preprocessing dialog (CCEP measures
+  need the native rate).
+- **Brain figures.** Sulci are drawn darker than gyri
+  (`ieeglab_surface_sulc`, from the mesh alone), so the folding stays visible on
+  a transparent surface with MATLAB's current graphics. The figures rotate with
+  the mouse and have no toolbars.
+- **Tests use the native-rate tutorial datasets** (`tutorial/seeg`,
+  `tutorial/ecog`); the 128 Hz `tutorial/dataset_seeg` and `tutorial/dataset_ecog`
+  are removed. The sub-02 T1 MRI moved to `tutorial/seeg/sub-02/ses-mri01/anat`.
 
 - **MEF3 check on Apple Silicon.** `ieeglab_check_install` reported the MEF3
   plugin as installed when only its help (.m) files resolved, as on Apple Silicon

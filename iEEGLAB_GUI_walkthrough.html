@@ -101,8 +101,11 @@ ieeglab_check_install</code></pre></details></li>
   <h2 id="seeg">2. sEEG walkthrough (<code>tutorial/seeg</code>)</h2>
   <ol class="steps">
     <li><span class="menu">File &gt; Import data &gt; From BIDS folder structure</span>. Select <code>tutorial/seeg</code>;
-      event type: <code>electrical_stimulation_site</code>.
+      event type: <code>electrical_stimulation_site</code>. Leave the task, session, run and participant boxes unticked
+      (they only select a subset).
       <div class="expect"><b>Expect</b>One dataset: 18 channels, 2048 Hz, about 193 s, 34 events.
+      Until the EEG-BIDS fix is released, the import opens a STUDY of this one dataset and the
+      <span class="menu">iEEGLAB</span> menu is greyed out: select <span class="menu">Datasets &gt; Dataset 1</span>.
       <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004696">OpenNeuro ds004696</a>, sub-02 (<a href="https://doi.org/10.1523/JNEUROSCI.2201-22.2023">Ojeda Valencia et al., 2023, <i>J Neurosci</i></a>).</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'seeg');
 [~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
@@ -167,7 +170,8 @@ ieeglab_topoplot(EEG, 'crp_explained_var', 'site', 'RA3-RA4', 'surf_files', surf
 
   <h2 id="ecog">3. ECoG walkthrough (<code>tutorial/ecog</code>)</h2>
   <ol class="steps">
-    <li>Import <code>tutorial/ecog</code> as above (event type <code>electrical_stimulation_site</code>).
+    <li>Import <code>tutorial/ecog</code> as above (event type <code>electrical_stimulation_site</code>; with an older
+      EEG-BIDS, then <span class="menu">Datasets &gt; Dataset 1</span>).
       <div class="expect"><b>Expect</b>20 channels, 2048 Hz, about 173 s.
       <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004080">OpenNeuro ds004080</a>, sub-ccepAgeUMCU02 (<a href="https://doi.org/10.1038/s41593-023-01272-0">van Blooijs et al., 2023, <i>Nat Neurosci</i></a>).</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
