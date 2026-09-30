@@ -2,6 +2,10 @@
 
 ## Unreleased (2026-09-28)
 
+- **MEF3 check on Apple Silicon.** `ieeglab_check_install` reported the MEF3
+  plugin as installed when only its help (.m) files resolved, as on Apple Silicon
+  Macs, for which the plugin ships no MEX files. It now requires the compiled
+  reader and prints how to build it; `ieeglab_load_mefd` stops with the same hint.
 - **Contacts next to the stimulated pair can be left out of the reference.**
   `pop_ieeglab_reref(..., 'neighbors', n)` (a row of the iEEG re-referencing
   dialog; `car_neighbors` in `ieeglab_car`) keeps the contacts of the same lead

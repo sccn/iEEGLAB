@@ -48,6 +48,16 @@ for i = 1:size(D,1)
         'resolved_path',p, 'needed_for',D{i,3}, 'hint',D{i,4});
 end
 
+% MEF3 readers are compiled (MEX) files; the plugin's .m files of the same name
+% are help text only, so which() finds them even when no MEX file exists for
+% this platform (e.g. Apple Silicon: the plugin ships Intel Mac files only).
+iMef = find(strcmp({report.name}, 'read_mef_session_metadata'));
+if report(iMef).found && exist('read_mef_session_metadata', 'file') ~= 3
+    report(iMef).found = false;
+    report(iMef).resolved_path = '';
+    report(iMef).hint = mef_mex_hint(computer('arch'));
+end
+
 % The four menu callbacks must resolve, or the menu is broken
 menuFcns = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','ieeglab_stats_subject'};
 for i = 1:numel(menuFcns)
@@ -103,6 +113,20 @@ switch lower(mode)
         end
 end
 
+end
+
+function s = mef_mex_hint(arch)
+% What to do when the MEF3 plugin is installed but has no MEX file for arch
+if strcmp(arch, 'maca64')
+    s = sprintf(['The MEF3 plugin has no MEX files for Apple Silicon (maca64); recompile them:\n' ...
+        '                             install Xcode, run mex -setup C, cd to the MEF3 plugin folder and run\n' ...
+        '                             the mex lines under "Building from source" in\n' ...
+        '                             https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source\n' ...
+        '                             (known issue: https://github.com/MultimodalNeuroimagingLab/matmef/issues/8)']);
+else
+    s = sprintf(['The MEF3 plugin has no MEX files for this platform (%s); compile them as described in\n' ...
+        '                             https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source'], arch);
+end
 end
 
 function s = iff(c, a, b)

@@ -108,6 +108,23 @@ missing = {report(~[report.found] & strcmp({report.kind},'required')).name};
 tc.verifyTrue(ok, sprintf('Missing required dependencies: %s', strjoin(missing, ', ')));
 end
 
+function test_install_check_needs_mef_mex(tc)
+% A help-only read_mef_session_metadata.m (what an Apple Silicon Mac sees: the
+% plugin has no MEX file for it) must count as missing, not as installed.
+stub = tempname; mkdir(stub);
+fid = fopen(fullfile(stub, 'read_mef_session_metadata.m'), 'w');
+fprintf(fid, 'function metadata = read_mef_session_metadata(varargin)\n%% help only\n');
+fclose(fid);
+addpath(stub, '-begin'); c = onCleanup(@() cellfun(@feval, {@() rmpath(stub), @() rmdir(stub, 's')}));
+[~, report] = ieeglab_check_install('quiet');
+r = report(strcmp({report.name}, 'read_mef_session_metadata'));
+tc.verifyFalse(r.found);
+tc.verifySubstring(r.hint, 'matmef#building-from-source');
+msg = '';
+try, ieeglab_load_mefd(tempdir); catch e, msg = e.message; end
+tc.verifySubstring(msg, 'no compiled (MEX) reader');
+end
+
 function test_no_duplicate_plot_ccep(tc)
 % my_quick_ccep_plot.m declared "function plot_ccep", shadowing the real one.
 tc.verifyEmpty(which('my_quick_ccep_plot'), ...
