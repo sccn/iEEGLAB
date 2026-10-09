@@ -108,11 +108,26 @@ if ~isempty(opt.events_tsv)
     end
     events.tsv_row = (1:height(events))';
     events.onset = local_numeric(events(:, 'onset'));
+    lastOnset = (EEG.pnts - 1) / EEG.srate;
+    % A stretch of the recording read by ieeglab_import: the events file counts
+    % from the start of the whole recording, the dataset from the start of the
+    % stretch. Shift the onsets, and keep the events that fall in the stretch.
+    shift = 0;
+    if isfield(EEG,'etc') && isfield(EEG.etc,'ieeglab_import') && isfield(EEG.etc.ieeglab_import,'onset_shift_s')
+        shift = double(EEG.etc.ieeglab_import.onset_shift_s);
+    end
+    imp = isfield(EEG,'etc') && isfield(EEG.etc,'ieeglab_import');
+    if imp && (shift ~= 0 || EEG.pnts < EEG.etc.ieeglab_import.pnts_in_file)
+        events.onset = events.onset - shift;
+        inside = isfinite(events.onset) & events.onset >= 0 & events.onset <= lastOnset;
+        fprintf('The dataset holds %.1f to %.1f s of the recording: %d of %d events fall in it.\n', ...
+            shift, shift + lastOnset, nnz(inside), height(events));
+        events = events(inside | ~isfinite(events.onset), :);
+    end
     % Only events that fall inside the recording can be placed. BIDS allows
     % negative onsets (before the first sample) and n/a onsets; drop them here,
     % explicitly, instead of letting eeg_checkset remove them from EEG.event
     % alone and leave the table one row out of step.
-    lastOnset = (EEG.pnts - 1) / EEG.srate;
     bad = ~isfinite(events.onset) | events.onset < 0 | events.onset > lastOnset;
     if any(bad)
         warning('ieeglab_load:eventsOutsideData', ...

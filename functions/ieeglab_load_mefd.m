@@ -41,7 +41,7 @@ if ~ismember(rangeType, {'time','samples'})
 end
 
 % ---- Read metadata once
-if exist('read_mef_session_metadata', 'file') ~= 3
+if ~ieeglab_is_mex('read_mef_session_metadata')
     error(['The MEF3 plugin has no compiled (MEX) reader for this platform (%s). ' ...
         'Run ieeglab_check_install for how to fix it.'], computer('arch'));
 end

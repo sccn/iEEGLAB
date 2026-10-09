@@ -52,7 +52,7 @@ end
 % are help text only, so which() finds them even when no MEX file exists for
 % this platform (e.g. Apple Silicon: the plugin ships Intel Mac files only).
 iMef = find(strcmp({report.name}, 'read_mef_session_metadata'));
-if report(iMef).found && exist('read_mef_session_metadata', 'file') ~= 3
+if report(iMef).found && ~ieeglab_is_mex('read_mef_session_metadata')
     report(iMef).found = false;
     report(iMef).resolved_path = '';
     report(iMef).hint = mef_mex_hint(computer('arch'));

@@ -195,6 +195,10 @@ function d = local_start_dir(EEG, prev)
     d = '';
     if ~isempty(prev), d = fileparts(prev{1}); end
     p = EEG.filepath;
+    if isempty(p) && isfield(EEG,'BIDS') && isstruct(EEG.BIDS) && isfield(EEG.BIDS,'sourcefile') && ~isempty(EEG.BIDS.sourcefile)
+        p = fileparts(char(EEG.BIDS.sourcefile));     % dataset read from a raw BIDS file, not saved yet
+    end
+    home = p;
     sub = ['sub-' local_subject(EEG)];
     for up = 1:6
         if ~isempty(d) || isempty(p), break; end
@@ -205,7 +209,7 @@ function d = local_start_dir(EEG, prev)
         if strcmp(parent, p), break; end
         p = parent;
     end
-    if isempty(d) || ~isfolder(d), d = EEG.filepath; end
+    if isempty(d) || ~isfolder(d), d = home; end
     if isempty(d) || ~isfolder(d), d = pwd; end
 end
 

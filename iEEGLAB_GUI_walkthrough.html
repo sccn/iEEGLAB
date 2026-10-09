@@ -94,9 +94,7 @@
       (<i>Code &gt; Download ZIP</i>, or <code>git clone</code>) into <code>eeglab/plugins/</code>.
       The version in the extension manager is older: please use GitHub.</li>
     <li>The readers for the raw files, from <span class="menu">File &gt; Manage EEGLAB extensions</span>:
-      <b>MEF3</b> for Part A, <b>bva-io</b> for Part B. Also replace <code>eeglab/plugins/EEG-BIDS</code> with the version from
-      <a href="https://github.com/sccn/EEG-BIDS">github.com/sccn/EEG-BIDS</a>: its fixes (correct channel labels, real error
-      messages) are not in a release yet.
+      <b>MEF3</b> for Part A, <b>bva-io</b> for Part B.
       <div class="note">Mac with Apple Silicon: the MEF3 plugin ships Intel binaries only. Compile it on your Mac
       (<a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">Building from source</a>) or copy
       MEX files you already compiled into the plugin folder.
@@ -109,9 +107,8 @@ ieeglab_check_install</code></pre></details></li>
   </ol>
 
   <h2 id="data">2. Get the data</h2>
-  <p>Each part uses one participant of a public dataset. You need the participant's folder and the two files at the top of the
-  dataset (<code>dataset_description.json</code>, <code>participants.tsv</code>); for Part A also the participant's brain surfaces.
-  With the <a href="https://aws.amazon.com/cli/">AWS command line</a> (no account needed):</p>
+  <p>Each part uses one participant of a public dataset. You need the participant's folder; for Part A also the participant's
+  brain surfaces. With the <a href="https://aws.amazon.com/cli/">AWS command line</a> (no account needed):</p>
   <pre><code># Part A: sEEG, ds004696 sub-02 (about 1.9 GB)
 aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 
@@ -125,28 +122,33 @@ aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*"
   (see <code>ieeglab_tutorial.m</code>).</div>
 
   <h2 id="seeg">3. Part A: sEEG (ds004696, sub-02)</h2>
-  <div class="note">This recording is long (256 channels, 82 minutes at 2048 Hz). Through EEGLAB's BIDS import it takes about 16 minutes to import and 21 GB of memory, and the steps after it need more: use a machine with plenty of memory, or the extract in <code>tutorial/seeg</code>.</div>
+  <div class="note">This recording is long: 256 channels, 82 minutes at 2048 Hz. Read whole with its 237 stereo-EEG channels it
+  takes 8.9 GB of memory, and the steps after it about twice that for a while. On a laptop, read a few stimulation sites only
+  (step 1): everything below works the same, with fewer sites. EEGLAB's own BIDS import (<i>File &gt; Import data</i>) reads
+  every channel in double precision and saves a copy: 16 minutes and 21 GB for this recording.</div>
   <ol class="steps">
-    <li><span class="menu">File &gt; Import data &gt; From BIDS folder structure</span>. Select the <code>ds004696</code> folder.
-      In the window: tick <i>Use BIDS event.tsv files</i> and choose <code>electrical_stimulation_site</code> as the event type;
-      tick <i>Import only the following participants</i> and select <code>sub-02</code>. Leave the rest as it is.
-      <figure class="shot"><img src="tutorial/images/walkthrough/A1_bids_import.png" alt="BIDS import window" onerror="this.closest('figure').style.display='none'"><figcaption>The BIDS import window.</figcaption></figure>
-      <div class="expect"><b>Expect</b>About 16 minutes, most of it saving the dataset. One dataset: 256 channels (stereo-EEG contacts, 18 scalp EEG channels and one ECG), 2048 Hz, 82 minutes, 697 events.
-      The import opens a STUDY holding this one dataset, and the <span class="menu">iEEGLAB</span> menu is greyed out while a
-      STUDY is selected: select <span class="menu">Datasets &gt; Dataset 1</span>.
+    <li><span class="menu">iEEGLAB &gt; Import raw recording</span>. Select the <code>ds004696</code> folder (or its
+      <code>sub-02</code> folder); if several recordings are found, choose the one of sub-02. In the next window, keep the channel
+      type <code>SEEG</code> (the scalp EEG and ECG channels are then not read) and, to read less, tick
+      <i>Read only these stimulation sites</i> and select some.
+      <figure class="shot"><img src="tutorial/images/walkthrough/A1_import_recordings.png" alt="Recordings found in the folder" onerror="this.closest('figure').style.display='none'"><figcaption>The recordings found in the dataset folder.</figcaption></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/A1_import_options.png" alt="Import options" onerror="this.closest('figure').style.display='none'"><figcaption>Channel types and stimulation sites to read.</figcaption></figure>
+      <div class="expect"><b>Expect</b>About 2 minutes for the whole recording: 237 channels, 2048 Hz, 82 minutes, 8.9 GB.
+      Give the dataset a name when EEGLAB asks.
       <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004696">OpenNeuro ds004696</a>, sub-02 (<a href="https://doi.org/10.1523/JNEUROSCI.2201-22.2023">Ojeda Valencia et al., 2023, <i>J Neurosci</i></a>).</span></div>
-      <figure class="shot"><img src="tutorial/images/walkthrough/A1_eeglab_after_import.png" alt="EEGLAB window after the import" onerror="this.closest('figure').style.display='none'"><figcaption>EEGLAB with the imported dataset selected.</figcaption></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>bids = 'ds004696';   % the folder you downloaded
-[STUDY, ALLEEG] = pop_importbids(bids, 'subjects', {'02'}, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ALLEEG(1);</code></pre></details></li>
+      <figure class="shot"><img src="tutorial/images/walkthrough/A1_eeglab_after_import.png" alt="EEGLAB window after the import" onerror="this.closest('figure').style.display='none'"><figcaption>EEGLAB with the imported recording.</figcaption></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>rec = fullfile('ds004696', 'sub-02', 'ses-ieeg01', 'ieeg', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.mefd');
+EEG = ieeglab_import(rec);                                    % the whole recording
+% EEG = ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-RA4'});  % or only some stimulation sites</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>. The first window lists the electrodes, events
       and channels files found for this recording: check them and press Ok. The second window lets you keep a subset of channels
       or stimulation sites: keep everything.
       <figure class="shot"><img src="tutorial/images/walkthrough/A2_load_files.png" alt="Sidecar files window" onerror="this.closest('figure').style.display='none'"><figcaption>The sidecar files found for the recording.</figcaption></figure>
       <figure class="shot"><img src="tutorial/images/walkthrough/A2_load_select.png" alt="Channel and event selection window" onerror="this.closest('figure').style.display='none'"><figcaption>Channels and events to keep.</figcaption></figure>
-      <div class="expect"><b>Expect</b>A question about the 18 scalp EEG channels (F7, T7, ... CZ): remove them (the default). 238 channels left, 211 with coordinates; 40 contacts marked bad from <code>channels.tsv</code>; 695 stimulation events typed by site (2 marked bad in the events file are dropped).</div>
+      <div class="expect"><b>Expect</b>A few seconds. 211 of the 237 contacts have coordinates; 39 contacts are marked bad
+      (<code>channels.tsv</code>, and those without coordinates); 695 stimulation events typed by site (2 marked bad in the
+      events file are dropped).</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Visualize electrodes</span>. The command window explains what is needed: the participant's
@@ -156,14 +158,16 @@ EEG = ALLEEG(1);</code></pre></details></li>
       <figure class="shot"><img src="tutorial/images/walkthrough/A3_surfaces_dialog.png" alt="Brain surfaces question" onerror="this.closest('figure').style.display='none'"><figcaption>The surfaces found for the participant.</figcaption></figure>
       <div class="expect"><b>Expect</b>A 3D brain with the 211 contacts inside the surface. Drag with the mouse to rotate.</div>
       <figure class="shot"><img src="tutorial/images/walkthrough/A3_electrodes.png" alt="Electrodes on the pial surface" onerror="this.closest('figure').style.display='none'"><figcaption>Contacts on the participant's pial surface.</figcaption></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>surf = fullfile(bids, 'derivatives', 'freesurfer', 'sub-02', {'pial.L.surf.gii', 'pial.R.surf.gii'});
+      <details class="cmd"><summary>Command line</summary><pre><code>surf = fullfile('ds004696', 'derivatives', 'freesurfer', 'sub-02', {'pial.L.surf.gii', 'pial.R.surf.gii'});
 EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>. Blank stimulation artifact: on. High-pass: off (the default:
       a high-pass filter can ring around the stimulation artifact). Notch: <code>60 120 180</code>. Epoch: <code>-1000 1000</code> ms.
       Reject outlier trials: on. Remove bad channels: on. Baseline: <code>-500 -50</code> ms.
       <figure class="shot"><img src="tutorial/images/walkthrough/A4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"><figcaption>The preprocessing window with its defaults.</figcaption></figure>
-      <div class="expect"><b>Expect</b>The 40 bad contacts are removed (198 left), and the stimulations at a bad contact with them. A warning from EEGLAB about the "single-trial ERP baseline" is harmless.</div>
+      <div class="expect"><b>Expect</b>About 9 minutes for the whole recording. The 39 bad contacts are removed (198 left), and
+      the stimulations at a bad contact with them; 631 epochs. A warning from EEGLAB about the "single-trial ERP baseline" is
+      harmless.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
     'apply_notch', true, 'notch', [60 120 180], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
@@ -215,21 +219,18 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
 
   <h2 id="ecog">4. Part B: ECoG (ds004080, sub-ccepAgeUMCU02)</h2>
   <ol class="steps">
-    <li><span class="menu">File &gt; Import data &gt; From BIDS folder structure</span>. Select the <code>ds004080</code> folder; event
-      type <code>electrical_stimulation_site</code>; tick <i>Import only the following participants</i> and select
-      <code>sub-ccepAgeUMCU02</code>. Then <span class="menu">Datasets &gt; Dataset 1</span>.
-      <figure class="shot"><img src="tutorial/images/walkthrough/B1_bids_import.png" alt="BIDS import window" onerror="this.closest('figure').style.display='none'"><figcaption>The BIDS import window.</figcaption></figure>
-      <div class="expect"><b>Expect</b>About half a minute. One dataset: 96 channels (88 ECoG contacts; the others are ECG, EMG, EOG
-      and trigger channels), 2048 Hz, about 22 minutes.
+    <li><span class="menu">iEEGLAB &gt; Import raw recording</span>. Select the <code>ds004080</code> folder and the recording of
+      <code>sub-ccepAgeUMCU02</code>; keep the channel type <code>ECOG</code>.
+      <figure class="shot"><img src="tutorial/images/walkthrough/B1_import_options.png" alt="Import options" onerror="this.closest('figure').style.display='none'"><figcaption>Channel types and stimulation sites to read.</figcaption></figure>
+      <div class="expect"><b>Expect</b>About 2 minutes. 88 of the 96 channels (the others are ECG, EMG, EOG and trigger
+      channels), 2048 Hz, 22 minutes, 0.9 GB.
       <span class="ref">Data: <a href="https://openneuro.org/datasets/ds004080">OpenNeuro ds004080</a>, sub-ccepAgeUMCU02 (<a href="https://doi.org/10.1038/s41593-023-01272-0">van Blooijs et al., 2023, <i>Nat Neurosci</i></a>).</span></div>
-      <details class="cmd"><summary>Command line</summary><pre><code>bids = 'ds004080';   % the folder you downloaded
-[STUDY, ALLEEG] = pop_importbids(bids, 'subjects', {'ccepAgeUMCU02'}, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ALLEEG(1);</code></pre></details></li>
+      <details class="cmd"><summary>Command line</summary><pre><code>rec = fullfile('ds004080', 'sub-ccepAgeUMCU02', 'ses-1', 'ieeg', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.vhdr');
+EEG = ieeglab_import(rec);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>, as in Part A.
-      <div class="expect"><b>Expect</b>88 contacts with coordinates; 10 channels marked bad (2 contacts from
-      <code>channels.tsv</code>, and the 8 channels that are not ECoG); 160 stimulation events at 8 sites.</div>
+      <div class="expect"><b>Expect</b>88 contacts with coordinates, 2 marked bad in <code>channels.tsv</code>; 160 stimulation
+      events at 8 sites (each pair is stimulated in both polarities, 10 pulses each).</div>
       <figure class="shot"><img src="tutorial/images/walkthrough/B2_load_select.png" alt="Channel and event selection window" onerror="this.closest('figure').style.display='none'"><figcaption>Channels and events to keep.</figcaption></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
@@ -242,7 +243,7 @@ EEG = ALLEEG(1);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span> as in Part A, but notch <code>50 100 150</code> (the dialog proposes
       the 50 Hz of this recording).
-      <div class="expect"><b>Expect</b>About half a minute. 86 channels (the 10 bad ones removed), 160 epochs.</div>
+      <div class="expect"><b>Expect</b>About half a minute. 86 channels (the 2 bad ones removed), 160 epochs.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
     'apply_notch', true, 'notch', [50 100 150], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...

@@ -14,7 +14,8 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 
 | Step | Menu (iEEGLAB >) | Function |
 |---|---|---|
-| Import a BIDS dataset (MEF3, BrainVision, EDF, .set) | File > Import data > From BIDS folder structure | `pop_importbids` (EEG-BIDS) |
+| Read a raw recording of a BIDS dataset (MEF3, BrainVision, EDF, .set): brain channels only, optionally only some stimulation sites, in single precision | Import raw recording | `pop_ieeglab_import`, `ieeglab_import` |
+| Or import a whole BIDS dataset with EEGLAB (every channel, double precision: fine for short recordings) | File > Import data > From BIDS folder structure | `pop_importbids` (EEG-BIDS) |
 | Electrode coordinates, events and clinician channel labels from the BIDS files | Load electrode coordinates and events | `ieeglab_load` |
 | Electrodes on the brain | Visualize electrodes | `ieeglab_vis_elec` |
 | Stimulation-artifact blanking, filtering, epoching, trial and channel rejection, baseline | Preprocess iEEG data | `ieeglab_preprocess` |
@@ -50,7 +51,7 @@ BIDS sidecar files (`electrodes.tsv`, `channels.tsv`, `events.tsv`).
 
 The steps below are also in [`ieeglab_tutorial.m`](ieeglab_tutorial.m), which
 runs the whole analysis in about a minute. To work from the full recordings as
-downloaded from OpenNeuro (BIDS import of the raw MEF3 or BrainVision files),
+downloaded from OpenNeuro (*iEEGLAB > Import raw recording* reads the raw MEF3 or BrainVision files),
 follow `iEEGLAB_GUI_walkthrough.html` (open it in a browser): it goes through
 each menu step with the window you should see.
 

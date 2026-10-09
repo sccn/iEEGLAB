@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (2026-10-09)
+
+- **Import raw recording** (`pop_ieeglab_import`, `ieeglab_import`): a new menu
+  item that reads a recording of a BIDS dataset (MEF3, BrainVision, EDF, BDF,
+  .set) with little memory: single precision, a few channels at a time, the
+  brain channels only by default (channels.tsv type SEEG, ECOG or DBS), and
+  optionally only the stretch around chosen stimulation sites. EEGLAB's BIDS
+  import reads every channel as double and saves a copy: 16 minutes and 21 GB
+  for OpenNeuro ds004696 sub-02, after which preprocessing ran out of memory on
+  a 61 GB machine. `ieeglab_load` shifts the event times when only a stretch
+  was read.
+- **Fix: MEF3 reader wrongly reported missing.** The check used `exist`, which
+  can answer "not a MEX file" for the first function asked about after the
+  plugin folder is added to the path. It now looks at the file MATLAB resolves
+  (`ieeglab_is_mex`).
+
 ## Unreleased (2026-10-08)
 
 - **No high-pass filter by default.** The preprocessing dialog now proposes a

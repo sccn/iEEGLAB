@@ -35,8 +35,8 @@ outroot = fullfile(tempdir, 'ieeglab_tutorial_results');
 
 %% A2. Open the dataset
 % Menu: File > Load existing dataset, and select the .set file in tutorial/seeg.
-% (For a full recording downloaded from OpenNeuro, use File > Import data > From
-% BIDS folder structure instead: see iEEGLAB_GUI_walkthrough.html.)
+% (For a full recording downloaded from OpenNeuro, use iEEGLAB > Import raw
+% recording instead: see iEEGLAB_GUI_walkthrough.html.)
 tut_seeg = fullfile(plugin_path, 'tutorial', 'seeg');
 EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath', tut_seeg);
 
