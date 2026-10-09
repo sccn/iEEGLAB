@@ -147,12 +147,10 @@ end
 if ~o.draw, return; end
 
 % ---------- draw ----------
-figure('Color','w', 'Name', 'iEEGLAB electrode values', 'NumberTitle','off');
+ieeglab_figure('Name', 'iEEGLAB electrode values');
 hold on
 surfFiles = o.surf_files;
-if isempty(surfFiles) && isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'surf_files')
-    surfFiles = EEG.ieeglab.opt.surf_files;
-end
+if isempty(surfFiles), surfFiles = ieeglab_remembered_surfaces(EEG); end   % as chosen in Visualize electrodes
 if ischar(surfFiles) || isstring(surfFiles), surfFiles = cellstr(surfFiles); end
 meshes = {};
 for k = 1:numel(surfFiles)
@@ -168,14 +166,27 @@ for k = 1:numel(surfFiles)
         end
     end
 end
-if ~isempty(meshes), ieeglab_check_coords(xyz(hasXYZ,:), meshes); end
+if ~isempty(meshes)
+    ieeglab_check_coords(xyz(hasXYZ,:), meshes);
+else
+    % No subject surfaces: a template glass brain, so the contacts are not
+    % floating in empty space. Subject-space coordinates will not line up with it.
+    xyz = xyz * ieeglab_draw_template_brain(xyz);
+    info.title = [cellstr(info.title), {'template brain (no subject surfaces: iEEGLAB > Visualize electrodes)'}];
+end
 nv = hasXYZ & ~isfinite(vals);
 if any(nv)
     scatter3(xyz(nv,1), xyz(nv,2), xyz(nv,3), 12, [0.6 0.6 0.6], 'filled');
 end
 ok = hasXYZ & isfinite(vals);
 scatter3(xyz(ok,1), xyz(ok,2), xyz(ok,3), 60, vals(ok), 'filled', 'MarkerEdgeColor', [0.2 0.2 0.2]);
-colormap(parula); clim(info.clim);
+if info.clim(1) < 0 && info.clim(2) > 0          % signed values: blue - white - red, white at 0
+    h = 128; up = linspace(0,1,h)'; dn = flipud(up);
+    colormap([[up up ones(h,1)]; [ones(h,1) dn dn]]);
+else
+    colormap(parula);
+end
+caxis(info.clim); %#ok<CAXIS> works before R2022a
 cb = colorbar; ylabel(cb, desc);
 axis equal off
 if exist('ieeg_viewLight','file'), ieeg_viewLight(90, 0); else, view(3); end

@@ -39,11 +39,13 @@ addpath(fullfile(plugin_path, 'functions'));
 % eeglab_new took neither branch and ALLEEG kept the un-preprocessed dataset.
 cb_load       = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_load(EEG);'           catch_strings.new_and_hist];
 cb_vis_elec   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG); LASTCOM = ''EEG = ieeglab_vis_elec(EEG);'';' catch_strings.new_and_hist];
+cb_surfaces   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG, struct(''reselect'', true)); LASTCOM = ''EEG = ieeglab_vis_elec(EEG, struct(''''reselect'''', true));'';' catch_strings.new_and_hist];
 cb_preprocess = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_preprocess(EEG);'     catch_strings.new_and_hist];
 cb_reref      = [try_strings.no_check '[EEG, LASTCOM] = pop_ieeglab_reref(EEG);'      catch_strings.new_and_hist];
 cb_stats      = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_stats_subject(EEG);'  catch_strings.new_and_hist];
-cb_matrix     = [try_strings.no_check '[ok_, why_] = ieeglab_matrix_current(EEG); if ok_, ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix); else, errordlg([''Cannot plot the connectivity matrix: '' why_ ''. Run iEEGLAB > CCEP analysis.''],''iEEGLAB''); end; clear ok_ why_; LASTCOM = '''';' catch_strings.add_to_hist];
+cb_matrix     = [try_strings.no_check 'LASTCOM = pop_ieeglab_ccep_matrix(EEG);' catch_strings.add_to_hist];
 cb_topo       = [try_strings.no_check 'LASTCOM = pop_ieeglab_topoplot(EEG);' catch_strings.add_to_hist];
+cb_heatmap    = [try_strings.no_check 'LASTCOM = ieeglab_plot_heatmap(EEG);' catch_strings.add_to_hist];
 cb_export     = [try_strings.no_check '[~, LASTCOM] = ieeglab_export(EEG);' catch_strings.add_to_hist];
 cb_check      = 'ieeglab_check_install;';
 
@@ -67,8 +69,10 @@ onepoch = 'startup:off;continuous:off';
 uimenu(menu_root, 'Label', 'Check installation', 'Callback', cb_check, 'userdata', 'study:on');
 uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load, 'Separator', 'on', 'userdata', ondata);
 uimenu(menu_root, 'Label', 'Visualize electrodes', 'Callback', cb_vis_elec, 'userdata', ondata);
+uimenu(menu_root, 'Label', 'Choose brain surfaces', 'Callback', cb_surfaces, 'userdata', ondata);
 uimenu(menu_root, 'Label', 'Preprocess iEEG data', 'Callback', cb_preprocess, 'userdata', ondata);
 uimenu(menu_root, 'Label', 'iEEG re-referencing', 'Callback', cb_reref, 'userdata', onepoch);
+uimenu(menu_root, 'Label', 'Plot average of all channels (heatmap)', 'Callback', cb_heatmap, 'userdata', onepoch);
 uimenu(menu_root, 'Label', 'CCEP analysis (N1, CRP, connectivity)', 'Callback', cb_stats, 'Separator', 'on', 'userdata', ondata);
 uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix, 'userdata', ondata);
 uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo, 'userdata', ondata);
@@ -91,7 +95,7 @@ end
 % exist, rather than at click time. ieeglab_stats_subject was missing for months
 % because nothing checked this.
 for f = {'ieeglab_load','ieeglab_vis_elec','ieeglab_preprocess','pop_ieeglab_reref','ieeglab_stats_subject', ...
-         'ieeglab_plot_ccep_matrix','pop_ieeglab_topoplot','ieeglab_export'}
+         'pop_ieeglab_ccep_matrix','pop_ieeglab_topoplot','ieeglab_export','ieeglab_plot_heatmap'}
     if isempty(which(f{1}))
         warning('eegplugin_ieeglab:missingCallback', ...
             'iEEGLAB menu item calls %s, which is not on the path. That menu item will fail.', f{1});

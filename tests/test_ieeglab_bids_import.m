@@ -1,6 +1,7 @@
 function tests = test_ieeglab_bids_import
 % Loading after EEGLAB's BIDS import (EEG-BIDS), and the built-in GIfTI reader.
-% Headless. Uses the native-rate tutorial datasets in tutorial/seeg and tutorial/ecog.
+% Headless. Uses the native-rate tutorial extract in tutorial/seeg (a flat folder);
+% the tests that need a BIDS tree build one in a temporary folder (local_bids_tree).
 tests = functiontests(localfunctions);
 end
 
@@ -13,7 +14,7 @@ tc.TestData.root = root;
 end
 
 function test_gifti_reader_matches_mesh(tc)
-f = fullfile(tc.TestData.root, 'tutorial', 'seeg', 'derivatives', 'freesurfer', 'sub-02', 'pial.L.surf.gii');
+f = fullfile(tc.TestData.root, 'tutorial', 'seeg', 'pial.L.surf.gii');
 g = ieeglab_read_gifti(f);
 tc.verifySize(g.vertices, [155488 3]);
 tc.verifyEqual(size(g.faces, 2), 3);
@@ -47,9 +48,9 @@ function test_sidecars_found_from_derivatives_folder(tc)
 % the sidecars stay in <root>/sub-.../ieeg.
 tut = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(tut), 'Native-rate tutorial dataset not present.');
-src = tempname; mkdir(fullfile(src, 'sub-02', 'ses-ieeg01'));
+src = tempname; mkdir(fullfile(src, 'sub-02', 'ses-ieeg01', 'ieeg'));
 c = onCleanup(@() rmdir(src, 's'));
-copyfile(fullfile(tut, 'sub-02', 'ses-ieeg01', 'ieeg', '*.tsv'), fullfile(src, 'sub-02', 'ses-ieeg01', 'ieeg'));
+copyfile(fullfile(tut, '*.tsv'), fullfile(src, 'sub-02', 'ses-ieeg01', 'ieeg'));
 EEG = struct('filepath', fullfile(src, 'derivatives', 'eeglab', 'sub-02', 'ses-ieeg01', 'ieeg'), ...
              'filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set');
 mkdir(EEG.filepath);
@@ -69,10 +70,10 @@ function test_load_after_eeglab_bids_import(tc)
 tc.assumeNotEmpty(which('pop_importbids'), 'EEG-BIDS plugin not installed.');
 src = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(src), 'Native-rate tutorial dataset not present.');
-work = tempname; copyfile(src, work); c = onCleanup(@() rmdir(work, 's'));
+work = local_bids_tree(src, 'sub-02', 'ses-ieeg01'); c = onCleanup(@() rmdir(work, 's'));
 [~, ~, ALLEEG] = evalc(['pop_importbids(work, ''bidsevent'', ''on'', ''bidschanloc'', ''on'', ' ...
     '''eventtype'', ''electrical_stimulation_site'')']);
-d = dir(fullfile(src, 'sub-*', 'ses-*', 'ieeg', '*_ieeg.set'));
+d = dir(fullfile(src, '*_ieeg.set'));
 O = pop_loadset('filename', d.name, 'filepath', d.folder, 'verbose', 'off');
 [~, E] = evalc('ieeglab_load(ALLEEG(1), struct())');
 [tf, loc] = ismember({E.chanlocs.labels}, {O.chanlocs.labels});
@@ -90,13 +91,30 @@ function test_coordinates_inside_surfaces(tc)
 % same contacts shifted by 40 mm do not, which triggers the space warning.
 tut = fullfile(tc.TestData.root, 'tutorial', 'seeg');
 tc.assumeTrue(isfolder(tut), 'Native-rate tutorial dataset not present.');
-T = readtable(fullfile(tut, 'sub-02', 'ses-ieeg01', 'ieeg', 'sub-02_ses-ieeg01_electrodes.tsv'), ...
+T = readtable(fullfile(tut, 'sub-02_ses-ieeg01_electrodes.tsv'), ...
     'FileType', 'text', 'Delimiter', '\t', 'TreatAsEmpty', 'n/a');
 xyz = [T.x T.y T.z];
-d = fullfile(tut, 'derivatives', 'freesurfer', 'sub-02');
+d = tut;
 m = {ieeglab_read_gifti(fullfile(d, 'pial.L.surf.gii')), ieeglab_read_gifti(fullfile(d, 'pial.R.surf.gii'))};
 [ok, info] = ieeglab_check_coords(xyz, m);
 tc.verifyTrue(ok);
 tc.verifyEqual(info.n_outside, 0);
 tc.verifyWarning(@() ieeglab_check_coords(xyz + [0 0 60], m), 'ieeglab_check_coords:spaceMismatch');
+end
+
+function work = local_bids_tree(flatDir, sub, ses)
+% A BIDS dataset in a temporary folder, built from a flat tutorial folder:
+% <work>/<sub>/<ses>/ieeg/<the data file and its sidecars>, plus the two
+% dataset-level files EEGLAB's BIDS import reads.
+work = tempname;
+ieeg = fullfile(work, sub, ses, 'ieeg'); mkdir(ieeg);
+for ext = {'*.set', '*.tsv', '*.json'}
+    copyfile(fullfile(flatDir, ext{1}), ieeg);
+end
+fid = fopen(fullfile(work, 'dataset_description.json'), 'w');
+fprintf(fid, '{"Name": "iEEGLAB tutorial extract", "BIDSVersion": "1.9.0"}');
+fclose(fid);
+fid = fopen(fullfile(work, 'participants.tsv'), 'w');
+fprintf(fid, 'participant_id\n%s\n', sub);
+fclose(fid);
 end

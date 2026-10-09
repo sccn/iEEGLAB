@@ -46,7 +46,7 @@ switch lower(view_type)
         data = squeeze(trimmean(data, trim_prop*100, 3)); % chan × time
 
         % --- Main plot ---
-        figure('Color', 'w');
+        ieeglab_figure('Name','CCEP map');
         imagesc(timevec, 1:size(data,1), data);
         % colormap(gca, jet);
         colormap("parula")  % bone hot winter summer spring turbo
@@ -104,7 +104,7 @@ switch lower(view_type)
         chan_trials = squeeze(data(chan_idx,:,:))'; % trials × time
         chan_mean = trimmean(chan_trials, trim_prop*100, 1);
 
-        figure('Color', 'w'); hold on;
+        ieeglab_figure('Name','CCEP trials'); hold on;
         plot(timevec, chan_trials', 'Color', [0 0 0 0.3], 'LineWidth', 0.5);
         plot(timevec, chan_mean, 'Color', [0.8 0.1 0.1], 'LineWidth', 2);
         xline(0, '--k', 'LineWidth', 1);

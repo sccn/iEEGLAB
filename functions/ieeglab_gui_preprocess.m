@@ -24,11 +24,14 @@ choices.exclude_soz       = false;     % seizure-onset-zone contacts
 
 choices.apply_ds          = false;
 
-choices.apply_highpass    = true;
+% High-pass is off by default: a zero-phase filter can ring around the stimulation
+% artifact and around large responses, so the defaults are a power-line notch and
+% baseline subtraction only.
+choices.apply_highpass    = false;
 choices.highpass          = 0.1;        % Hz
 
 choices.apply_notch       = true;
-choices.notch             = 60;         % Hz (scalar or vector, e.g., [60 120])
+choices.notch             = local_powerline(EEG);   % Hz, from the BIDS ieeg.json (PowerLineFrequency), else 60
 
 choices.apply_lowpass     = false;
 choices.lowpass           = 40;         % Hz (empty -> none)
@@ -454,4 +457,29 @@ function local_set_enable(hFig, tag_list, is_on)
         h = findobj(hFig,'tag',tag_list{k});
         if ~isempty(h) && ishghandle(h), set(h,'enable',onoff); end
     end
+end
+
+function f = local_powerline(EEG)
+% Power-line frequency of the recording: PowerLineFrequency of the BIDS *_ieeg.json
+% (recorded by EEGLAB's BIDS import, or read from the file next to the data), else 60.
+f = 60;
+try
+    v = [];
+    if isfield(EEG,'BIDS') && isfield(EEG.BIDS,'tInfo') && isfield(EEG.BIDS.tInfo,'PowerLineFrequency')
+        v = EEG.BIDS.tInfo.PowerLineFrequency;
+    else
+        folders = {EEG.filepath};
+        if isfield(EEG,'BIDS') && isfield(EEG.BIDS,'sourcefile'), folders{end+1} = fileparts(char(EEG.BIDS.sourcefile)); end
+        for k = 1:numel(folders)
+            d = dir(fullfile(folders{k}, '*_ieeg.json'));
+            if isscalar(d)
+                j = jsondecode(fileread(fullfile(d.folder, d.name)));
+                if isfield(j,'PowerLineFrequency'), v = j.PowerLineFrequency; break; end
+            end
+        end
+    end
+    if ischar(v) || isstring(v), v = str2double(v); end
+    if isnumeric(v) && isscalar(v) && isfinite(v) && v > 0, f = double(v); end
+catch
+end
 end

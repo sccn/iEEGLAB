@@ -11,14 +11,14 @@
 clear; close all; clc
 eeglab; close
 plugin_path = fileparts(which('eegplugin_ieeglab'));
-filepath = fullfile(plugin_path, 'tutorial', 'seeg', 'sub-02', 'ses-mri01', 'anat');   % T1 MRI (input)
+filepath = fullfile(fileparts(plugin_path), '..', 'iEEGLAB_data', 'tutorial');   % folder with the T1 MRI (input; from OpenNeuro ds004696 derivatives/freesurfer/sub-02, not shipped with the plugin)
 addpath('/Users/cedriccannard/Documents/MATLAB/fieldtrip')
 
 % Fieldtrip defaults
 ft_defaults
 
 % Subject ID and output folder (FreeSurfer files are written here)
-subdir = fullfile(plugin_path, 'tutorial', 'seeg', 'derivatives', 'freesurfer', 'sub-02');
+subdir = fullfile(filepath, 'freesurfer', 'sub-02');   % output folder
 subid  = 'sub-02';
 cd(subdir)
 

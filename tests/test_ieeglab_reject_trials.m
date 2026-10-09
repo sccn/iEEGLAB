@@ -8,7 +8,7 @@ root = fileparts(fileparts(mfilename('fullpath')));
 tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
-d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
+d = fullfile(root, 'tutorial', 'seeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 opt = struct('apply_highpass',true,'highpass',0.5,'apply_notch',false,'apply_lowpass',false, ...
@@ -64,7 +64,7 @@ function test_preprocess_option_and_clinician_agreement(tc)
 % baseline correction, which shrinks this artifact below the threshold) - and
 % preprocess must remove exactly the flagged trials when reject_trials is on.
 root = fileparts(fileparts(mfilename('fullpath')));
-d = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
+d = fullfile(root, 'tutorial', 'seeg');
 EEG = pop_loadset('filename','sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set','filepath',d);
 [~, EEG] = evalc('ieeglab_load(EEG, struct())');
 ev = EEG.ieeglab.opt.events;

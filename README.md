@@ -39,8 +39,9 @@ Processing Toolbox is recommended.
 
 ## Tutorial
 
-The plugin ships two small BIDS datasets cut from public recordings at their
-native sampling rate (2048 Hz):
+The plugin ships two small extracts of public recordings at their native
+sampling rate (2048 Hz), each in one folder: the EEGLAB `.set` file next to its
+BIDS sidecar files (`electrodes.tsv`, `channels.tsv`, `events.tsv`).
 
 | Folder | Data | Source |
 |---|---|---|
@@ -48,52 +49,52 @@ native sampling rate (2048 Hz):
 | `tutorial/ecog` | ECoG, 20 contacts, 3 stimulation sites, 30 pulses | OpenNeuro [ds004080](https://openneuro.org/datasets/ds004080) sub-ccepAgeUMCU02 (van Blooijs et al., 2023) |
 
 The steps below are also in [`ieeglab_tutorial.m`](ieeglab_tutorial.m), which
-runs the whole analysis in about a minute, and in
-`iEEGLAB_GUI_walkthrough.html` (open it in a browser), which lists what each
-menu step should produce. The same steps work on the full
-recordings downloaded from OpenNeuro.
+runs the whole analysis in about a minute. To work from the full recordings as
+downloaded from OpenNeuro (BIDS import of the raw MEF3 or BrainVision files),
+follow `iEEGLAB_GUI_walkthrough.html` (open it in a browser): it goes through
+each menu step with the window you should see.
 
 ### Part A: sEEG
 
-**1. Import the dataset.** *File > Import data > From BIDS folder structure*,
-select `tutorial/seeg`, and choose
-`electrical_stimulation_site` as the event type.
+**1. Open the dataset.** *File > Load existing dataset*, and select the `.set`
+file in `tutorial/seeg`.
 
 ```matlab
 eeglab
-bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'seeg');
-[~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ALLEEG(1);
+tut = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'seeg');
+EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath', tut);
 ```
 
 **2. Coordinates, events and channel labels.** *iEEGLAB > Load electrode
-coordinates and events*. The event type is the stimulation site (e.g.
-`RA3-RA4`). Contacts marked bad in `channels.tsv` (RA15, RB14, RB15) are
+coordinates and events*. The sidecar files next to the dataset are found
+automatically. The event type is the stimulation site (e.g. `RA3-RA4`). Contacts marked bad in `channels.tsv` (RA15, RB14, RB15) are
 marked here and removed during preprocessing.
 
 ```matlab
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 ```
 
-**3. Electrodes on the brain.** *iEEGLAB > Visualize electrodes*, then select
-`pial.L.surf.gii` and `pial.R.surf.gii` in `derivatives/freesurfer/sub-02`.
+**3. Electrodes on the brain.** *iEEGLAB > Visualize electrodes*. The pial
+surfaces found next to the dataset (`pial.L.surf.gii`, `pial.R.surf.gii`) are
+offered; they are asked for once and then used by every brain figure
+(*Choose brain surfaces* changes them).
 
 ```matlab
-surf = fullfile(bids, 'derivatives', 'freesurfer', 'sub-02', {'pial.L.surf.gii', 'pial.R.surf.gii'});
+surf = fullfile(tut, {'pial.L.surf.gii', 'pial.R.surf.gii'});
 EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));
 ```
 
 > *Figure to come: electrodes on the pial surface.*
 
 **4. Preprocess.** *iEEGLAB > Preprocess iEEG data*. Blank the stimulation
-artifact before filtering, high-pass at 0.5 Hz, notch the 60 Hz line noise,
+artifact, notch the 60 Hz line noise (no high-pass by default: it can ring
+around the stimulation artifact),
 cut epochs from -1 to 1 s around each pulse, drop outlier trials and bad
 contacts, and subtract the baseline (-500 to -50 ms).
 
 ```matlab
 EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
-    'apply_highpass', true, 'highpass', 0.5, 'apply_notch', true, 'notch', [60 120 180], ...
+    'apply_notch', true, 'notch', [60 120 180], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));
 ```
@@ -153,12 +154,11 @@ fsaverage surface), the line noise is 50 Hz, and the CCEP measure is the N1
 counted as in erdetect (negative peaks only, baseline SD at least 50 uV).
 
 ```matlab
-bids = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
-[~, ALLEEG] = pop_importbids(bids, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ieeglab_load(ALLEEG(1), struct('event_field', 'electrical_stimulation_site'));
+tut = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
+EEG = pop_loadset('filename', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set', 'filepath', tut);
+EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
-    'apply_highpass', true, 'highpass', 0.5, 'apply_notch', true, 'notch', [50 100 150], ...
+    'apply_notch', true, 'notch', [50 100 150], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));
 EEG = pop_ieeglab_reref(EEG, 'method', 'car');

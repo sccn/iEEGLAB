@@ -11,8 +11,9 @@
 %                  2023): 20 contacts, 3 sites, 30 pulses, 2048 Hz, coordinates in
 %                  fsaverage
 %
-% Both are small BIDS datasets cut from the original recordings at their native
-% sampling rate (tutorial/make_tutorial_datasets.m). On sEEG the CCEP measure is
+% Both are small extracts of the original recordings at their native sampling
+% rate, one folder each: the .set file next to its BIDS sidecar files
+% (tutorial/make_tutorial_datasets.m). On sEEG the CCEP measure is
 % the Canonical Response Parameterization (CRP); N1 detection is used on ECoG.
 %
 % Set show_figures = false to run without figures (e.g. with matlab -batch).
@@ -32,36 +33,35 @@ outroot = fullfile(tempdir, 'ieeglab_tutorial_results');
 
 %% ===== Part A: sEEG =====================================================
 
-%% A2. Import the BIDS dataset
-% Menu: File > Import data > From BIDS folder structure. EEGLAB saves the
-% imported dataset under derivatives/eeglab of the BIDS folder.
-bids_seeg = fullfile(plugin_path, 'tutorial', 'seeg');
-[~, ALLEEG] = pop_importbids(bids_seeg, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ALLEEG(1);
+%% A2. Open the dataset
+% Menu: File > Load existing dataset, and select the .set file in tutorial/seeg.
+% (For a full recording downloaded from OpenNeuro, use File > Import data > From
+% BIDS folder structure instead: see iEEGLAB_GUI_walkthrough.html.)
+tut_seeg = fullfile(plugin_path, 'tutorial', 'seeg');
+EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath', tut_seeg);
 
 %% A3. Electrode coordinates, events and clinician channel labels
 % Menu: iEEGLAB > Load electrode coordinates and events.
-% Reads the BIDS electrodes, events and channels files of the dataset. The
+% Reads the electrodes, events and channels files next to the dataset. The
 % event type is the stimulation site (e.g. RA3-RA4). Contacts marked bad in
 % channels.tsv (here RA15, RB14, RB15) are marked, and removed in step A5.
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
 %% A4. Electrodes on the brain
-% Menu: iEEGLAB > Visualize electrodes (select pial.L and pial.R).
-surf_seeg = fullfile(bids_seeg, 'derivatives', 'freesurfer', 'sub-02', {'pial.L.surf.gii', 'pial.R.surf.gii'});
+% Menu: iEEGLAB > Visualize electrodes. The pial surfaces next to the dataset
+% are offered; they are asked for once and then used by every brain figure.
+surf_seeg = fullfile(tut_seeg, {'pial.L.surf.gii', 'pial.R.surf.gii'});
 if show_figures
     EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf_seeg}));
 end
 
 %% A5. Preprocess
 % Menu: iEEGLAB > Preprocess iEEG data.
-% Blank the stimulation artifact before filtering, high-pass, notch the line
+% Blank the stimulation artifact, notch the line
 % noise (60 Hz, United States), cut epochs around each pulse, drop outlier
 % trials and clinician-bad contacts, and remove the baseline.
 EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_blank',         true, ...
-    'apply_highpass',      true,  'highpass', 0.5, ...
     'apply_notch',         true,  'notch', [60 120 180], ...
     'apply_epoch',         true,  'epoch_window', [-1000 1000], ...
     'reject_trials',       true, ...
@@ -104,11 +104,10 @@ ieeglab_export(EEG, fullfile(outroot, 'seeg'));
 
 %% ===== Part B: ECoG =====================================================
 
-%% B2-B3. Import and load the sidecars
-bids_ecog = fullfile(plugin_path, 'tutorial', 'ecog');
-[~, ALLEEG] = pop_importbids(bids_ecog, 'bidsevent', 'on', 'bidschanloc', 'on', ...
-    'eventtype', 'electrical_stimulation_site');
-EEG = ieeglab_load(ALLEEG(1), struct('event_field', 'electrical_stimulation_site'));
+%% B2-B3. Open the dataset and load the sidecars
+tut_ecog = fullfile(plugin_path, 'tutorial', 'ecog');
+EEG = pop_loadset('filename', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set', 'filepath', tut_ecog);
+EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
 %% B4. Electrodes
 % Coordinates are in fsaverage space and no individual MRI is shared, so the
@@ -120,7 +119,6 @@ end
 %% B5. Preprocess (line noise at 50 Hz: recorded in the Netherlands)
 EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_blank',         true, ...
-    'apply_highpass',      true,  'highpass', 0.5, ...
     'apply_notch',         true,  'notch', [50 100 150], ...
     'apply_epoch',         true,  'epoch_window', [-1000 1000], ...
     'reject_trials',       true, ...

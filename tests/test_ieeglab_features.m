@@ -21,7 +21,7 @@ tc.assumeNotEmpty(which('eeglab'), 'EEGLAB is not on the MATLAB path.');
 if isempty(which('pop_loadset')), evalc('eeglab nogui'); end
 addpath(root); addpath(fullfile(root, 'functions'));
 set(0, 'DefaultFigureVisible', 'off');
-tc.TestData.seegDir = fullfile(root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
+tc.TestData.seegDir = fullfile(root, 'tutorial', 'seeg');
 tc.TestData.set = 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set';
 tc.TestData.tmp = tempname; mkdir(tc.TestData.tmp);
 
@@ -324,10 +324,84 @@ M = tc.TestData.E.ieeglab.ccep_matrix;
 [img, info] = ieeglab_plot_ccep_matrix(M, 'amplitude_uv', 'draw', false);
 tc.verifySize(img, size(M.response));
 tc.verifyTrue(all(isnan(img(M.response ~= 1))), 'Only significant cells are coloured by default.');
-tc.verifyTrue(all(img(M.response == 1) >= 0), 'Amplitude is shown as a magnitude.');
+tc.verifyEqual(img(M.response == 1), M.amplitude_uv(M.response == 1), 'Amplitude keeps its sign.');
 tc.verifyEmpty(findall(0,'Type','figure'));
 tc.verifyError(@() ieeglab_plot_ccep_matrix(M, 'nonsense', 'draw', false), 'ieeglab_plot_ccep_matrix:badMetric');
 tc.verifySubstring(info.title, sprintf('%d of %d', M.n_significant, M.n_tested));
+end
+
+function test_plot_matrix_every_metric(tc)
+% Every metric the menu offers computes, and the title names the method.
+M = tc.TestData.E.ieeglab.ccep_matrix;
+for m = intersect({'response','amplitude_uv','latency_ms','tR_ms','explained_var','p_adj'}, fieldnames(M))'
+    [img, info] = ieeglab_plot_ccep_matrix(M, m{1}, 'draw', false);
+    tc.verifySize(img, size(M.response), m{1});
+    tc.verifySubstring(info.title, char(string(M.source_opt.method)), m{1});
+end
+[~, Mc] = evalc('ieeglab_ccep_matrix(tc.TestData.E, struct(''source'',''crp'',''compute_missing'',false,''verbose'',false))');
+img = ieeglab_plot_ccep_matrix(Mc, 'explained_var', 'draw', false);
+v = img(isfinite(img));
+tc.verifyTrue(~isempty(v) && all(v >= 0 & v <= 1), 'Explained variance is a fraction.');
+end
+
+function test_heatmap_compute_only(tc)
+% Channels x time average over all epochs; a contact's own stimulation epochs
+% are left out, so stimulated contacts average fewer epochs.
+E = tc.TestData.E;
+[com, info] = ieeglab_plot_heatmap(E, 'draw', false);
+tc.verifySize(info.mean, [E.nbchan E.pnts]);
+tc.verifyEqual(info.times, double(E.times));
+[~, stimIdx] = ieeglab_epoch_sites(E);
+stim = unique([stimIdx{:}]);
+tc.verifyNotEmpty(stim);
+tc.verifyTrue(all(info.n_trials(stim) < E.trials));
+other = setdiff(1:E.nbchan, stim);
+tc.verifyEqual(info.n_trials(other), repmat(E.trials, 1, numel(other)));
+tc.verifySubstring(com, 'ieeglab_plot_heatmap(EEG');
+[~, info2] = ieeglab_plot_heatmap(E, 'draw', false, 'exclude_stim', false);
+tc.verifyEqual(info2.n_trials, repmat(E.trials, 1, E.nbchan));
+tc.verifyEmpty(findall(0,'Type','figure'));
+end
+
+function test_scalp_eeg_removed_by_default(tc)
+% Channels typed EEG next to SEEG channels are scalp electrodes: removed unless
+% scalp_eeg is 'keep', and the choice is in the history line.
+d = fullfile(tc.TestData.tmp, 'scalp'); copyfile(tc.TestData.seegDir, d);
+f = fullfile(d, 'sub-02_ses-ieeg01_task-ccep_run-01_channels.tsv');
+ct = readtable(f, 'FileType','text', 'Delimiter','\t', 'TextType','char');
+ct.type(end-1:end) = {'EEG'};
+writetable(ct, f, 'FileType','text', 'Delimiter','\t');
+EEG0 = pop_loadset('filename', tc.TestData.set, 'filepath', d);
+[~, EEG, com] = evalc('ieeglab_load(EEG0, struct())');
+tc.verifyEqual(EEG.nbchan, EEG0.nbchan - 2);
+tc.verifyFalse(any(ismember(ct.name(end-1:end), {EEG.chanlocs.labels})));
+tc.verifySubstring(com, 'scalp_eeg');
+[~, EEG] = evalc('ieeglab_load(EEG0, struct(''scalp_eeg'',''keep''))');
+tc.verifyEqual(EEG.nbchan, EEG0.nbchan);
+end
+
+function test_remembered_surfaces(tc)
+% Surfaces are recalled from the dataset, else for the same subject; files
+% that no longer exist are dropped. The user's preference is restored.
+old = [];
+if ispref('iEEGLAB', 'surf_files'), old = getpref('iEEGLAB', 'surf_files'); end
+c = onCleanup(@() local_restore_pref(old));
+f1 = [tempname '.gii']; fclose(fopen(f1, 'w')); c2 = onCleanup(@() delete(f1));
+E = struct('subject', 'sub-99', 'filename', 'x.set', 'ieeglab', struct('opt', struct()));
+ieeglab_remembered_surfaces(E, {f1, [tempname '.gii']});
+tc.verifyEqual(ieeglab_remembered_surfaces(E), {f1});
+E2 = E; E2.subject = '98';
+tc.verifyEmpty(ieeglab_remembered_surfaces(E2));
+E3 = E2; E3.ieeglab.opt.surf_files = {f1};
+tc.verifyEqual(ieeglab_remembered_surfaces(E3), {f1});
+end
+
+function local_restore_pref(old)
+if isempty(old)
+    if ispref('iEEGLAB', 'surf_files'), rmpref('iEEGLAB', 'surf_files'); end
+else
+    setpref('iEEGLAB', 'surf_files', old);
+end
 end
 
 % ======================= export =======================

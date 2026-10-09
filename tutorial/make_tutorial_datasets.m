@@ -4,18 +4,19 @@ function out = make_tutorial_datasets(outRoot, src)
 % Usage:
 %   make_tutorial_datasets(outRoot, src)
 %
-%   outRoot  folder that receives one small BIDS dataset per tutorial dataset
+%   outRoot  folder that receives one flat folder per tutorial dataset (seeg, ecog)
 %   src      struct of local OpenNeuro copies, fields (either may be omitted):
 %              .ds004696   root of ds004696 (sEEG, MEF3), e.g. the NEMAR download
 %              .ds004080   root of ds004080 (ECoG, BrainVision)
 %
-% Each output is a valid BIDS dataset with one subject and one run: the recording
-% at its native sampling rate, cut to a few contacts and a few stimulation sites,
-% saved as an EEGLAB .set file, next to the original sidecars restricted to what
-% was kept (channels, electrodes, events with onsets shifted to the new start,
-% ieeg.json with the new duration). Nothing is filtered, re-referenced or
-% resampled. The .set files carry no events and no coordinates on purpose: the
-% tutorial loads them from the BIDS sidecars.
+% Each output is one folder with no subfolders, holding one subject and one run:
+% the recording at its native sampling rate, cut to a few contacts and a few
+% stimulation sites, saved as an EEGLAB .set file, next to the original BIDS
+% sidecars (same file names) restricted to what was kept (channels, electrodes,
+% events with onsets shifted to the new start, ieeg.json with the new duration),
+% the pial surfaces when the source has them, and a README. Nothing is filtered,
+% re-referenced or resampled. The .set files carry no events and no coordinates
+% on purpose: the tutorial loads them from the sidecars (iEEGLAB > Load).
 %
 % The selection (contacts, sites, padding) is set in local_config below. Each .set
 % stays near 30 MB so the datasets can live in the GitHub repository (GitHub
@@ -83,7 +84,7 @@ ieegDir = fullfile(srcRoot, c.sub, c.ses, 'ieeg');
 stem    = sprintf('%s_%s_task-%s_%s', c.sub, c.ses, c.task, c.run);
 sesStem = sprintf('%s_%s', c.sub, c.ses);
 dstRoot = fullfile(outRoot, c.outdir);
-dstIeeg = fullfile(dstRoot, c.sub, c.ses, 'ieeg');
+dstIeeg = dstRoot;   % flat: everything in one folder
 if ~exist(dstIeeg, 'dir'), mkdir(dstIeeg); end
 info = jsondecode(fileread(fullfile(ieegDir, [stem '_ieeg.json'])));
 fs = info.SamplingFrequency;
@@ -171,30 +172,19 @@ for t = fieldnames(countField)'
 end
 local_json_write(fullfile(dstIeeg, [stem '_ieeg.json']), info);
 
-% ---- dataset level files
-dd = jsondecode(fileread(fullfile(srcRoot, 'dataset_description.json')));
-desc = struct('Name', c.name, 'BIDSVersion', '1.9.0', 'DatasetType', 'raw', 'License', 'CC0');
-if isfield(dd, 'Authors'), desc.Authors = dd.Authors; end
-desc.HowToAcknowledge = sprintf('Please cite the source dataset (%s) and its paper.', c.doi);
-desc.SourceDatasets = {struct('DOI', c.doi, 'URL', ['https://openneuro.org/datasets/' c.dataset])};
-desc.GeneratedBy = {struct('Name', 'iEEGLAB make_tutorial_datasets', 'CodeURL', 'https://github.com/sccn/iEEGLAB')};
-local_json_write(fullfile(dstRoot, 'dataset_description.json'), desc);
-[pH, pR] = local_tsv_read(fullfile(srcRoot, 'participants.tsv'));
-local_tsv_write(fullfile(dstRoot, 'participants.tsv'), pH, pR(strcmp(pR(:,1), c.sub), :));
+% ---- README: where the extract comes from
 nSite = arrayfun(@(k) nnz(strcmp(site(inWin), c.sites{k})), 1:numel(c.sites));
 readme = sprintf(['# %s\n\nExtract of OpenNeuro %s (%s), made by iEEGLAB''s tutorial/make_tutorial_datasets.m ' ...
     'for the iEEGLAB tutorial. Native sampling rate (%g Hz), not filtered, not re-referenced.\n\n' ...
     '- Recording: %s, samples %d to %d of the original (0-based), %.1f s\n' ...
     '- Contacts: %s (%d)\n- Stimulation sites: %s (%s pulses)\n\n' ...
     'Event onsets are shifted by -%.6f s relative to the original events.tsv. ' ...
-    'Cite the original dataset and paper when using these data.\n'], ...
+    'The source dataset is shared under CC0; cite it and its paper when using these data.\n'], ...
     c.name, c.dataset, c.doi, fs, stem, s0, s1 - 1, (s1 - s0) / fs, strjoin(names', ' '), numel(names), ...
     strjoin(c.sites, ', '), strjoin(arrayfun(@num2str, nSite, 'uni', 0), '/'), t0);
 local_text_write(fullfile(dstRoot, 'README.md'), readme);
 for s = c.surfaces
-    d = fullfile(dstRoot, fileparts(s{1}));
-    if ~exist(d, 'dir'), mkdir(d); end
-    copyfile(fullfile(srcRoot, s{1}), d);
+    copyfile(fullfile(srcRoot, s{1}), dstRoot);
 end
 
 setFile = dir(fullfile(dstIeeg, [stem '_ieeg.set']));

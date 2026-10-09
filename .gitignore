@@ -9,11 +9,10 @@ Thumbs.db
 *acpc.nii
 *tmp.nii
 **/freesurfer/
-!tutorial/seeg/derivatives/freesurfer/
 **/fsaverage
 
-# EEGLAB BIDS import output when running the tutorial
-tutorial/*/derivatives/eeglab/
+# Anything created inside the flat tutorial folders (import or analysis output)
+tutorial/*/*/
 
 # Local notes, papers and old scripts: kept locally, not distributed with the plugin
 .claude/

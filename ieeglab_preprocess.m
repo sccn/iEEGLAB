@@ -374,14 +374,14 @@ if local_opt(opt,'apply_car',false) && isfield(EEG,'trials') && EEG.trials > 1
     carOpt = opt;
     carOpt.bad_channels = [];
     if opt.plot
-        respBefore = local_response_trace(EEG);
+        [respBefore, respChan] = local_response_trace(EEG, []);
     end
 
     EEG = ieeglab_car(EEG, carOpt);
 
-    if opt.plot
-        respAfter = local_response_trace(EEG);
-        local_plot_car_comparison(EEG.times(:), respBefore, respAfter, EEG.ref);
+    if opt.plot && ~isempty(respChan)
+        respAfter = local_response_trace(EEG, respChan);
+        local_plot_car_comparison(EEG.times(:), respBefore, respAfter, EEG.ref, EEG.chanlocs(respChan).labels);
     end
 end
 
@@ -481,34 +481,38 @@ elseif ~isempty(removed) && height(T) == numel(removed)
 end
 end
 
-function resp = local_response_trace(EEG)
-% Mean response trace used for the before/after re-referencing figure. For CCEP
-% data we follow the channel named after the '-' in the event type; for other
-% designs we take a trimmed mean across channels. Trials whose target label does
-% not match any channel are left as NaN instead of raising a size error.
-nTr  = size(EEG.data, 3);
-resp = nan(numel(EEG.times), nTr);
-labels = {EEG.chanlocs.labels};
-for iTrial = 1:nTr
-    ty = '';
-    if isfield(EEG,'epoch') && numel(EEG.epoch) >= iTrial && isfield(EEG.epoch,'eventtype')
-        ty = EEG.epoch(iTrial).eventtype;
-        if iscell(ty) && ~isempty(ty), ty = ty{1}; end
-    end
-    if ischar(ty) && contains(ty, '-')
-        respIdx = find(strcmpi(labels, extractAfter(ty, '-')), 1);
-        if isempty(respIdx), continue; end          % label not in this montage
-        resp(:,iTrial) = squeeze(EEG.data(respIdx,:,iTrial));
-    else
-        resp(:,iTrial) = squeeze(trimmean(EEG.data(:,:,iTrial), 20, 1));
+function [resp, chan] = local_response_trace(EEG, chan)
+% One channel's epochs (time x trials) for the before/after re-referencing
+% figure. With chan empty, the channel is chosen: the good contact with the
+% largest average response 10-300 ms after the event. CCEP: epochs in which the
+% contact is itself stimulated are NaN (they hold the artifact), so a
+% stimulated contact is never the one shown. An average over channels is not
+% used: after a common average reference it is zero by construction.
+D = double(EEG.data);
+if strcmp(ieeglab_detect_mode(EEG), 'ccep')
+    [~, stimIdx] = ieeglab_epoch_sites(EEG);
+    for k = 1:size(D,3)
+        if ~isempty(stimIdx{k}), D(stimIdx{k}, :, k) = NaN; end
     end
 end
+if isempty(chan)
+    good = true(1, EEG.nbchan);
+    if isfield(EEG.chanlocs, 'status')
+        good = ~strcmpi(cellfun(@(s) char(string(s)), {EEG.chanlocs.status}, 'UniformOutput', false), 'bad');
+    end
+    w = EEG.times >= 10 & EEG.times <= 300;
+    score = max(abs(mean(D(:, w, :), 3, 'omitnan')), [], 2)';
+    score(~good | ~isfinite(score)) = -Inf;
+    [best, chan] = max(score);
+    if ~isfinite(best), chan = []; resp = []; return; end
+end
+resp = reshape(D(chan, :, :), size(D,2), []);
 end
 
-function local_plot_car_comparison(x, before, after, refName)
-mu = @(R) trimmean(R, 20, 2);
+function local_plot_car_comparison(x, before, after, refName, chanLabel)
+mu = @(R) mean(R, 2, 'omitnan');
 sem = @(R) std(R, 0, 2, 'omitmissing') ./ sqrt(max(sum(~isnan(R), 2), 1));
-figure('color','w'); hold on
+ieeglab_figure('Name','Re-referencing: before and after'); hold on
 ax = gca; co = ax.ColorOrder;
 band = @(m,s,c) fill([x; flipud(x)]', [m+s; flipud(m-s)]', c, 'FaceAlpha',0.2, 'EdgeColor', c);
 m1 = mu(before); m2 = mu(after);
@@ -518,8 +522,10 @@ band(m2, sem(after), co(2,:));
 h2 = plot(x, m2, 'LineWidth',2, 'Color', co(2,:), 'DisplayName', sprintf('After %s', refName));
 legend([h1 h2], 'Location','best'); box on
 xlabel('Time (ms)'); ylabel('Amplitude (\muV)');
+if x(1) < 0 && x(end) > 0, xline(0, 'k:'); end
 % Concatenated rather than sprintf'd: sprintf would warn on the TeX '\pm'.
-title(['Mean \pm 1 SEM (before vs after ' char(refName) ')']);
+title({['Channel ' strrep(char(chanLabel), '_', '\_') ': mean \pm 1 SEM over epochs, before vs after ' char(refName)], ...
+       'channel with the largest response 10-300 ms (own stimulation epochs excluded)'}, 'FontWeight', 'normal');
 end
 
 function v = local_opt(opt, name, default)

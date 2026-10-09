@@ -47,7 +47,8 @@ for i = 1:numel(f)
     if ~isfield(opt,f{i}) || isempty(opt.(f{i})), opt.(f{i}) = def.(f{i}); end
 end
 src = lower(char(string(opt.source)));
-n1Names  = {'n1_window','baseline','method','n_perm','threshold','alpha','correct','min_trials','exclude_stim','require_peak'};
+n1Names  = {'n1_window','baseline','method','n_perm','threshold','alpha','correct','min_trials','exclude_stim','require_peak', ...
+            'polarity','min_baseline_sd'};
 crpNames = {'crp_window','alpha','correct','min_trials','exclude_stim','n_perm'};
 
 switch src
@@ -61,6 +62,9 @@ switch src
                 error('ieeglab_ccep_matrix:noN1', 'No current N1 results on the dataset. Run ieeglab_detect_n1 first.');
             end
             requested.verbose = opt.verbose;
+            % Same N1 polarity as iEEGLAB > CCEP analysis (ieeglab_stats_subject), so
+            % both paths give the same matrix for the same data.
+            if ~isfield(requested, 'polarity'), requested.polarity = 'negative'; end
             EEG = ieeglab_detect_n1(EEG, requested);
         end
         T = EEG.ieeglab.n1.table; srcOpt = EEG.ieeglab.n1.opt;

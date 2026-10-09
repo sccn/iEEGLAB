@@ -19,6 +19,9 @@ function [EEG, com] = ieeglab_load(EEG, opt)
 %                    if present, else trial_type, else type.
 %   .event_to_keep   values of event_field to keep. Default: all.
 %   .chan_list       channel labels to keep. Default: all.
+%   .scalp_eeg       'remove' (default) or 'keep' scalp EEG channels recorded
+%                    with the iEEG (channels.tsv type EEG while other channels
+%                    are SEEG/ECOG/DBS). The dialog asks, with Remove as default.
 %   .drop_bad_events drop events whose BIDS 'status' is 'bad'. Default true.
 %
 % Provenance: every event placed from an events.tsv carries tsv_row, its row
@@ -180,6 +183,28 @@ if ~isempty(opt.channels_tsv) || ~isempty(elecs)
     opt.bad_labels  = cellstr(badT.label(badT.status == "bad"));
     opt.bad_reasons = cellstr(badT.reason(badT.status == "bad"));
 end
+
+% ---------- scalp EEG channels recorded with the iEEG: removed by default ----------
+removedNow = {};
+scalp = local_scalp_channels(EEG, opt.channels_tsv);
+if ~isempty(scalp)
+    if interactive
+        a = questdlg(sprintf(['%d scalp EEG channel(s) detected (channel type EEG): %s\n\n' ...
+            'Keep them? They usually have no intracranial coordinates and would enter the ' ...
+            'intracranial re-reference.'], numel(scalp), strjoin(scalp, ', ')), ...
+            'iEEGLAB: scalp EEG channels', 'Remove them', 'Keep them', 'Remove them');
+        if strcmp(a, 'Keep them'), opt.scalp_eeg = 'keep'; else, opt.scalp_eeg = 'remove'; end
+    elseif ~isfield(opt,'scalp_eeg') || isempty(opt.scalp_eeg)
+        opt.scalp_eeg = 'remove';
+    end
+    if strcmpi(opt.scalp_eeg, 'remove')
+        fprintf('Removing %d scalp EEG channel(s): %s\n', numel(scalp), strjoin(scalp, ', '));
+        EEG = pop_select(EEG, 'nochannel', scalp);
+        removedNow = scalp(:)';
+    else
+        fprintf('Keeping %d scalp EEG channel(s): %s\n', numel(scalp), strjoin(scalp, ', '));
+    end
+end
 opt.elec_labels = {EEG.chanlocs.labels};
 
 % ---------- channel and event selection ----------
@@ -230,20 +255,20 @@ if isfield(opt,'event_to_keep') && ~isempty(opt.event_to_keep) && isfield(EEG,'e
 end
 
 % ---------- keep only channels of interest ----------
-removedNow = {};
 if isfield(opt,'chan_list') && ~isempty(opt.chan_list)
     want = cellstr(string(opt.chan_list));
     allLabels = {EEG.chanlocs.labels};
-    unknown = setdiff(want, allLabels);
+    unknown = setdiff(want, [allLabels removedNow]);
     if ~isempty(unknown)
         warning('ieeglab_load:unknownChannels', 'Ignoring channel names not in the dataset: %s', strjoin(unknown, ', '));
     end
-    removedNow = setdiff(allLabels, want, 'stable');
-    if numel(removedNow) == numel(allLabels)
+    notSelected = setdiff(allLabels, want, 'stable');
+    if numel(notSelected) == numel(allLabels)
         error('ieeglab_load:noChannelsSelected', 'None of the requested channels are in the dataset.');
-    elseif ~isempty(removedNow)
-        fprintf('Removing %d/%d channels not selected: %s\n', numel(removedNow), numel(allLabels), strjoin(removedNow, ', '));
-        EEG = pop_select(EEG, 'nochannel', removedNow);
+    elseif ~isempty(notSelected)
+        fprintf('Removing %d/%d channels not selected: %s\n', numel(notSelected), numel(allLabels), strjoin(notSelected, ', '));
+        EEG = pop_select(EEG, 'nochannel', notSelected);
+        removedNow = [removedNow notSelected(:)'];
     end
 end
 if ~isfield(EEG,'ieeglab') || isempty(EEG.ieeglab), EEG.ieeglab = struct(); end
@@ -268,7 +293,7 @@ end
 % Options owned by the loader describe THIS call only; stale selections from a
 % previous load are not carried over (the dataset would contradict them).
 owned = {'elec_tsv','events_tsv','channels_tsv','event_field','event_to_keep','chan_list', ...
-         'drop_bad_events','events','events_from_tsv','bad_labels','bad_reasons','elec_labels'};
+         'drop_bad_events','events','events_from_tsv','bad_labels','bad_reasons','elec_labels','scalp_eeg'};
 base = struct();
 if isfield(EEG.ieeglab,'opt') && isstruct(EEG.ieeglab.opt)
     base = rmfield(EEG.ieeglab.opt, intersect(fieldnames(EEG.ieeglab.opt), owned));
@@ -282,10 +307,42 @@ applied = struct('elec_tsv', opt.elec_tsv, 'events_tsv', opt.events_tsv, 'channe
                  'event_field', opt.event_field, 'drop_bad_events', logical(opt.drop_bad_events));
 if isfield(opt,'event_to_keep') && ~isempty(opt.event_to_keep), applied.event_to_keep = cellstr(string(opt.event_to_keep)); end
 if isfield(opt,'chan_list') && ~isempty(opt.chan_list), applied.chan_list = cellstr(string(opt.chan_list)); end
-com = sprintf('EEG = ieeglab_load(EEG, %s);', ieeglab_literal(applied));
+if isfield(opt,'scalp_eeg') && ~isempty(opt.scalp_eeg), applied.scalp_eeg = char(opt.scalp_eeg); end
+com =sprintf('EEG = ieeglab_load(EEG, %s);', ieeglab_literal(applied));
 end
 
 % ======================= helpers =======================
+
+function scalp = local_scalp_channels(EEG, channelsTsv)
+% Labels of scalp EEG channels recorded along with the iEEG: channel type EEG
+% while other channels are intracranial (SEEG, ECOG, DBS). Types come from
+% channels.tsv, else from EEG.chanlocs.type. Labels alone are not used: sEEG
+% leads are also named C3, T3, etc.
+scalp = {};
+labels = {EEG.chanlocs.labels};
+types = repmat({''}, size(labels));
+if ~isempty(channelsTsv)
+    try
+        ct = readtable(channelsTsv, 'FileType','text', 'Delimiter','\t', 'TextType','char');
+        if all(ismember({'name','type'}, ct.Properties.VariableNames))
+            [tf, loc] = ismember(lower(labels), lower(strtrim(cellstr(ct.name))));
+            ty = cellstr(ct.type);
+            types(tf) = ty(loc(tf));
+        end
+    catch
+    end
+end
+if all(cellfun(@isempty, types)) && isfield(EEG.chanlocs, 'type')
+    for c = 1:numel(labels)
+        t = EEG.chanlocs(c).type;
+        if ~isempty(t), types{c} = char(t); end
+    end
+end
+types = upper(strtrim(types));
+if any(ismember(types, {'SEEG','ECOG','DBS','IEEG'}))
+    scalp = labels(strcmp(types, 'EEG'));
+end
+end
 
 function EEG = local_place_tsv_events(EEG, opt)
 col = opt.event_field;

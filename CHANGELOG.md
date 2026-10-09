@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased (2026-10-08)
+
+- **No high-pass filter by default.** The preprocessing dialog now proposes a
+  power-line notch and baseline subtraction only: a zero-phase high-pass can ring
+  around the stimulation artifact. The notch defaults to the recording's
+  `PowerLineFrequency` (BIDS `ieeg.json`), else 60 Hz.
+- **Brain surfaces are asked for once.** *Visualize electrodes* explains in the
+  command window and in its dialog what to select (the participant's pial
+  surfaces), offers the ones found in `derivatives/freesurfer/sub-<label>` or
+  next to the dataset, and remembers the choice for the dataset and the
+  participant. Every brain figure then uses them; *Choose brain surfaces*
+  changes them. *Plot electrode values on brain* falls back to a template glass
+  brain instead of drawing the contacts in empty space.
+- **Scalp EEG channels** recorded with the iEEG (channels.tsv type `EEG` next to
+  SEEG/ECOG channels) are detected at load and removed unless kept
+  (`scalp_eeg`, `'remove'` by default; the dialog asks).
+- **Plot average of all channels (heatmap)**: a new menu item
+  (`ieeglab_plot_heatmap`), channels by time, usable at any step once the data
+  are epoched; each contact's own stimulation epochs are left out.
+- **Connectivity matrix.** *Plot connectivity matrix* asks what to show
+  (responses, N1 amplitude or latency, CRP duration or explained variance). The
+  response view has a key (significant, tested without a response, not tested),
+  amplitude keeps its sign on a diverging scale, explained variance is on a
+  fixed 0 to 1 scale, and the title names the detection method. The CRP summary
+  figure gains an explained-variance panel.
+- **Fixes.** The before/after re-referencing figure showed a stimulated contact:
+  it now shows the contact with the largest response, own stimulation epochs
+  excluded, as mean and SEM. The matrix rebuilt by `ieeglab_ccep_matrix` used
+  another N1 polarity (`'abs'`) than *CCEP analysis* (`'negative'`). Figures
+  open in their own window without menu bar or toolbar (`ieeglab_figure`).
+- **Tutorial folders are flat.** `tutorial/seeg` and `tutorial/ecog` hold the
+  `.set` file, its sidecar files and (sEEG) the pial surfaces, with no
+  subfolders: open with *File > Load existing dataset*. The T1 MRI is no longer
+  shipped. `iEEGLAB_GUI_walkthrough.html` now starts from the recordings as
+  downloaded from OpenNeuro.
+
 ## Unreleased (2026-09-30)
 
 - **Menu follows the dataset state.** Check installation is the first iEEGLAB

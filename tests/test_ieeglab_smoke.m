@@ -34,8 +34,8 @@ end
 addpath(tc.TestData.root);
 addpath(fullfile(tc.TestData.root, 'functions'));
 
-tc.TestData.seegDir = fullfile(tc.TestData.root, 'tutorial', 'seeg', 'sub-02', 'ses-ieeg01', 'ieeg');
-tc.TestData.ecogDir = fullfile(tc.TestData.root, 'tutorial', 'ecog', 'sub-ccepAgeUMCU02', 'ses-1', 'ieeg');
+tc.TestData.seegDir = fullfile(tc.TestData.root, 'tutorial', 'seeg');
+tc.TestData.ecogDir = fullfile(tc.TestData.root, 'tutorial', 'ecog');
 set(0, 'DefaultFigureVisible', 'off');
 end
 

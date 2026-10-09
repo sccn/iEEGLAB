@@ -428,16 +428,42 @@ set([get1('exportDir') get1('lbl_exportDir') get1('browse')], 'enable', st(val('
 end
 
 function local_plot_crp(T, opt)
+% Left: response duration of the significant pairs. Right: explained variance,
+% significant vs not. Explained variance is far from 0 without any response
+% (about 0.45 on stimulation-free HAPwave epochs), so the non-significant pairs
+% are shown as its reference.
 sig = T(T.significant,:);
-figure('Color','w','Name','CRP summary','NumberTitle','off');
+ieeglab_figure('Name','CRP summary', 'Position', [100 100 900 360]);
+subplot(1,2,1);
 if isempty(sig)
     text(0.5,0.5,'No significant responses','HorizontalAlignment','center'); axis off
 else
     histogram(sig.tR_ms, max(8, round(sqrt(height(sig)))));
-    xlabel('Response duration \tau_R (ms)','FontWeight','bold');
+    if isfield(opt,'crp_window'), xlim(opt.crp_window); end
+    xlabel('\tau_R, response end (ms after stimulus)','FontWeight','bold');
     ylabel('Significant site-contact pairs','FontWeight','bold');
-    title(sprintf('CRP: %d significant of %d tested (%s, \\alpha=%g)', height(sig), height(T), opt.correct, opt.alpha));
     box on
+end
+title(sprintf('CRP: %d significant of %d tested (%s, \alpha=%g)', height(sig), height(T), opt.correct, opt.alpha), ...
+    'FontWeight','normal');
+subplot(1,2,2);
+if ismember('explained_var', T.Properties.VariableNames) && any(isfinite(T.explained_var))
+    edges = 0:0.05:1;
+    ns = T.explained_var(~T.significant & isfinite(T.explained_var));
+    hold on
+    if ~isempty(ns), histogram(ns, edges, 'FaceColor', [0.7 0.7 0.7], 'EdgeColor', 'none'); end
+    if ~isempty(sig), histogram(sig.explained_var(isfinite(sig.explained_var)), edges, 'FaceColor', [0.05 0.40 0.47]); end
+    lg = {};
+    if ~isempty(ns), lg{end+1} = sprintf('not significant (n=%d)', numel(ns)); end
+    if ~isempty(sig), lg{end+1} = sprintf('significant (n=%d)', height(sig)); end
+    legend(lg, 'Location', 'northwest', 'Box', 'off');
+    xlim([0 1]);
+    xlabel('Explained variance (fraction, per pair: mean over trials)','FontWeight','bold');
+    ylabel('Site-contact pairs','FontWeight','bold');
+    title('CRP explained variance', 'FontWeight','normal');
+    box on
+else
+    text(0.5,0.5,'No explained variance','HorizontalAlignment','center'); axis off
 end
 end
 
