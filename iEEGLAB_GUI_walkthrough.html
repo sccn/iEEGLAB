@@ -182,14 +182,17 @@ EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));</code></pre></details
 
     <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>. Method: CARLA; other fields as they are.
       <figure class="shot"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"><figcaption>The re-referencing window.</figcaption></figure>
-      <div class="expect"><b>Expect</b>For each site, the channels used as reference are printed.
+      <div class="expect"><b>Expect</b>For each site, the channels used as reference are printed (between 29 and 195 of the 198, depending on the site).
+      CARLA is slow on a whole recording: about 2 hours for the 57 sites here, a few minutes for a few sites. Common average
+      takes seconds.
       <span class="ref">CARLA: <a href="https://doi.org/10.1016/j.jneumeth.2024.110153">Huang et al., 2024, <i>J Neurosci Methods</i></a>. For each stimulation site it picks the channels whose common average carries no evoked response; the stimulated pair is always left out.</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; CCEP analysis (N1, CRP, connectivity)</span>. On sEEG, use CRP and build the connectivity
       matrix from it.
       <figure class="shot"><img src="tutorial/images/walkthrough/A7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"><figcaption>The CCEP analysis window.</figcaption></figure>
-      <div class="expect"><b>Expect</b>The number of tested pairs that respond is printed. A summary figure: when the responses end (left) and how much of each trial
+      <div class="expect"><b>Expect</b>About 4 minutes. "4345 of 11172 tested pairs respond" (57 sites by 198 contacts); the most
+      connected site is ROP1-ROP2 (174 contacts); median explained variance of the responding pairs 0.65. A summary figure: when the responses end (left) and how much of each trial
       the response shape explains, for significant and non-significant pairs (right).
       <span class="ref">CRP, Canonical Response Parameterization: <a href="https://doi.org/10.1371/journal.pcbi.1011105">Miller et al., 2023, <i>PLOS Comput Biol</i></a>. Response duration, shape and explained variance
       per site and contact; significance by permutation test.</span></div>
