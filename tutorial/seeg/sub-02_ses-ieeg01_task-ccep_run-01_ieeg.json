@@ -19,7 +19,7 @@
   "InstitutionAddress": "",
   "DeviceSerialNumber": "",
   "ECOGChannelCount": 0,
-  "SEEGChannelCount": 18,
+  "SEEGChannelCount": 17,
   "EEGChannelCount": 0,
   "EOGChannelCount": 0,
   "ECGChannelCount": 0,

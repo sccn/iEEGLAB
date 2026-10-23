@@ -5,7 +5,7 @@
 % the EEGLAB window, so the tutorial can be followed either way.
 %
 %   tutorial/seeg  sEEG, OpenNeuro ds004696 sub-02 (Ojeda Valencia et al., 2023):
-%                  18 contacts, 3 stimulation sites, 34 pulses, 2048 Hz, with the
+%                  17 contacts, 3 stimulation sites, 34 pulses, 2048 Hz, with the
 %                  pial surfaces
 %   tutorial/ecog  ECoG, OpenNeuro ds004080 sub-ccepAgeUMCU02 (van Blooijs et al.,
 %                  2023): 20 contacts, 3 sites, 30 pulses, 2048 Hz, coordinates in
@@ -16,7 +16,7 @@
 % (tutorial/make_tutorial_datasets.m). On sEEG the CCEP measure is
 % the Canonical Response Parameterization (CRP); N1 detection is used on ECoG.
 %
-% Set show_figures = false to run without figures (e.g. with matlab -batch).
+% Set show_figures = false to run without figures.
 %
 % Cedric Cannard, iEEGLAB, 2025-2026
 
@@ -58,13 +58,16 @@ end
 %% A5. Preprocess
 % Menu: iEEGLAB > Preprocess iEEG data.
 % Blank the stimulation artifact, notch the line
-% noise (60 Hz, United States), cut epochs around each pulse, drop outlier
-% trials and clinician-bad contacts, and remove the baseline.
+% noise (60 Hz and its harmonics, United States), cut epochs around each pulse,
+% drop sites with fewer than 5 pulses, outlier trials and clinician-bad contacts,
+% and remove the baseline.
 EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_blank',         true, ...
     'apply_notch',         true,  'notch', [60 120 180], ...
     'apply_epoch',         true,  'epoch_window', [-1000 1000], ...
     'reject_trials',       true, ...
+    'remove_rare_cond',    true,  'min_trials', 5, ...   % as the window's defaults
+    'remove_no_coords',    true, ...
     'remove_bad_channels', true, ...
     'apply_baseline',      true,  'baseline_period', [-500 -50], ...
     'plot', show_figures));
@@ -72,8 +75,9 @@ EEG = ieeglab_preprocess(EEG, struct( ...
 %% A6. Re-reference
 % Menu: iEEGLAB > iEEG re-referencing.
 % CARLA chooses, for each stimulation site, the channels whose common average
-% does not contain the evoked response (Huang et al., 2024). The stimulated pair
-% and the bad contacts are always left out. A plain common average and ICA
+% does not contain the evoked response (Huang et al., 2024). As its authors run
+% it on real data, the stimulated pair, 2 contacts on each side of it and the
+% bad contacts are left out, with the sensitive cutoff. A plain common average and ICA
 % re-referencing (Michelmann et al., 2018: components spread uniformly over the
 % contacts are removed) are kept for comparison.
 EEG_car = pop_ieeglab_reref(EEG, 'method', 'car');
@@ -82,8 +86,9 @@ EEG     = pop_ieeglab_reref(EEG, 'method', 'carla');
 
 %% A7. CCEP analysis: CRP and the connectivity matrix
 % Menu: iEEGLAB > CCEP analysis (N1, CRP, connectivity).
-% CRP gives, for every site x contact, the response duration (tau_R), its shape
-% and the variance it explains, with a permutation test (Miller et al., 2023).
+% CRP (Miller et al., 2023) gives, for every site x contact, the response
+% duration (tau_R), its shape and the variance it explains; iEEGLAB tests each
+% pair with a permutation test (the published t-test at tau_R is an option).
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, ...
     'run_matrix', true, 'matrix_source', 'crp', 'plot', show_figures));
 M = EEG.ieeglab.ccep_matrix;
@@ -110,10 +115,11 @@ EEG = pop_loadset('filename', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
 %% B4. Electrodes
-% Coordinates are in fsaverage space and no individual MRI is shared, so the
-% contacts are drawn on their own (or on an fsaverage surface, if you have one).
+% Coordinates are in fsaverage space and no individual MRI is shared:
+% ieeglab_brain_surfaces finds fsaverage's pial surfaces (FreeSurfer or MNE's
+% fsaverage); without them, the template brain is drawn.
 if show_figures
-    EEG = ieeglab_vis_elec(EEG, struct('surf_files', {{}}));
+    EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));
 end
 
 %% B5. Preprocess (line noise at 50 Hz: recorded in the Netherlands)
@@ -122,6 +128,8 @@ EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_notch',         true,  'notch', [50 100 150], ...
     'apply_epoch',         true,  'epoch_window', [-1000 1000], ...
     'reject_trials',       true, ...
+    'remove_rare_cond',    true,  'min_trials', 5, ...   % as the window's defaults
+    'remove_no_coords',    true, ...
     'remove_bad_channels', true, ...
     'apply_baseline',      true,  'baseline_period', [-500 -50], ...
     'plot', show_figures));
@@ -130,8 +138,9 @@ EEG = ieeglab_preprocess(EEG, struct( ...
 EEG = pop_ieeglab_reref(EEG, 'method', 'car');
 
 %% B7. CCEP analysis: N1 and the connectivity matrix
-% N1: amplitude and latency of the first negative deflection, 10-100 ms, with a
-% permutation test (van Blooijs et al., 2018).
+% N1 (van Blooijs et al., 2018): amplitude and latency of the largest negative
+% peak 10-100 ms after the pulse; iEEGLAB tests it with a permutation test (the
+% 3.4 SD rule of erdetect is an option).
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, ...
     'run_matrix', true, 'matrix_source', 'n1', 'plot', show_figures));
 M = EEG.ieeglab.ccep_matrix;

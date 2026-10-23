@@ -1,5 +1,108 @@
 # Changelog
 
+## Unreleased (2026-10-21 to 23)
+
+- *Plot average of all channels (heatmap)* now comes before *iEEG re-referencing*
+  in the iEEGLAB menu, in the order of the walkthrough.
+- **The brain drawn follows the space of the coordinates**
+  (`ieeglab_brain_surfaces`). From `coordsystem.json`: participant coordinates
+  (ACPC, ScanRAS, ...) are drawn on the participant's pial surfaces (next to the
+  data or in `derivatives/freesurfer/sub-<label>`, GIfTI or FreeSurfer);
+  fsaverage coordinates on fsaverage's own pial surfaces, MNI coordinates on them
+  as an approximation (fsaverage from FreeSurfer or MNE: `$SUBJECTS_DIR`,
+  `$FREESURFER_HOME/subjects`, `~/mne_data`). Without a matching brain the
+  window says why and what to do: a template is no longer offered as if it fit
+  participant coordinates. The contacts are checked against the surfaces chosen.
+  ds004696 sub-02: own pial, 0 of 211 contacts outside; ds004080 (no MRI shared):
+  fsaverage, 0 of 88, 0.0 mm. *Plot electrode values on brain* uses the same
+  choice when no surfaces were chosen. FreeSurfer surface files (`lh.pial`,
+  `rh.pial`) can now be read, besides GIfTI.
+- **Brain figures open from the front, slightly above**, showing both
+  hemispheres (they opened on the right side: left-hemisphere contacts were seen
+  through the brain, and a lead running from lateral to medial, as in the
+  tutorial sEEG, was seen end-on and looked like a single contact). Drag to
+  rotate. The figure title names the surface files in full.
+- The iEEGLAB menu sits right of *Help* on the EEGLAB menu bar (it was before it).
+- The average heatmap uses the parula colour map (was blue-white-red), with
+  limits symmetric around 0 uV.
+- **Import progress.** *Import raw recording* shows a progress window, and the
+  command window reports the time elapsed and an estimate of the time left:
+  every 16 channels of a MEF3 recording, every 2 minutes of recording (at most 10
+  steps) for BrainVision, EDF and BDF files, which are now read in blocks of time
+  (the same data as one read).
+- **Results repeat exactly.** The permutation tests (CRP and N1) and CARLA's
+  bootstrap draw from their own random stream with a fixed seed (options `seed`
+  and `car_seed`, default 0), so the same data give the same results every run;
+  MATLAB's global random state is not touched.
+- The preprocessing window proposes the power-line frequency and its first two
+  harmonics for the notch (60 120 180 Hz or 50 100 150 Hz), below Nyquist.
+- **CRP window 15-1000 ms by default** (was 15-500 ms), as in the published CRP
+  analyses: with 500 ms, about a quarter of the tutorial's pairs ended exactly at the
+  window end. A window longer than the epoch is cut at the epoch end with a
+  warning, and the analysis says how many significant pairs last until the end
+  of the window.
+- **Plot CRP of one site and contact** (`ieeglab_plot_crp`): a new menu item
+  that shows one pair as in Miller et al. (2023): the trials and their average
+  with the response window and its duration tau_R, the similarity of the trials
+  for each candidate duration, the response shape, and its weight and explained
+  variance in every trial. The dialog lists each site's contacts, responding
+  ones first.
+- **CARLA as its authors run it on real CCEP data** (applyCARLARealCCEPs.m):
+  sensitive cutoff on, and the 2 contacts on each side of the stimulated pair
+  (same lead) left out of the reference. Both were off by default. The
+  lowest-variance subset ('varsubset') now defaults to the HAPwave settings:
+  20% of the channels, ranked on 15-500 ms.
+- **CRP statistics closer to the published analyses.** The correction now runs
+  across all tested pairs of the dataset (it ran within each site), as in the
+  HAPwave figures. New options: Benjamini-Yekutieli FDR ('by', the published
+  correction) and `crp_test` 't-test at tau_R' (the published test, for
+  replication). The default test stays the permutation test, which accounts for
+  tau_R being chosen from the same data. The results table adds the median
+  coefficient of determination (`cod`) and the mean alpha prime
+  (`alpha_prime`), the values the HAPwave figures report.
+- **CRP on ECoG is off by default** in the CCEP analysis window (N1 is the ECoG
+  measure); it can still be ticked. The connectivity matrix passes the new CRP
+  options on, and its caption says when the t-test was used.
+- **Earlier CCEP history lines now correct across all pairs.** A replayed
+  `ieeglab_stats_subject` line from before this version uses the new default
+  `correct_scope` 'subject'; add `'correct_scope', 'site'` for the earlier result.
+- **N1 amplitude warning at 3000 uV**, where the lab's N1 code takes a peak for a
+  saturated recording (it was 1000 uV, reached by real responses next to the
+  stimulated pair). 'by' (Benjamini-Yekutieli) is also offered for N1.
+- **No more "remove the single-trial ERP baseline" warning** after epoching:
+  EEGLAB prints it after every epoching, and iEEGLAB removes the baseline itself.
+  Other messages of the epoching step are still shown.
+- **Re-referencing defaults belong to each method.** Settings remembered from an
+  earlier run apply only when it used the same method, so varsubset after CARLA
+  gets 15-500 ms and no neighbours; the history line always names the neighbours.
+- **CRP pair figure refuses stale results:** if trials or contacts changed after
+  the CCEP analysis, it asks to run the analysis again instead of mixing the two.
+  Contact names are matched in any case.
+- **Brain surfaces:** FreeSurfer surfaces are moved to scanner coordinates with
+  the cras of their volume information (as `mris_convert --to-scanner`), to match
+  BIDS electrode coordinates; the coordinate system is read from the
+  coordsystem.json paired with the electrodes file that was loaded; other BIDS
+  template spaces (Talairach, NIHPD, OASIS30, UNCInfant) get the template brain as
+  an approximation; a *Template brain* choice is remembered for both brain
+  figures; surfaces remembered for a participant label are offered again only
+  within the same dataset.
+- The notch frequency of the preprocessing window is taken from the recording's
+  own `ieeg.json` when the folder holds several runs (it fell back to 60 Hz).
+- **N1 polarity is negative by default** also when `ieeglab_detect_n1` is called
+  directly (it was 'abs' there and 'negative' from the CCEP analysis).
+- **Epochs -1000 to 1000 ms by default** in the preprocessing dialog (was -500 to
+  900 ms), so that the CRP window fits.
+- **Contacts whose average is not flat before the pulse are reported.** After
+  preprocessing, a contact whose average over epochs deflects before the
+  stimulation (3 times the median contact and 3 times what its noise predicts;
+  its own stimulation epochs left out) and that the clinicians did not mark bad
+  is listed in the command window and in `EEG.ieeglab.baseline_not_flat`. It is
+  kept: the channels.tsv labels stay the reference. CRP easily takes such a
+  slow, repeated signal for a long response. On the tutorial sEEG this is RA14
+  (51 uV against a median of 8 uV); on the full ds004696 sub-02 recording, none.
+- **Tutorial sEEG without RB13.** It was the only contact of its lead on the
+  brain and looked like an error; the extract now has 17 contacts.
+
 ## Unreleased (2026-10-09)
 
 - **Import raw recording** (`pop_ieeglab_import`, `ieeglab_import`): a new menu
@@ -182,9 +285,9 @@
   no `channels.tsv`; they now expect ROP3, ROP5 and ROP6 to be bad from load, and
   the matrix in-degree to be NaN for contacts never tested. Suite: 80 tests.
 
-## 1.1.0 — 2026-09
+## 1.1.0 (2026-09)
 
-### Scientific fixes — re-run any CCEP analysis made with 1.0
+### Scientific fixes: re-run any CCEP analysis made with 1.0
 
 - **Re-referencing was not CARLA and leaked the stimulation artifact.** The step
   labelled "aCAR" and cited as Huang et al. (2024) implemented the older fixed-
@@ -280,6 +383,6 @@
 #4 EEGLAB window not updated after preprocessing · #10 filter ringing ·
 #12 unclear dialog labels
 
-## 1.0.0 — 2025-12
+## 1.0.0 (2025-12)
 
 Initial release.
