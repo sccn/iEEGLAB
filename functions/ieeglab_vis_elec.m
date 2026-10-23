@@ -163,7 +163,8 @@ if ~isempty(surf_files)
     s.SizeData = 20;
     s.MarkerFaceColor = [.9 .5 .5];
     s.MarkerEdgeColor = [0 0 0];
-    ieeg_viewLight(180, 20)                        % from the front, slightly above: both hemispheres
+    [az, el] = ieeglab_brain_view(EEG, XYZ(show,:));   % sEEG: front, slightly above; ECoG: face-on
+    ieeg_viewLight(az, el)
 
     axis equal off
     shown = cellfun(@get_name_only, surf_files, 'UniformOutput', false);
@@ -182,7 +183,7 @@ else
     s.SizeData = 10; s.MarkerFaceColor = [.9 .5 .5]; s.MarkerEdgeColor = [0 0 0];
     try icadefs; set(gcf, 'color', BACKCOLOR); catch; end  % eeglab color
     axis equal off
-    view([180 20]);                                % from the front, slightly above
+    [az, el] = ieeglab_brain_view(EEG, E); view([az el]);   % sEEG: front, slightly above; ECoG: face-on
     [~, bi] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
     if bi.template_ok
         title({'Template brain (MNI): an approximation for these template coordinates', ...

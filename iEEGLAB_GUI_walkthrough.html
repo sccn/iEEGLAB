@@ -267,7 +267,9 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Visualize electrodes</span>: <i>Use these</i>. This dataset shares no MRI; its
       coordinates are on fsaverage, so fsaverage's pial surfaces are offered.
-      <div class="expect"><b>Expect</b>The grid and strip contacts on the fsaverage cortex, in the left hemisphere.</div>
+      <div class="expect"><b>Expect</b>The grid and strip contacts on the left frontal cortex of fsaverage, seen face-on.
+      The grid does not look regular: the dataset moved its contacts to fsaverage with a surface-based transformation that,
+      as its README says, distorts the grid but keeps the gyral anatomy.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB3_electrodes.png" alt="Electrodes on fsaverage" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>

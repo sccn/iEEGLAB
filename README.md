@@ -14,7 +14,7 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 
 | Step | Menu (iEEGLAB >) | Function |
 |---|---|---|
-| Read a raw recording of a BIDS dataset (MEF3, BrainVision, EDF, .set): brain channels only, optionally only some stimulation sites, in single precision | Import raw recording | `pop_ieeglab_import`, `ieeglab_import` |
+| Read a raw recording of a BIDS dataset (MEF3, BrainVision, EDF, .set): brain channels by default (ECG, EMG and other types on request, for example for BrainBeats), optionally only some stimulation sites, in single precision | Import raw recording | `pop_ieeglab_import`, `ieeglab_import` |
 | Or import a whole BIDS dataset with EEGLAB (every channel, double precision: fine for short recordings) | File > Import data > From BIDS folder structure | `pop_importbids` (EEG-BIDS) |
 | Electrode coordinates, events and clinician channel labels from the BIDS files | Load electrode coordinates and events | `ieeglab_load` |
 | Electrodes on the brain | Visualize electrodes | `ieeglab_vis_elec` |
@@ -93,6 +93,12 @@ surf = fullfile(tut, {'pial.L.surf.gii', 'pial.R.surf.gii'});
 EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));
 ```
 
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA3_electrodes.png" width="80%">
+  <br>
+  <em>The 14 contacts of the RA lead on sub-02's pial surfaces.</em>
+</p>
+
 **4. Preprocess.** *iEEGLAB > Preprocess iEEG data*: tick *Reject outlier
 trials* and keep the other defaults (the command below sets the same). They
 blank the stimulation artifact,
@@ -110,6 +116,19 @@ EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));
 ```
+
+*iEEGLAB > Plot average of all channels (heatmap)* shows the average of all
+epochs, one row per contact, at any step once the data are epoched:
+
+```matlab
+ieeglab_plot_heatmap(EEG);
+```
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA5_heatmap.png" width="80%">
+  <br>
+  <em>Flat before the pulse, responses after it; RA14 (bottom row) is not flat before the pulse.</em>
+</p>
 
 **5. Re-reference.** *iEEGLAB > iEEG re-referencing*. CARLA chooses, for each
 stimulation site, the channels whose common average carries no evoked
@@ -136,6 +155,12 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, ...
     'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA7_summary_1.png" width="80%">
+  <br>
+  <em>19 of 36 pairs respond: when the responses end (left) and how much of each trial the response shape explains (right).</em>
+</p>
+
 **7. Results.** *iEEGLAB > Plot CRP of one site and contact* shows one pair as
 in Miller et al. (2023): the trials, the response shape, its duration and how
 well it fits each trial (RA10 at RA3-RA4: 203 ms, 63% of each trial's variance
@@ -155,6 +180,24 @@ ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix);
 ieeglab_topoplot(EEG, 'in_degree', 'surf_files', surf);
 ieeglab_topoplot(EEG, 'crp_explained_var', 'site', 'RA3-RA4', 'surf_files', surf);
 ```
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA8_crp_pair.png" width="80%">
+  <br>
+  <em>CRP of RA10 for stimulation at RA3-RA4: the trials and their average up to the response duration (yellow), the trial-to-trial similarity, each trial with the fitted shape, and the fit per trial.</em>
+</p>
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA9_matrix_response.png" width="80%">
+  <br>
+  <em>Connectivity matrix: 3 stimulation sites (rows) by 14 contacts (columns).</em>
+</p>
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TA10_brain.png" width="80%">
+  <br>
+  <em>In-degree: how many of the 3 sites evoke a response at each contact.</em>
+</p>
 
 **8. Export.** *iEEGLAB > Export results*: TSV tables (BIDS derivatives
 style), a JSON record of every option used, and a MAT file.
@@ -190,6 +233,24 @@ ieeglab_plot_ccep_matrix(EEG.ieeglab.ccep_matrix, 'latency_ms');
 ieeglab_topoplot(EEG, 'n1_amplitude', 'site', 'FB54-FB62');
 ieeglab_export(EEG, 'results_ecog');
 ```
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TB3_electrodes.png" width="80%">
+  <br>
+  <em>The 20 ECoG contacts on fsaverage's pial surfaces. The grid looks irregular: the dataset moved its contacts to fsaverage with a surface-based transformation that distorts the grid but keeps the gyral anatomy.</em>
+</p>
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TB8_matrix_latency_ms.png" width="80%">
+  <br>
+  <em>N1 latency of the responding pairs (11 of 48), in ms after the pulse.</em>
+</p>
+
+<p align="center">
+  <img src="tutorial/images/walkthrough/TB9_brain.png" width="80%">
+  <br>
+  <em>N1 amplitude at each contact for stimulation of FB54-FB62.</em>
+</p>
 
 ## Tests
 

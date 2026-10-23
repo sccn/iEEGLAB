@@ -17,11 +17,13 @@
   fsaverage, 0 of 88, 0.0 mm. *Plot electrode values on brain* uses the same
   choice when no surfaces were chosen. FreeSurfer surface files (`lh.pial`,
   `rh.pial`) can now be read, besides GIfTI.
-- **Brain figures open from the front, slightly above**, showing both
-  hemispheres (they opened on the right side: left-hemisphere contacts were seen
-  through the brain, and a lead running from lateral to medial, as in the
-  tutorial sEEG, was seen end-on and looked like a single contact). Drag to
-  rotate. The figure title names the surface files in full.
+- **Brain figures open from a view that suits the electrodes:** sEEG from the
+  front, slightly above, showing both hemispheres (a lead running from lateral
+  to medial, as in the tutorial, was seen end-on from the side and looked like a
+  single contact); ECoG face-on, from outside the brain, along the normal of the
+  plane that best fits the contacts (they always opened on the right side, so
+  left-hemisphere grids were seen through the brain). Drag to rotate. The figure
+  title names the surface files in full.
 - The iEEGLAB menu sits right of *Help* on the EEGLAB menu bar (it was before it).
 - The average heatmap uses the parula colour map (was blue-white-red), with
   limits symmetric around 0 uV.
@@ -30,6 +32,9 @@
   every 16 channels of a MEF3 recording, every 2 minutes of recording (at most 10
   steps) for BrainVision, EDF and BDF files, which are now read in blocks of time
   (the same data as one read).
+- The import window says that ECG, EMG, EOG and other channel types can be read
+  too (for example for heart-brain analyses with BrainBeats): they stay in the
+  dataset, marked non-iEEG, and are left out of the CCEP analysis.
 - **Results repeat exactly.** The permutation tests (CRP and N1) and CARLA's
   bootstrap draw from their own random stream with a fixed seed (options `seed`
   and `car_seed`, default 0), so the same data give the same results every run;

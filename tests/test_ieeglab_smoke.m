@@ -377,6 +377,20 @@ tc.verifyNotEqual(S3.ieeglab.stats.table.p, S1.ieeglab.stats.table.p, 'Another s
 tc.verifyEqual(rng, g0, 'The global random state must not change.');
 end
 
+function test_brain_view_by_electrode_type(tc)
+% sEEG: from the front, slightly above; ECoG: face-on, from outside the brain
+[gy, gz] = meshgrid(-30:10:30, 0:10:30);                   % a flat grid on the left lateral surface
+xyz = [-60 * ones(numel(gy), 1), gy(:), gz(:)];
+E = struct('chanlocs', struct('labels', compose('C%d', 1:size(xyz, 1)), 'type', 'SEEG'));
+[az, el] = ieeglab_brain_view(E, xyz); tc.verifyEqual([az el], [180 20]);
+[E.chanlocs.type] = deal('ECOG');
+[az, el] = ieeglab_brain_view(E, xyz); tc.verifyEqual([az el], [-90 0], 'AbsTol', 1e-6);
+[az, el] = ieeglab_brain_view(E, xyz .* [-1 1 1]); tc.verifyEqual([az el], [90 0], 'AbsTol', 1e-6);
+R = [cosd(45) sind(45) 0; -sind(45) cosd(45) 0; 0 0 1];   % turned towards the front-left
+[az, ~] = ieeglab_brain_view(E, ([0 40 0] + xyz) * R');
+tc.verifyEqual(az, -135, 'AbsTol', 1e-6);
+end
+
 function test_unflat_baseline_reported(tc)
 % RA14 of the tutorial carries a slow deflection in every epoch (average 51 uV
 % before the pulse, median contact 8 uV) without being noisy trial by trial.

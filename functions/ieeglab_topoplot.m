@@ -198,7 +198,8 @@ end
 caxis(info.clim); %#ok<CAXIS> works before R2022a
 cb = colorbar; ylabel(cb, desc);
 axis equal off
-if exist('ieeg_viewLight','file'), ieeg_viewLight(180, 20); else, view(180, 20); end   % front, slightly above
+[az, el] = ieeglab_brain_view(EEG, xyz(hasXYZ,:));   % sEEG: front, slightly above; ECoG: face-on
+if exist('ieeg_viewLight','file'), ieeg_viewLight(az, el); else, view(az, el); end
 title(info.title, 'Interpreter','tex', 'FontWeight','normal');
 ieeglab_rotate3d(gcf);
 end
