@@ -355,7 +355,21 @@ if local_opt(opt,'apply_epoch',false) && isfield(opt,'epoch_window') && ~continu
             warning('ieeglab_preprocess:noEventTypes', 'No event types found to epoch around; skipping.');
         else
             fprintf('Epoching around %d event types, window [%g %g] ms\n', numel(evtTypes), t_ms(1), t_ms(2));
-            EEG = pop_epoch(EEG, evtTypes, t_ms/1000, 'epochinfo','yes', 'newname','iEEGLAB epochs');
+            % pop_epoch always ends with a warning to remove the baseline in the EEGLAB
+            % menu; iEEGLAB removes it itself (below). Its output is captured and shown
+            % again without that one warning (and its "In ..." lines).
+            txt = evalc('EEG = pop_epoch(EEG, evtTypes, t_ms/1000, ''epochinfo'',''yes'', ''newname'',''iEEGLAB epochs'');');
+            lines = regexp(txt, '\r?\n', 'split');
+            keep = true(size(lines));
+            for k = find(contains(lines, 'single-trial ERP baseline'))
+                keep(k) = false;
+                j = k + 1;
+                while j <= numel(lines) && ~isempty(regexp(lines{j}, '^\s*\[?>\s*In\b', 'once'))
+                    keep(j) = false; j = j + 1;
+                end
+            end
+            out = strjoin(lines(keep), newline);
+            if ~isempty(strtrim(out)), fprintf('%s\n', strtrim(out)); end
             EEG = eeg_checkset(EEG);
         end
     end
@@ -391,6 +405,13 @@ if local_opt(opt,'apply_baseline',false)
     EEG = ieeglab_rm_baseline(EEG);
 end
 
+% Contacts whose average is not flat before the pulse (drift or a slow artifact
+% locked to the stimulation) that nobody marked bad: reported, not removed (the
+% clinician labels stay the source of truth).
+if isfield(EEG,'trials') && EEG.trials > 1
+    EEG = local_report_unflat(EEG, local_opt(opt,'baseline_period',[-500 -50]), opt.verbose);
+end
+
 % Persist the options (never the plot switch) and return a replayable history line.
 EEG.ieeglab.opt = local_persist(opt);
 if isfield(EEG.ieeglab.opt,'event_filters') && EEG.trials > 1
@@ -404,6 +425,51 @@ com = sprintf('EEG = ieeglab_preprocess(EEG, %s);', ieeglab_literal(replay));
 end
 
 % ========================== local helpers ==========================
+
+function EEG = local_report_unflat(EEG, win, verbose)
+% Per contact, the RMS of the average over epochs in the pre-stimulus window
+% (each epoch's own mean removed, each contact's own stimulation epochs left
+% out). Before the pulse the average should be flat; a contact is reported when
+% its average deflection is both 3 times the median contact's and 3 times what
+% its single-trial noise predicts for that many epochs (RMS / sqrt(n)), i.e. a
+% slow signal repeated in every epoch, such as drift locked to the stimulation.
+% Such a contact is easily taken for a long response by CRP. Per-trial noise is
+% not used: it does not single out RA14 of the tutorial sEEG (34 uV, typical),
+% whose average is 51 uV against a median of 8 uV. On the full ds004696 sub-02
+% recording no contact is reported.
+EEG.ieeglab.baseline_not_flat = table();
+pick = EEG.times >= win(1) & EEG.times <= min(win(2), 0);
+if nnz(pick) < 10 || EEG.nbchan < 5, return; end
+X = double(EEG.data(:, pick, :));
+X = X - mean(X, 2, 'omitnan');
+if strcmp(ieeglab_detect_mode(EEG), 'ccep')
+    [~, stimIdx] = ieeglab_epoch_sites(EEG);
+    for k = 1:EEG.trials
+        if ~isempty(stimIdx{k}), X(stimIdx{k}, :, k) = NaN; end
+    end
+end
+n = sum(all(isfinite(X), 2), 3);
+single = median(sqrt(mean(X.^2, 2)), 3, 'omitnan');
+avg = sqrt(mean(mean(X, 3, 'omitnan').^2, 2));
+good = true(EEG.nbchan, 1);
+if isfield(EEG.chanlocs,'status')
+    good = ~cellfun(@(s) ~isempty(s) && strcmpi(char(s),'bad'), {EEG.chanlocs.status})';
+end
+ok = good & n >= 2 & isfinite(avg);
+if nnz(ok) < 5, return; end
+rel = avg / median(avg(ok));
+ratio = avg ./ (single ./ sqrt(max(n, 1)));
+flag = ok & rel > 3 & ratio > 3;
+labels = {EEG.chanlocs.labels};
+EEG.ieeglab.baseline_not_flat = table(labels(flag)', avg(flag), rel(flag), ...
+    'VariableNames', {'label','prestim_average_rms_uV','times_median_contact'});
+if verbose && any(flag)
+    fprintf(['[bad channels] Average not flat before the stimulation (drift or slow artifact in ' ...
+             'every epoch): %s; median contact %.1f uV. Not marked bad in channels.tsv, so kept. ' ...
+             'Check it in the heatmap; to remove it, list it in bad_channels or use Edit > Select data.\n'], ...
+        strjoin(compose('%s (%.0f uV)', string(labels(flag))', avg(flag)), ', '), median(avg(ok)));
+end
+end
 
 function o = local_aliases(o)
 % Pre-1.0 names -> current names. A current name, when present, wins.

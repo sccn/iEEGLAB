@@ -28,7 +28,12 @@ function [EEG, com] = ieeglab_import(file, varargin)
 %   'info'        true returns a description of the file instead of the data:
 %                 .labels, .types, .srate, .pnts, .sites, .site_counts,
 %                 .channels_tsv, .events_tsv.
-%   'verbose'     default true.
+%   'verbose'     default true. Reports progress in the command window, with the
+%                 time elapsed and an estimate of the time left: every 16 channels
+%                 for MEF3, every 2 minutes of recording (at most 10 steps) for
+%                 BrainVision, EDF and BDF.
+%   'waitbar'     also show a progress window. Default false (true from the
+%                 iEEGLAB > Import raw recording menu).
 %
 % Why not File > Import data > From BIDS folder structure: EEGLAB reads the
 % whole recording, every channel, as double precision, then saves a copy. A
@@ -53,6 +58,7 @@ p.addParameter('time_range', []);
 p.addParameter('pad', [3 3]);
 p.addParameter('info', false);
 p.addParameter('verbose', true);
+p.addParameter('waitbar', false);
 p.parse(varargin{:});
 o = p.Results;
 com = '';
@@ -184,6 +190,12 @@ end
 t0 = tic;
 data = zeros(numel(keep), n, 'single');
 event = [];
+wb = [];
+if o.waitbar
+    wb = waitbar(0, sprintf('Reading %d channels of %s...', numel(keep), [name ext]), 'Name', 'iEEGLAB: import');
+    set(findall(wb, 'Type', 'text'), 'Interpreter', 'none');
+end
+closeWb = onCleanup(@() local_close(wb));
 switch ext
     case '.mefd'
         step = 16;                             % channels per read: bounds the double-precision buffer
@@ -194,15 +206,41 @@ switch ext
                 error('ieeglab_import:short', 'Read %d samples, expected %d.', size(X, 2), n);
             end
             data(idx, :) = single(X);
-            if o.verbose, fprintf('[import] %d/%d channels read (%.0f s)\n', idx(end), numel(keep), toc(t0)); end
+            el = toc(t0); left = el / idx(end) * (numel(keep) - idx(end));
+            msg = sprintf('%d of %d channels read, %s elapsed, about %s left', ...
+                idx(end), numel(keep), local_mmss(el), local_mmss(left));
+            if o.verbose, fprintf('[import] %s\n', msg); end
+            if ~isempty(wb) && isgraphics(wb), waitbar(idx(end) / numel(keep), wb, msg); end
         end
         clear X
-    case '.vhdr'
-        [~, E] = evalc('pop_loadbv(folder, [name ext], [s0+1 s1], order(keep))');
-        data(:) = single(E.data); event = E.event; clear E
-    case {'.edf', '.bdf'}
-        [~, E] = evalc('pop_biosig(file, ''channels'', order(keep), ''blockrange'', [s0 s1] / srate)');
-        data(:) = single(E.data(:, 1:n)); event = E.event; clear E
+    case {'.vhdr', '.edf', '.bdf'}
+        % Read in blocks of time (about 2 minutes each, at most 10) so that the
+        % progress can be reported; the markers of each block are shifted back.
+        nb = max(1, min(10, ceil(n / (120 * srate))));
+        edges = round(linspace(0, n, nb + 1));
+        for b = 1:nb
+            a0 = s0 + edges(b); a1 = s0 + edges(b+1); m = a1 - a0;
+            if strcmp(ext, '.vhdr')
+                [~, E] = evalc('pop_loadbv(folder, [name ext], [a0+1 a1], order(keep))');
+            else
+                [~, E] = evalc('pop_biosig(file, ''channels'', order(keep), ''blockrange'', [a0 a1] / srate)');
+            end
+            if size(E.data, 2) < m
+                error('ieeglab_import:short', 'Read %d samples of block %d, expected %d.', size(E.data, 2), b, m);
+            end
+            data(:, edges(b)+1:edges(b+1)) = single(E.data(:, 1:m));
+            if ~isempty(E.event)
+                ev = E.event;
+                for i = 1:numel(ev), ev(i).latency = ev(i).latency + edges(b); end
+                if isempty(event), event = ev; else, event = [event(:)' ev(:)']; end %#ok<AGROW>
+            end
+            clear E
+            el = toc(t0); left = el / edges(b+1) * (n - edges(b+1));
+            msg = sprintf('%.0f%% read (%.1f of %.1f minutes), %s elapsed, about %s left', ...
+                100 * edges(b+1) / n, edges(b+1) / srate / 60, n / srate / 60, local_mmss(el), local_mmss(left));
+            if o.verbose, fprintf('[import] %s\n', msg); end
+            if ~isempty(wb) && isgraphics(wb), waitbar(edges(b+1) / n, wb, msg); end
+        end
     case '.set'
         E = pop_loadset('filename', [name ext], 'filepath', folder, 'verbose', 'off');
         data(:) = single(E.data(order(keep), s0+1:s1)); clear E
@@ -253,6 +291,16 @@ elseif iscell(x) || isstring(x)
 else
     s = mat2str(x);
 end
+end
+
+function s = local_mmss(t)
+% seconds as m:ss
+t = max(0, round(t));
+s = sprintf('%d:%02d', floor(t / 60), mod(t, 60));
+end
+
+function local_close(wb)
+if ~isempty(wb) && isgraphics(wb), delete(wb); end
 end
 
 function local_need(fcn, plugin)

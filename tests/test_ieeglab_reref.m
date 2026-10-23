@@ -48,6 +48,21 @@ tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'varsubset', 'fraction', 2), '
 tc.verifyError(@() pop_ieeglab_reref(B, 'window', [10 300]), 'pop_ieeglab_reref:unknownOption');
 end
 
+function test_method_defaults_not_inherited(tc)
+% Each method's published defaults: values remembered from a run with another
+% method (CARLA: 10-300 ms, 2 neighbours) must not carry over to varsubset, and
+% the history line replays the neighbours whatever the method.
+b = tc.TestData.pre; b.apply_car = false;
+[~, B] = evalc('ieeglab_preprocess(tc.TestData.EEG, b)');
+[~, R1, com1] = evalc('pop_ieeglab_reref(B, ''method'', ''carla'')');
+tc.verifyEqual(R1.ieeglab.car.neighbors, 2);
+tc.verifyTrue(contains(com1, '''neighbors'', 2'));
+[~, R2, com2] = evalc('pop_ieeglab_reref(R1, ''method'', ''varsubset'')');
+tc.verifyEqual(R2.ieeglab.car.neighbors, 0);
+tc.verifyEqual(R2.ieeglab.car.timewin_ms, [15 500]);
+tc.verifyTrue(contains(com2, '''neighbors'', 0') && contains(com2, '[15 500]'));
+end
+
 function test_neighbors_left_out(tc)
 % 'neighbors', n keeps the contacts within n of the stimulated pair (same lead)
 % out of every site's reference, as the CARLA publication scripts do.

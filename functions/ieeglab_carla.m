@@ -31,6 +31,8 @@ function [Vout, CAR, stats] = ieeglab_carla(tt, V, srate, opts)
 %   opts  - (optional) struct:
 %      .winResp    [1x2] response window in s for ranking/correlation. Default [0.01 0.3]
 %      .nboot      integer, bootstrap samples. Default 100. Ignored if k == 1.
+%      .stream     RandStream for the bootstrap draws (ieeglab_car passes one with a
+%                  fixed seed, so results repeat). Default []: MATLAB's global stream.
 %      .sens       logical, use the more sensitive cutoff (before the first
 %                  significant decrease in zMinMean) instead of the global
 %                  maximum. Default false.
@@ -64,7 +66,7 @@ function [Vout, CAR, stats] = ieeglab_carla(tt, V, srate, opts)
 
 % ---------------- options ----------------
 if nargin < 4, opts = struct(); end
-def = struct('winResp',[0.01 0.3], 'nboot',100, 'sens',false, ...
+def = struct('winResp',[0.01 0.3], 'nboot',100, 'sens',false, 'stream',[], ...
              'notchFirst',true, 'lineFreq',60, 'minCARsize',2, 'verbose',true);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
@@ -206,7 +208,8 @@ for ii = max(2, opts.minCARsize) : nPool
     end
 
     for jj = 1:opts.nboot
-        inds = randi(nTrs, 1, nTrs);          % bootstrap resample of trials
+        if isempty(opts.stream), inds = randi(nTrs, 1, nTrs);      % bootstrap resample of trials
+        else, inds = randi(opts.stream, nTrs, 1, nTrs); end
         Useg      = mean(Vseg(sub,:,inds), 3)';
         UsegReref = mean(VsegReref(sub,:,inds), 3)';
         r = corr(Useg, UsegReref);

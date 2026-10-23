@@ -167,15 +167,227 @@ function test_stim_contact_never_in_own_reference(tc)
 % subtracted into every channel.
 EEG = loadSeeg(tc, true);
 E = ieeglab_preprocess(EEG, defaultOpt());
-[~, out] = ieeglab_car(E, struct('car_method','carla','car_nboot',20,'verbose',false));
+[~, out] = ieeglab_car(E, struct('car_method','carla','car_nboot',20,'car_neighbors',0,'verbose',false));
 
 tc.verifyNotEmpty(out, 'No stimulation-site groups were formed.');
 for g = 1:numel(out)
     tc.verifyEmpty(intersect(out(g).excluded_channels, out(g).car_channels), ...
         sprintf('Site %s: a stimulated contact is inside its own CAR reference set.', out(g).group));
     tc.verifyNumElements(out(g).excluded_channels, 2, ...
-        sprintf('Site %s should exclude exactly the stimulated pair.', out(g).group));
+        sprintf('Site %s should exclude exactly the stimulated pair with neighbors = 0.', out(g).group));
 end
+% Default, as the CARLA authors on real data: also 2 contacts on each side, same lead
+[~, out] = ieeglab_car(E, struct('car_method','carla','car_nboot',20,'verbose',false));
+labels = {E.chanlocs.labels};
+for g = 1:numel(out)
+    tok = regexp(out(g).group, '^RA(\d+)-RA(\d+)$', 'tokens', 'once');
+    n = str2double(tok);
+    want = labels(ismember(labels, compose('RA%d', max(1, min(n) - 2):max(n) + 2)));
+    tc.verifyEqual(sort(labels(out(g).excluded_channels)), sort(want), ...
+        sprintf('Site %s: default CARLA must leave out the pair and 2 contacts on each side.', out(g).group));
+    tc.verifyEmpty(intersect(out(g).excluded_channels, out(g).car_channels));
+end
+end
+
+function test_freesurfer_surface_read(tc)
+% A FreeSurfer triangle file (lh.pial) is read like a GIfTI.
+d = tempname; mkdir(d); c = onCleanup(@() rmdir(d, 's'));
+[V, F] = local_tetra();
+local_write_fs(fullfile(d, 'lh.pial'), V, F);
+g = ieeglab_read_gifti(fullfile(d, 'lh.pial'));
+tc.verifyEqual(g.vertices, V);
+tc.verifyEqual(g.faces, F + 1);
+end
+
+function test_brain_matches_coordinate_space(tc)
+% Which brain is drawn, by the space in coordsystem.json: the participant's own
+% pial surfaces, fsaverage for fsaverage / MNI coordinates, none otherwise.
+d = tempname; mkdir(d); c = onCleanup(@() rmdir(d, 's'));
+[V, F] = local_tetra();
+fsdir = fullfile(d, 'fs', 'fsaverage', 'surf'); mkdir(fsdir);
+local_write_fs(fullfile(fsdir, 'lh.pial'), V, F); local_write_fs(fullfile(fsdir, 'rh.pial'), V, F);
+ieeg = fullfile(d, 'ds', 'sub-01', 'ses-1', 'ieeg'); mkdir(ieeg);
+EEG = struct('filepath', ieeg, 'subject', 'sub-01', ...
+    'chanlocs', struct('labels', {'A1', 'A2'}, 'X', {2, 1}, 'Y', {2, 3}, 'Z', {2, 2}));
+env = {'SUBJECTS_DIR', 'FREESURFER_HOME', 'USERPROFILE', 'HOME'};
+old = cellfun(@getenv, env, 'UniformOutput', false);
+r = onCleanup(@() cellfun(@setenv, env, old));
+setenv('SUBJECTS_DIR', fullfile(d, 'fs')); setenv('FREESURFER_HOME', ''); setenv('USERPROFILE', d); setenv('HOME', d);
+fsFiles = fullfile(fsdir, {'lh.pial', 'rh.pial'});
+
+local_coordsystem(ieeg, 'fsaverage');
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEqual(f, fsFiles); tc.verifyEqual(info.kind, 'fsaverage'); tc.verifyTrue(info.fit_ok);
+
+local_coordsystem(ieeg, 'MNI152NLin2009cAsym');
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEqual(f, fsFiles); tc.verifyEqual(info.kind, 'fsaverage_approx'); tc.verifyTrue(info.template_ok);
+
+local_coordsystem(ieeg, 'ACPC');
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEmpty(f, 'Participant coordinates must not be drawn on a template.');
+tc.verifyEqual(info.kind, 'none'); tc.verifyFalse(info.template_ok);
+tc.verifySubstring(info.message, 'will not line up');
+
+own = fullfile(d, 'ds', 'derivatives', 'freesurfer', 'sub-01', 'surf'); mkdir(own);
+local_write_fs(fullfile(own, 'lh.pial'), V, F); local_write_fs(fullfile(own, 'rh.pial'), V, F);
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEqual(f, fullfile(own, {'lh.pial', 'rh.pial'})); tc.verifyEqual(info.kind, 'participant');
+rmdir(fullfile(d, 'ds', 'derivatives'), 's');
+
+delete(fullfile(ieeg, '*_coordsystem.json'));             % no space given: fsaverage only if the contacts fit it
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEqual(f, fsFiles); tc.verifyEqual(info.kind, 'fsaverage');
+far = EEG; [far.chanlocs.X] = deal(200);
+tc.verifyEmpty(ieeglab_brain_surfaces(far));
+
+local_coordsystem(ieeg, 'fsaverage');                      % contacts outside: said so
+[~, info] = ieeglab_brain_surfaces(far);
+tc.verifyFalse(info.fit_ok); tc.verifySubstring(info.message, 'outside');
+
+setenv('SUBJECTS_DIR', '');                                % fsaverage not installed: how to get it
+[f, info] = ieeglab_brain_surfaces(EEG);
+tc.verifyEmpty(f); tc.verifyTrue(info.template_ok); tc.verifySubstring(info.message, 'fetch_fsaverage');
+end
+
+function test_crp_window_end_tolerance(tc)
+% EEGLAB ends a [-1000 1000] ms epoch one sample before 1000 ms (and rounds at
+% some rates): the default CRP window [15 1000] must not be reported as cut.
+EEG = loadSeeg(tc, true);
+opt = defaultOpt(); opt.apply_car = false; opt.epoch_window = [-1000 1000];
+opt.apply_ds = true; opt.downsample = 600;
+E = ieeglab_preprocess(EEG, opt);
+txt = evalc('E2 = ieeglab_stats_subject(E, struct(''run_matrix'', false, ''plot'', false, ''n_perm'', 50, ''verbose'', false));');
+tc.verifyFalse(contains(txt, 'ends after the epoch'), 'A window ending at the last sample is not cut.');
+tc.verifyEqual(E2.ieeglab.stats.opt.crp_window, [15 1000]);
+opt.epoch_window = [-1000 800];                            % a really shorter epoch: said so
+E = ieeglab_preprocess(EEG, opt);
+txt = evalc('ieeglab_stats_subject(E, struct(''run_matrix'', false, ''plot'', false, ''n_perm'', 50, ''verbose'', false));');
+tc.verifyTrue(contains(txt, 'ends after the epoch'));
+end
+
+function test_crp_published_test_and_scope(tc)
+% crp_test 'ttest' uses run_CRP's t-test at tau_R; 'by' is Benjamini-Yekutieli;
+% correct_scope 'subject' corrects across all pairs, 'site' within each site.
+EEG = loadSeeg(tc, true);
+opt = defaultOpt(); opt.apply_car = false;
+E = ieeglab_preprocess(EEG, opt);
+base = struct('run_matrix', false, 'plot', false, 'verbose', false, 'n_perm', 200);
+Et = ieeglab_stats_subject(E, setfield(setfield(base, 'crp_test', 'ttest'), 'correct', 'by')); %#ok<SFLD>
+T = Et.ieeglab.stats.table; S = Et.ieeglab.stats.crp;
+for k = 1:numel(S)
+    i = find(strcmp(T.site, S(k).site) & strcmp(T.channel, S(k).channel));
+    tc.verifyEqual(T.p(i), S(k).projs.p_value_tR, 'AbsTol', 1e-12);
+end
+n = height(T); [ps, o] = sort(T.p); q = ps .* n ./ (1:n)' * sum(1 ./ (1:n));
+q = min(1, flipud(cummin(flipud(q)))); want = zeros(n, 1); want(o) = q;
+tc.verifyEqual(T.p_adj, want, 'AbsTol', 1e-12, 'BY across all pairs');
+Es = ieeglab_stats_subject(E, setfield(setfield(setfield(base, 'crp_test', 'ttest'), 'correct', 'by'), 'correct_scope', 'site')); %#ok<SFLD>
+Ts = Es.ieeglab.stats.table;
+for s = unique(Ts.site)'
+    m = strcmp(Ts.site, s{1}); p = Ts.p(m); n = numel(p); [ps, o] = sort(p);
+    q = ps .* n ./ (1:n)' * sum(1 ./ (1:n)); q = min(1, flipud(cummin(flipud(q)))); want = zeros(n, 1); want(o) = q;
+    tc.verifyEqual(Ts.p_adj(m), want, 'AbsTol', 1e-12, 'BY within each site');
+end
+tc.verifyError(@() ieeglab_stats_subject(E, setfield(base, 'crp_test', 'nope')), 'ieeglab_stats_subject:badTest'); %#ok<SFLD>
+end
+
+function test_plot_crp_refuses_stale_results(tc)
+% The CRP figure must not mix the current data with results fitted on other data.
+EEG = loadSeeg(tc, true);
+opt = defaultOpt(); opt.apply_car = false;
+E = ieeglab_preprocess(EEG, opt);
+E = ieeglab_stats_subject(E, struct('run_matrix', false, 'plot', false, 'verbose', false, 'n_perm', 50));
+T = E.ieeglab.stats.table;
+[~, info] = ieeglab_plot_crp(E, T.site{1}, lower(T.channel{1}), 'draw', false);   % contact names: any case
+tc.verifyEqual(info.channel, T.channel{1});
+sites = ieeglab_epoch_sites(E);
+first = find(sites == string(T.site{1}), 1);
+[~, E2] = evalc('pop_select(E, ''notrial'', first)');
+tc.verifyError(@() ieeglab_plot_crp(E2, T.site{1}, T.channel{1}, 'draw', false), 'ieeglab_plot_crp:stale');
+end
+
+function test_freesurfer_scanner_shift(tc)
+% FreeSurfer vertices are moved by the cras of the file's volume information
+d = tempname; mkdir(d); c = onCleanup(@() rmdir(d, 's'));
+[V, F] = local_tetra();
+f = fullfile(d, 'lh.pial');
+local_write_fs(f, V, F);
+fid = fopen(f, 'a', 'ieee-be'); fwrite(fid, [0 0 0 2 0 0 0 20], 'uint8');
+fprintf(fid, 'valid = 1  # volume info valid\ncras   = 1.5 -2 3\n'); fclose(fid);
+g = ieeglab_read_gifti(f);
+tc.verifyEqual(g.vertices, V + [1.5 -2 3], 'AbsTol', 1e-6);
+tc.verifyEqual(g.c_ras, [1.5 -2 3]);
+end
+
+function test_remembered_surfaces_stay_in_their_dataset(tc)
+% sub-02 of another dataset is another person: its surfaces are not offered
+had = ispref('iEEGLAB', 'surf_files'); oldPref = [];
+if had, oldPref = getpref('iEEGLAB', 'surf_files'); end
+r = onCleanup(@() local_restore_pref(had, oldPref));
+d = tempname; mkdir(d); c = onCleanup(@() rmdir(d, 's'));
+fA = fullfile(d, 'A', 'pial.L.surf.gii'); mkdir(fileparts(fA)); fclose(fopen(fA, 'w'));
+EA = struct('filepath', fullfile(d, 'A', 'sub-02', 'ieeg'), 'filename', 'sub-02_task-x_ieeg.set', 'subject', '');
+EB = struct('filepath', fullfile(d, 'B', 'sub-02', 'ieeg'), 'filename', 'sub-02_task-x_ieeg.set', 'subject', '');
+ieeglab_remembered_surfaces(EA, {fA});
+tc.verifyEqual(ieeglab_remembered_surfaces(EA), {fA});
+tc.verifyEmpty(ieeglab_remembered_surfaces(EB));
+end
+
+function test_coordsystem_of_the_loaded_electrodes(tc)
+% With several coordinate systems next to the data, the one paired with the
+% electrodes file that was loaded (same name, space- entity) decides.
+d = tempname; mkdir(d); c = onCleanup(@() rmdir(d, 's'));
+ieeg = fullfile(d, 'sub-01', 'ses-1', 'ieeg'); mkdir(ieeg);
+local_json(fullfile(ieeg, 'sub-01_ses-1_coordsystem.json'), 'ACPC');
+local_json(fullfile(ieeg, 'sub-01_ses-1_space-fsaverage_coordsystem.json'), 'fsaverage');
+EEG = struct('filepath', ieeg, 'subject', 'sub-01', 'chanlocs', struct('labels', {'A1'}, 'X', {1}, 'Y', {1}, 'Z', {1}));
+EEG.ieeglab.opt.elec_tsv = fullfile(ieeg, 'sub-01_ses-1_space-fsaverage_electrodes.tsv');
+[~, info] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
+tc.verifyEqual(info.space, 'fsaverage');
+EEG.ieeglab.opt.elec_tsv = fullfile(ieeg, 'sub-01_ses-1_electrodes.tsv');
+[~, info] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
+tc.verifyEqual(info.space, 'ACPC');
+end
+
+function local_json(f, space)
+fid = fopen(f, 'w'); fprintf(fid, '{"iEEGCoordinateSystem": "%s"}', space); fclose(fid);
+end
+
+function local_restore_pref(had, old)
+if had, setpref('iEEGLAB', 'surf_files', old);
+elseif ispref('iEEGLAB', 'surf_files'), rmpref('iEEGLAB', 'surf_files'); end
+end
+
+function test_results_repeat(tc)
+% Fixed seeds: the permutation p-values and CARLA's reference are the same on
+% every run, and MATLAB's global random state is left alone.
+EEG = loadSeeg(tc, true);
+opt = defaultOpt(); opt.apply_car = false;
+E = ieeglab_preprocess(EEG, opt);
+rng(1); g0 = rng;
+[~, R1] = evalc('pop_ieeglab_reref(E, ''method'', ''carla'')');
+[~, R2] = evalc('pop_ieeglab_reref(E, ''method'', ''carla'')');
+tc.verifyEqual(R1.data, R2.data, 'CARLA must give the same reference on every run.');
+o = struct('run_matrix', false, 'plot', false, 'verbose', false, 'n_perm', 200);
+S1 = ieeglab_stats_subject(R1, o); S2 = ieeglab_stats_subject(R1, o);
+tc.verifyEqual(S1.ieeglab.stats.table.p, S2.ieeglab.stats.table.p);
+S3 = ieeglab_stats_subject(R1, setfield(o, 'seed', 7)); %#ok<SFLD>
+tc.verifyNotEqual(S3.ieeglab.stats.table.p, S1.ieeglab.stats.table.p, 'Another seed, other permutations.');
+tc.verifyEqual(rng, g0, 'The global random state must not change.');
+end
+
+function test_unflat_baseline_reported(tc)
+% RA14 of the tutorial carries a slow deflection in every epoch (average 51 uV
+% before the pulse, median contact 8 uV) without being noisy trial by trial.
+% It is reported, and kept; a 0.5 Hz high-pass does not remove it (43 uV).
+EEG = loadSeeg(tc, true);
+opt = defaultOpt(); opt.apply_highpass = false; opt.apply_car = false;
+E = ieeglab_preprocess(EEG, opt);
+tc.verifyEqual(E.ieeglab.baseline_not_flat.label, {'RA14'});
+tc.verifyTrue(any(strcmp({E.chanlocs.labels}, 'RA14')), 'A reported contact must be kept.');
+E = ieeglab_preprocess(EEG, setfield(defaultOpt(), 'apply_car', false)); %#ok<SFLD> with the 0.5 Hz high-pass
+tc.verifyEqual(E.ieeglab.baseline_not_flat.label, {'RA14'});
 end
 
 function test_carla_reference_size_is_adaptive(tc)
@@ -282,6 +494,15 @@ for i = 1:height(T)
     tc.verifyFalse(any(strcmpi(T.channel{i}, split(T.site{i},'-'))), ...
         sprintf('%s reported as a response channel for its own stimulation site.', T.channel{i}));
 end
+% The per-pair CRP figure shows the values of the results table
+[~, info] = ieeglab_plot_crp(E, T.site{1}, T.channel{1}, 'draw', false);
+tc.verifyEqual(info.tR_ms, T.tR_ms(1), 'AbsTol', 1e-9);
+tc.verifyEqual(mean(info.explained_var), T.explained_var(1), 'AbsTol', 1e-9);
+tc.verifyEqual(numel(info.shape), numel(info.shape_ms));
+tc.verifyEqual(size(info.trials, 2), T.n_trials(1));
+[~, iMax] = max(info.profile);
+tc.verifyEqual(info.profile_ms(iMax), info.tR_ms, 'AbsTol', 1e-9, 'tau_R must be where the projection profile peaks.');
+tc.verifyError(@() ieeglab_plot_crp(E, T.site{1}, 'NOPE', 'draw', false), 'ieeglab_plot_crp:noPair');
 tc.verifyEmpty(findall(0,'Type','figure'));
 end
 
@@ -397,4 +618,24 @@ EEG = loadSeeg(tc, true);
 tc.verifyEqual(ieeglab_detect_mode(EEG), 'ccep');
 EEG.event = [];
 tc.verifyEqual(ieeglab_detect_mode(EEG), 'continuous');
+end
+
+function [V, F] = local_tetra()
+% a small closed surface (mm) and its 0-based faces, as FreeSurfer stores them
+V = [0 0 0; 10 0 0; 0 10 0; 0 0 10];
+F = [0 1 2; 0 1 3; 0 2 3; 1 2 3];
+end
+
+function local_write_fs(f, V, F)
+fid = fopen(f, 'w', 'ieee-be');
+fwrite(fid, [255 255 254], 'uint8'); fprintf(fid, 'created by test\n\n');
+fwrite(fid, [size(V, 1) size(F, 1)], 'int32'); fwrite(fid, V', 'float32'); fwrite(fid, F', 'int32');
+fclose(fid);
+end
+
+function local_coordsystem(folder, space)
+delete(fullfile(folder, '*_coordsystem.json'));
+fid = fopen(fullfile(folder, 'sub-01_ses-1_coordsystem.json'), 'w');
+fprintf(fid, '{"iEEGCoordinateSystem": "%s"}', space);
+fclose(fid);
 end

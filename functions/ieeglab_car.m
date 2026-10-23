@@ -17,10 +17,15 @@ function [EEG, out] = ieeglab_car(EEG, opt)
 %                 'car'       - plain common average over all good channels.
 %                 'none'      - no re-referencing.
 %   .car_timewin  [1x2] response window in MILLISECONDS used for ranking.
-%                 Default [10 300] to match the CARLA reference implementation.
-%   .car_fraction percentile (0-1) of channels kept, 'varsubset' only. Default 0.25.
+%                 Default [10 300] for CARLA (Huang et al., 2024), [15 500] for
+%                 'varsubset' (HAPwave, Ojeda Valencia et al., 2023).
+%   .car_fraction percentile (0-1) of channels kept, 'varsubset' only. Default 0.2
+%                 (HAPwave).
 %   .car_nboot    bootstrap samples for CARLA. Default 100.
-%   .car_sens     logical, use CARLA's sensitive cutoff. Default false.
+%   .car_seed     seed of CARLA's bootstrap draws, so the same data give the same
+%                 reference every time. Default 0.
+%   .car_sens     logical, use CARLA's sensitive cutoff. Default true, as the
+%                 CARLA authors do on real CCEP data (applyCARLARealCCEPs).
 %   .car_linefreq line-noise fundamental, 50 or 60 Hz. Default 60.
 %   .bad_channels indices or labels of channels to keep out of the reference.
 %   .car_persite  logical, run the selection independently per stimulation site.
@@ -29,8 +34,9 @@ function [EEG, out] = ieeglab_car(EEG, opt)
 %   .car_neighbors integer n: also keep out of the reference the contacts of the
 %                 same lead within n contacts of either stimulated contact (e.g.
 %                 RMO6-RMO11 for site RMO8-RMO9 with n = 2), as the CARLA
-%                 publication scripts do (getNeighborChs). Default 0 (only the
-%                 stimulated pair). Leads and contact numbers are read from the
+%                 publication scripts do (getNeighborChs). Default 2 for CARLA,
+%                 as in those scripts, and 0 (only the stimulated pair) for the
+%                 other methods. Leads and contact numbers are read from the
 %                 labels (letters, then a trailing number).
 %
 % Outputs:
@@ -67,15 +73,18 @@ if isfield(opt,'acar_fraction') && ~isempty(opt.acar_fraction) && ~(isfield(opt,
 end
 
 % ---------------- defaults ----------------
-def = struct('car_method','carla', 'car_timewin',[10 300], 'car_fraction',0.25, ...
-             'car_nboot',100, 'car_sens',false, 'car_linefreq',60, ...
-             'car_persite',true, 'car_neighbors',0, 'bad_channels',[], 'verbose',true);
+def = struct('car_method','carla', 'car_timewin',[], 'car_fraction',0.2, ...
+             'car_nboot',100, 'car_sens',true, 'car_linefreq',60, ...
+             'car_persite',true, 'car_neighbors',[], 'bad_channels',[], 'verbose',true, 'car_seed',0);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
     if ~isfield(opt, fn{ii}) || isempty(opt.(fn{ii}))
         opt.(fn{ii}) = def.(fn{ii});
     end
 end
+[tw, nb] = ieeglab_car_defaults(opt.car_method);   % as in each method's publication scripts
+if isempty(opt.car_timewin), opt.car_timewin = tw; end
+if isempty(opt.car_neighbors), opt.car_neighbors = nb; end
 
 out = struct('group',{},'trials',{},'car_channels',{},'excluded_channels',{},'n_sel',{},'stats',{});
 if strcmpi(opt.car_method,'none')
@@ -98,6 +107,8 @@ if strcmpi(opt.car_method,'carla')
         opt.car_method = 'car';
     end
 end
+
+rs = RandStream('mt19937ar', 'Seed', opt.car_seed);   % CARLA's bootstrap: same draws every run
 
 % ---------------- data ----------------
 X = EEG.data;
@@ -188,7 +199,7 @@ for g = 1:nGrp
             Vg(excl,:,:) = NaN;                       % NaN = excluded from the average
             copts = struct('winResp', win_s, 'nboot', opt.car_nboot, ...
                            'sens', opt.car_sens, 'lineFreq', opt.car_linefreq, ...
-                           'verbose', false);
+                           'verbose', false, 'stream', rs);
             [~, ~, st] = ieeglab_carla(tt_s, Vg, EEG.srate, copts);
             carCh = st.chsUsed(:);
             stg   = st;

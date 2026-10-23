@@ -31,7 +31,8 @@ choices.apply_highpass    = false;
 choices.highpass          = 0.1;        % Hz
 
 choices.apply_notch       = true;
-choices.notch             = local_powerline(EEG);   % Hz, from the BIDS ieeg.json (PowerLineFrequency), else 60
+choices.notch             = local_powerline(EEG) * (1:3);   % Hz: PowerLineFrequency of the BIDS ieeg.json (else 60) and 2 harmonics
+choices.notch             = choices.notch(choices.notch < EEG.srate/2 - 1);   % below Nyquist
 
 choices.apply_lowpass     = false;
 choices.lowpass           = 40;         % Hz (empty -> none)
@@ -41,7 +42,7 @@ choices.filter_type       = 1;          % 1 = Noncausal zero-phase (default), 2 
 
 % Epoching (enabled by default IF events exist)
 choices.apply_epoch       = true;
-choices.epoch_window      = [-500 900]; % ms
+choices.epoch_window      = [-1000 1000]; % ms: CRP looks at responses up to 1 s
 choices.reject_trials     = false;      % automatic outlier-trial rejection
 
 % Re-referencing: done by pop_ieeglab_reref, never by this dialog
@@ -470,8 +471,15 @@ try
     else
         folders = {EEG.filepath};
         if isfield(EEG,'BIDS') && isfield(EEG.BIDS,'sourcefile'), folders{end+1} = fileparts(char(EEG.BIDS.sourcefile)); end
+        stems = {};                               % this recording's own sidecar, when a folder holds several runs
+        if isfield(EEG,'BIDS') && isfield(EEG.BIDS,'sourcefile'), [~, stems{end+1}] = fileparts(char(EEG.BIDS.sourcefile)); end
+        if isfield(EEG,'filename') && ~isempty(EEG.filename), [~, stems{end+1}] = fileparts(char(EEG.filename)); end
         for k = 1:numel(folders)
             d = dir(fullfile(folders{k}, '*_ieeg.json'));
+            if numel(d) > 1
+                mine = ismember(regexprep({d.name}, '\.json$', ''), stems);
+                d = d(mine);
+            end
             if isscalar(d)
                 j = jsondecode(fileread(fullfile(d.folder, d.name)));
                 if isfield(j,'PowerLineFrequency'), v = j.PowerLineFrequency; break; end

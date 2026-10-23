@@ -106,7 +106,7 @@ if hasSites && out.usesites
     if isempty(out.sites), errordlg('Tick the sites to read, or untick "Read only these stimulation sites".', 'iEEGLAB'); return; end
     args = [args {'sites', info.sites(out.sites)}];
 end
-[EEG, com] = ieeglab_import(file, args{:});
+[EEG, com] = ieeglab_import(file, args{:}, 'waitbar', true);
 end
 
 function rec = local_find_recordings(root)

@@ -170,13 +170,13 @@ end
 function test_bad_channels_from_channels_tsv_mark(tc)
 EEG = local_load_headless(tc, struct());
 labels = {EEG.chanlocs.labels};
-f = local_channels_tsv(tc, labels, {'RA3','RB13'}, {'high impedance','n/a'}, {'RA10'});
+f = local_channels_tsv(tc, labels, {'RA3','RA12'}, {'high impedance','n/a'}, {'RA10'});
 % Contacts the tutorial's own channels.tsv marked bad at load stay bad.
 pre = local_marked_at_load(EEG);
 [~, E, T] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'', f, ''action'', ''mark''))');
 tc.verifyEqual(E.nbchan, EEG.nbchan, 'mark must not remove channels.');
 bad = cellstr(T.label(T.status == "bad"));
-tc.verifyEqual(sort(bad(:))', sort(union({'RA3','RB13','RA10'}, pre)));
+tc.verifyEqual(sort(bad(:))', sort(union({'RA3','RA12','RA10'}, pre)));
 tc.verifyEqual(char(T.reason(T.label == "RA3")), 'high impedance', 'status_description must be kept as the reason.');
 tc.verifySubstring(char(T.reason(T.label == "RA10")), 'ECG', 'Non-iEEG types must be flagged.');
 tc.verifyEqual(E.chanlocs(strcmp(labels,'RA3')).status, 'bad');
@@ -232,16 +232,16 @@ EEG = local_load_headless(tc, struct());
 Te = readtable(fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_electrodes.tsv'), ...
     'FileType','text', 'Delimiter','	', 'TextType','string');
 Te.seizure_zone(Te.name == "RA4")  = "SOZ";
-Te.seizure_zone(Te.name == "RB13") = "IrritativeZone";
+Te.seizure_zone(Te.name == "RA12") = "IrritativeZone";
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''action'',''mark''))');
 lab = {E.chanlocs.labels};
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).clinical_zone, 'SOZ', 'The zone label must be recorded.');
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'good', 'Recording a zone must not by itself mark the contact bad.');
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''exclude_soz'', true, ''action'',''mark''))');
 tc.verifyEqual(E.chanlocs(strcmp(lab,'RA4')).status, 'bad', 'exclude_soz must mark SOZ contacts bad.');
-tc.verifyEqual(E.chanlocs(strcmp(lab,'RB13')).status, 'good', 'exclude_soz alone must not touch irritative-zone contacts.');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA12')).status, 'good', 'exclude_soz alone must not touch irritative-zone contacts.');
 [~, E] = evalc('ieeglab_bad_channels(EEG, struct(''channels_tsv'','''', ''elec_tsv'', Te, ''exclude_irritative'', true, ''action'',''mark''))');
-tc.verifyEqual(E.chanlocs(strcmp(lab,'RB13')).status, 'bad');
+tc.verifyEqual(E.chanlocs(strcmp(lab,'RA12')).status, 'bad');
 end
 
 function test_soz_yes_no_column(tc)

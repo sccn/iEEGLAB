@@ -6,8 +6,11 @@ function EEG = ieeglab_vis_elec(EEG, opt)
 %   EEG = ieeglab_vis_elec(EEG, struct('reselect', true))          % choose other surfaces
 %   EEG = ieeglab_vis_elec(EEG, struct('surf_files', {{'pial.L.surf.gii','pial.R.surf.gii'}}))
 %
-% - Surfaces (.gii) given in opt.surf_files or picked in the dialog are drawn
-%   under the electrodes; they must be in the same space as the coordinates.
+% - Surfaces (GIfTI .gii, or FreeSurfer files such as lh.pial) given in
+%   opt.surf_files or picked in the dialog are drawn under the electrodes; they
+%   must be in the same space as the coordinates. Without the participant's
+%   surfaces, coordinates in fsaverage space (BIDS coordsystem.json) are offered
+%   fsaverage's pial surfaces when FreeSurfer or MNE's fsaverage is installed.
 %   Once chosen they are remembered and used by every brain figure (this one
 %   and ieeglab_topoplot) without asking again.
 % - Without surfaces, a template cortex ('cortex.mat', variable cortex_highres)
@@ -29,6 +32,11 @@ if isfield(opt,'surf_files')
     if ischar(sf) || isstring(sf), sf = cellstr(sf); end
     if ~isempty(sf), surf_files = local_resolve_paths(sf, EEG.filepath); end
 
+elseif ~(isfield(opt,'reselect') && isequal(opt.reselect, true)) && isfield(EEG,'ieeglab') && ...
+        isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'brain') && strcmp(EEG.ieeglab.opt.brain, 'template')
+    % Template brain chosen earlier for this dataset: used again without asking
+    fprintf('[vis_elec] Using the template brain chosen earlier. To choose surfaces: iEEGLAB > Choose brain surfaces.\n');
+
 elseif ~(isfield(opt,'reselect') && isequal(opt.reselect, true)) && ~isempty(ieeglab_remembered_surfaces(EEG))
     % Asked once: every brain figure then uses the same surfaces. They are
     % changed with opt.reselect (menu: iEEGLAB > Choose brain surfaces).
@@ -42,21 +50,19 @@ else
     % shown on macOS), then into the dialogs.
     prev = ieeglab_remembered_surfaces(EEG);
     startDir = local_start_dir(EEG, prev);
+    % The brain that matches the space of the coordinates (coordsystem.json):
+    % the participant's pial surfaces, or fsaverage for template coordinates.
+    [best, bi] = ieeglab_brain_surfaces(EEG);
     offered = prev; how = 'the brain surfaces used last time';
-    if isempty(offered)                      % none remembered: look for the subject's pial files
-        d = dir(fullfile(startDir, '*pial*.gii'));
-        offered = cellfun(@(n) fullfile(startDir, n), {d.name}, 'UniformOutput', false);
-        how = 'pial surface files found for this subject';
-    end
+    if isempty(offered), offered = best; how = bi.how; end
     bar = repmat('=', 1, 78);
     fprintf('\n%s\n iEEGLAB > Visualize electrodes: which brain to draw the electrodes on\n%s\n', bar, bar);
-    fprintf([' WHAT TO SELECT: the subject''s PIAL SURFACE files (GIfTI, .gii), one per hemisphere,\n' ...
-             '   for example  pial.L.surf.gii  and  pial.R.surf.gii\n' ...
-             '   (select both at once: Ctrl+click on Windows/Linux, Cmd+click on a Mac).\n' ...
-             ' WHERE: in a BIDS dataset, derivatives/freesurfer/sub-<label>. The file window opens in:\n' ...
-             '   %s\n' ...
-             ' The surfaces must be in the same space as the electrode coordinates.\n' ...
-             ' No surfaces for this subject? Choose "Template brain" (or Cancel in the file window).\n'], startDir);
+    fprintf(' BRAIN: %s\n', bi.message);
+    fprintf([' TO SELECT OTHERS: pial surface files, one per hemisphere: GIfTI (pial.L.surf.gii,\n' ...
+             '   pial.R.surf.gii) or FreeSurfer (surf/lh.pial, surf/rh.pial); Ctrl+click (Cmd+click on\n' ...
+             '   a Mac) selects both. In a BIDS dataset: derivatives/freesurfer/sub-<label>. They must\n' ...
+             '   be in the same space as the electrode coordinates. The file window opens in:\n' ...
+             '   %s\n'], startDir);
     if ~isempty(offered)
         [~, nm, ext] = cellfun(@fileparts, offered, 'UniformOutput', false);
         fprintf(' FOUND (%s):\n%s', how, sprintf('   %s\n', offered{:}));
@@ -66,12 +72,11 @@ else
             'Use these', 'Select other files', 'Template brain', 'Use these');
     else
         fprintf('%s\n\n', bar);
-        choice = questdlg(sprintf(['WHAT TO SELECT in the next window: the subject''s pial surface files ' ...
-            '(GIfTI, .gii), one per hemisphere, e.g. pial.L.surf.gii and pial.R.surf.gii. Select both at ' ...
-            'once with Ctrl+click (Cmd+click on a Mac).\n\nWHERE: in a BIDS dataset, ' ...
-            'derivatives/freesurfer/sub-<label>.\n\nThe surfaces must be in the same space as the ' ...
-            'electrode coordinates. Without subject surfaces, choose Template brain.']), ...
-            'iEEGLAB: brain surfaces', 'Select pial files', 'Template brain', 'Select pial files');
+        dflt = 'Select pial files';
+        if bi.template_ok, dflt = 'Template brain'; end
+        choice = questdlg(sprintf(['%s\n\nSelect pial files: one per hemisphere, GIfTI (pial.L.surf.gii) or ' ...
+            'FreeSurfer (lh.pial); Ctrl+click (Cmd+click on a Mac) selects both.'], bi.message), ...
+            'iEEGLAB: brain surfaces', 'Select pial files', 'Template brain', dflt);
     end
     if isempty(choice), return; end   % dialog closed: nothing drawn, dataset unchanged
 
@@ -83,7 +88,7 @@ else
         otherwise
             fprintf('[vis_elec] File window open: select the PIAL files (.gii), both hemispheres (Ctrl/Cmd+click).\n');
             [fn, fp] = uigetfile( ...
-                {'*.gii;*.stl;*.obj;*.ply','Surface files (*.gii, *.stl, *.obj, *.ply)'; ...
+                {'*.gii;*.pial;*.white','Surface files (GIfTI *.gii, FreeSurfer lh.pial / rh.pial)'; ...
                  '*.*','All files (*.*)'}, ...
                 'SELECT PIAL SURFACES (.gii): pial.L and pial.R, Ctrl/Cmd+click for both', ...
                 startDir, 'MultiSelect','on');
@@ -94,8 +99,12 @@ else
             end
     end
     if ~isempty(surf_files), ieeglab_remembered_surfaces(EEG, surf_files); end
+    if strcmp(choice, 'Template brain'), EEG.ieeglab.opt.brain = 'template'; end   % both figures, not asked again
 end
-if ~isempty(surf_files), EEG.ieeglab.opt.surf_files = surf_files; end
+if ~isempty(surf_files)
+    EEG.ieeglab.opt.surf_files = surf_files;
+    if isfield(EEG.ieeglab.opt, 'brain'), EEG.ieeglab.opt = rmfield(EEG.ieeglab.opt, 'brain'); end
+end
 
 ieeglab_figure('Name','iEEGLAB electrodes'); hold on
 try icadefs; set(gcf, 'color', BACKCOLOR); catch, end  % eeglab color
@@ -154,10 +163,10 @@ if ~isempty(surf_files)
     s.SizeData = 20;
     s.MarkerFaceColor = [.9 .5 .5];
     s.MarkerEdgeColor = [0 0 0];
-    ieeg_viewLight(90,0)
+    ieeg_viewLight(180, 20)                        % from the front, slightly above: both hemispheres
 
     axis equal off
-    [~, shown] = cellfun(@(p) fileparts(p), surf_files, 'UniformOutput', false);
+    shown = cellfun(@get_name_only, surf_files, 'UniformOutput', false);
     title(sprintf('%d electrode(s) on %d surface(s): %s', ...
         nnz(show), nRendered, strjoin(shown, ', ')), 'Interpreter','none');
 
@@ -173,8 +182,17 @@ else
     s.SizeData = 10; s.MarkerFaceColor = [.9 .5 .5]; s.MarkerEdgeColor = [0 0 0];
     try icadefs; set(gcf, 'color', BACKCOLOR); catch; end  % eeglab color
     axis equal off
-    view([-135 20]);
-    title('Visualization using standard BEM template (fallback when no Freesurfer pial surface files is detected)','Interpreter','none');
+    view([180 20]);                                % from the front, slightly above
+    [~, bi] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
+    if bi.template_ok
+        title({'Template brain (MNI): an approximation for these template coordinates', ...
+               'fsaverage''s pial surfaces are drawn instead when FreeSurfer or MNE''s fsaverage is installed'}, ...
+              'Interpreter', 'none', 'FontWeight', 'normal');
+    else
+        title({'Template brain: the coordinates are in the participant''s space and will not line up with it', ...
+               'Give the participant''s pial surfaces: iEEGLAB > Choose brain surfaces'}, ...
+              'Interpreter', 'none', 'FontWeight', 'normal');
+    end
 
 end
 ieeglab_rotate3d(gcf);

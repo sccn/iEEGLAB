@@ -151,6 +151,12 @@ ieeglab_figure('Name', 'iEEGLAB electrode values');
 hold on
 surfFiles = o.surf_files;
 if isempty(surfFiles), surfFiles = ieeglab_remembered_surfaces(EEG); end   % as chosen in Visualize electrodes
+useTemplate = isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'brain') && ...
+    strcmp(EEG.ieeglab.opt.brain, 'template');     % chosen in Visualize electrodes
+if isempty(surfFiles) && ~useTemplate       % none chosen: the brain matching the coordinates' space
+    [surfFiles, bi] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
+    fprintf('[topoplot] %s\n', bi.message);
+end
 if ischar(surfFiles) || isstring(surfFiles), surfFiles = cellstr(surfFiles); end
 meshes = {};
 for k = 1:numel(surfFiles)
@@ -172,7 +178,10 @@ else
     % No subject surfaces: a template glass brain, so the contacts are not
     % floating in empty space. Subject-space coordinates will not line up with it.
     xyz = xyz * ieeglab_draw_template_brain(xyz);
-    info.title = [cellstr(info.title), {'template brain (no subject surfaces: iEEGLAB > Visualize electrodes)'}];
+    note = 'template brain: approximate (iEEGLAB > Choose brain surfaces)';
+    [~, bi] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
+    if ~bi.template_ok, note = 'template brain: participant coordinates will not line up (iEEGLAB > Choose brain surfaces)'; end
+    info.title = [cellstr(info.title), {note}];
 end
 nv = hasXYZ & ~isfinite(vals);
 if any(nv)
@@ -189,7 +198,7 @@ end
 caxis(info.clim); %#ok<CAXIS> works before R2022a
 cb = colorbar; ylabel(cb, desc);
 axis equal off
-if exist('ieeg_viewLight','file'), ieeg_viewLight(90, 0); else, view(3); end
+if exist('ieeg_viewLight','file'), ieeg_viewLight(180, 20); else, view(180, 20); end   % front, slightly above
 title(info.title, 'Interpreter','tex', 'FontWeight','normal');
 ieeglab_rotate3d(gcf);
 end

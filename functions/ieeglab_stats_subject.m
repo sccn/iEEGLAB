@@ -11,7 +11,8 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %   .run_n1        N1 amplitude and latency per site x contact. Default: on for ECoG
 %                  CCEP data only. N1 detection is an ECoG measure; on sEEG the
 %                  response is described by CRP, and asking for N1 there warns.
-%   .run_crp       Canonical Response Parameterization. Default: on.
+%   .run_crp       Canonical Response Parameterization. Default: on, except for ECoG
+%                  CCEP data, where the measure is N1 (CRP can be ticked as well).
 %   .run_matrix    connectivity matrix, sites x contacts. Default: on for CCEP data.
 %                  Built from THIS call's results: its source stage is run too.
 %   .matrix_source 'n1' or 'crp' - which detector defines a response. Default
@@ -24,23 +25,38 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 % switched off has its earlier results removed, so plots, exports and the
 % history line never mix two analyses.
 %
-% Shared:  .alpha (0.05)  .correct ('fdr'|'bonferroni'|'none')  .min_trials (5, at least 2)
+% Shared:  .alpha (0.05)  .correct ('fdr' Benjamini-Hochberg | 'by' Benjamini-Yekutieli |
+%          'bonferroni' | 'none')  .min_trials (5, at least 2)
 %          .exclude_stim (true)  .n_perm (1000)  .verbose (true)
-% CRP:     .crp_window  [15 500] ms, after the stimulation artifact
+%          .seed (0) of the permutations, so the same data give the same results
+%          .correct_scope  CRP: 'subject' (default) corrects across all tested
+%          pairs of the dataset, as the HAPwave analyses; 'site' across the
+%          contacts of each site. N1 is always corrected within each site.
+% CRP:     .crp_window  [15 1000] ms, after the stimulation artifact, as in the
+%          published CRP analyses (Miller et al., 2023; Ojeda Valencia et al.,
+%          2023). Clipped to the end of the epoch, with a warning.
 % N1:      .n1_window   [10 100] ms   .n1_baseline [-500 -10] ms
 %          .n1_method   'permutation' (default) | 'sd'   .n1_threshold 3.4 (sd only)
 %          .n1_polarity 'negative' (default, as erdetect) | 'abs' | 'positive'
 %          .n1_min_baseline_sd  50 uV (floor on the baseline SD, as erdetect)
 %
-% CRP significance: run_CRP chooses the response duration tau_R as the argmax
-% of the mean cross-projection profile, so a t-test at tau_R is biased by that
-% choice (on pure noise it rejects far above its nominal rate). The p-value
-% here comes instead from a sign-flip permutation null in which the SAME
-% selection - the maximum of the profile over all durations - is repeated for
-% every permutation. Exact for up to 9 trials.
+% CRP significance (.crp_test): run_CRP chooses the response duration tau_R as
+% the argmax of the mean cross-projection profile, so a t-test at tau_R is
+% biased by that choice (on pure noise it rejects far above its nominal rate).
+% The default p-value, 'permutation', comes instead from a sign-flip
+% permutation null in which the SAME selection - the maximum of the profile
+% over all durations - is repeated for every permutation. Exact for up to 9
+% trials. 'ttest' uses run_CRP's one-sided t-test at tau_R (p_value_tR), the
+% test of the published HAPwave analyses (Ojeda Valencia et al., 2023, with
+% Benjamini-Yekutieli FDR across all pairs: correct = 'by'), for replication.
+%
+% Results also hold the values the HAPwave figures report: the median
+% coefficient of determination (cod) and the mean alpha prime (alpha_prime,
+% the weight of the shape per sample, uV).
 %
 % Results:
-%   EEG.ieeglab.stats.table   CRP per site x contact: tR_ms, explained_var, snr, p, p_adj, significant, n_trials
+%   EEG.ieeglab.stats.table   CRP per site x contact: tR_ms, explained_var, cod, alpha_prime,
+%                             snr, p, p_adj, significant, n_trials
 %   EEG.ieeglab.stats.crp     full run_CRP output per site x contact
 %   EEG.ieeglab.n1            N1 results (see ieeglab_detect_n1)
 %   EEG.ieeglab.ccep_matrix   connectivity matrix (see ieeglab_ccep_matrix)
@@ -60,19 +76,27 @@ if interactive, opt = struct(); end
 
 isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
 isECoG = local_is_ecog(EEG);
-def = struct('run_n1',isCCEP && isECoG, 'run_crp',true, 'run_matrix',isCCEP, ...
+def = struct('run_n1',isCCEP && isECoG, 'run_crp',~(isCCEP && isECoG), 'run_matrix',isCCEP, ...
     'matrix_source',iff(isECoG,'n1','crp'), 'n1_polarity','negative', 'n1_min_baseline_sd',50, ...
     'export_dir','', 'plot',interactive, 'alpha',0.05, 'correct','fdr', 'min_trials',5, ...
-    'exclude_stim',true, 'n_perm',1000, 'verbose',true, 'crp_window',[15 500], ...
-    'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','permutation', 'n1_threshold',3.4);
+    'exclude_stim',true, 'n_perm',1000, 'verbose',true, 'crp_window',[15 1000], ...
+    'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','permutation', 'n1_threshold',3.4, ...
+    'crp_test','permutation', 'correct_scope','subject', 'seed',0);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
     if ~isfield(opt, fn{ii}) || (isempty(opt.(fn{ii})) && ~ischar(def.(fn{ii})))
         opt.(fn{ii}) = def.(fn{ii});
     end
 end
-for f = {'matrix_source','correct','n1_method','n1_polarity','export_dir'}
+for f = {'matrix_source','correct','n1_method','n1_polarity','export_dir','crp_test','correct_scope'}
     opt.(f{1}) = char(string(opt.(f{1})));
+end
+opt.crp_test = lower(opt.crp_test); opt.correct_scope = lower(opt.correct_scope);
+if ~any(strcmp(opt.crp_test, {'permutation','ttest'}))
+    error('ieeglab_stats_subject:badTest', 'crp_test must be ''permutation'' or ''ttest''; got ''%s''.', opt.crp_test);
+end
+if ~any(strcmp(opt.correct_scope, {'subject','site'}))
+    error('ieeglab_stats_subject:badScope', 'correct_scope must be ''subject'' or ''site''; got ''%s''.', opt.correct_scope);
 end
 
 % ---------------- preconditions ----------------
@@ -140,7 +164,7 @@ if opt.run_n1
         'method', opt.n1_method, 'threshold', opt.n1_threshold, 'n_perm', opt.n_perm, ...
         'alpha', opt.alpha, 'correct', opt.correct, 'min_trials', opt.min_trials, ...
         'exclude_stim', opt.exclude_stim, 'polarity', opt.n1_polarity, ...
-        'min_baseline_sd', opt.n1_min_baseline_sd, 'verbose', opt.verbose));
+        'min_baseline_sd', opt.n1_min_baseline_sd, 'verbose', opt.verbose, 'seed', opt.seed));
 end
 
 % ---------------- connectivity matrix ----------------
@@ -181,7 +205,15 @@ end
 % ========================== stages ==========================
 
 function EEG = local_crp(EEG, opt)
+rs = RandStream('mt19937ar', 'Seed', opt.seed);       % same permutations every run
 tt_s = double(EEG.times(:))' / 1000;
+if opt.crp_window(2) > EEG.times(end) + 1500/EEG.srate   % EEGLAB ends epochs one sample early (and rounds)
+    warning('ieeglab_stats_subject:crpWindowClipped', ...
+        ['CRP window [%g %g] ms ends after the epoch (%g ms): CRP uses [%g %g] ms, so responses ' ...
+         'lasting longer are cut. Epoch to at least %g ms to avoid this.'], ...
+        opt.crp_window(1), opt.crp_window(2), EEG.times(end), opt.crp_window(1), EEG.times(end), ...
+        opt.crp_window(2));
+end
 pick = tt_s >= opt.crp_window(1)/1000 & tt_s <= opt.crp_window(2)/1000;
 if nnz(pick) < 10
     error('ieeglab_stats_subject:shortWindow', ...
@@ -232,20 +264,25 @@ for g = 1:numel(uSites)
             continue
         end
         if isempty(parms) || ~isfield(parms,'tR') || isempty(parms.tR) || isempty(projs.S_all), continue; end
-        [p, K] = local_crp_perm_p(projs.S_all, opt.n_perm);
+        if strcmp(opt.crp_test, 'ttest')
+            p = projs.p_value_tR; K = numel(parms.al);  % as published (biased by the choice of tau_R)
+        else
+            [p, K] = local_crp_perm_p(projs.S_all, opt.n_perm, rs);
+        end
         if ~isfinite(p), continue; end               % not testable: left out, not "no response"
         pvals(ch) = p;
         tmp{ch} = struct('parms',parms, 'projs',projs, 'K',K);
     end
 
-    padj = local_correct(pvals, opt.correct);
+    padj = local_correct(pvals, opt.correct);       % per site; replaced below for 'subject'
     for ch = 1:EEG.nbchan
         if isempty(tmp{ch}), continue; end
         q = tmp{ch};
         snr = NaN;
         if isfield(q.parms,'Vsnr') && ~isempty(q.parms.Vsnr), snr = mean(q.parms.Vsnr,'omitnan'); end
         rows(end+1,:) = { char(uSites(g)), char(labels(ch)), q.parms.tR*1000, ...
-            mean(q.parms.expl_var,'omitnan'), snr, pvals(ch), padj(ch), padj(ch) < opt.alpha, q.K }; %#ok<AGROW>
+            mean(q.parms.expl_var,'omitnan'), median(q.parms.cod,'omitnan'), mean(q.parms.al_p,'omitnan'), ...
+            snr, pvals(ch), padj(ch), padj(ch) < opt.alpha, q.K }; %#ok<AGROW>
         crpAll(end+1) = struct('site',char(uSites(g)),'channel',char(labels(ch)), ...
             'parms',q.parms,'projs',q.projs); %#ok<AGROW>
     end
@@ -258,7 +295,11 @@ if isempty(rows)
     T = table();
 else
     T = cell2table(rows, 'VariableNames', ...
-        {'site','channel','tR_ms','explained_var','snr','p','p_adj','significant','n_trials'});
+        {'site','channel','tR_ms','explained_var','cod','alpha_prime','snr','p','p_adj','significant','n_trials'});
+    if strcmp(opt.correct_scope, 'subject')        % all pairs of the dataset, as the HAPwave figures
+        T.p_adj = local_correct(T.p, opt.correct);
+        T.significant = T.p_adj < opt.alpha;
+    end
     T = sortrows(T, {'site','channel'});
 end
 EEG.ieeglab.stats = struct('table', T, 'crp', crpAll, 'opt', opt);
@@ -267,14 +308,29 @@ if isfield(EEG.ieeglab,'ccep_matrix') && isfield(EEG.ieeglab.ccep_matrix,'source
     EEG.ieeglab = rmfield(EEG.ieeglab, 'ccep_matrix');
 end
 if opt.verbose && ~isempty(T)
-    fprintf('[CRP] %d significant of %d site-contact pairs (selection-corrected permutation test, %s, alpha=%g).', ...
-        sum(T.significant), height(T), opt.correct, opt.alpha);
+    testName = 'selection-corrected permutation test';
+    if strcmp(opt.crp_test, 'ttest'), testName = 't-test at tau_R, as published'; end
+    fprintf('[CRP] %d significant of %d site-contact pairs (%s, %s across %s, alpha=%g).', ...
+        sum(T.significant), height(T), testName, opt.correct, ...
+        iff(strcmp(opt.correct_scope, 'subject'), 'all pairs', 'the contacts of each site'), opt.alpha);
     if nSkipped, fprintf(' %d site(s) skipped for too few trials.', nSkipped); end
     fprintf('\n');
+    wEnd = min(opt.crp_window(2), EEG.times(end) + 1500/EEG.srate);
+    atEnd = T.significant & T.tR_ms >= wEnd - 6000/EEG.srate;   % within one projection step (5 samples)
+    if any(atEnd)
+        fprintf(['[CRP] %d significant pair(s) last until the end of the window (%g ms): ' ...
+                 'their responses may be longer than the window.\n'], nnz(atEnd), wEnd);
+    end
 end
 end
 
-function [p, K] = local_crp_perm_p(S_all, nPerm)
+function w = local_crp_window(w, EEG)
+% The window the analysis will use: cut at the epoch end, one sample of tolerance
+% because EEGLAB ends a [-1000 1000] ms epoch one sample before 1000 ms.
+if w(2) > EEG.times(end) + 1500/EEG.srate, w(2) = round(EEG.times(end), 1); end
+end
+
+function [p, K] = local_crp_perm_p(S_all, nPerm, rs)
 % Sign-flip null for the CRP statistic, with the duration selection repeated.
 %
 % S_all holds, for every candidate duration j, the K^2-K off-diagonal
@@ -296,7 +352,7 @@ if 2^K <= nPerm + 1
     S = double(~B') * 2 - 1;             % column 1 is all +1 (observed)
     exact = true;
 else
-    S = [ones(K,1), (randi(2, K, nPerm) * 2 - 3)];
+    S = [ones(K,1), (randi(rs, 2, K, nPerm) * 2 - 3)];
     exact = false;
 end
 best = -inf(1, size(S,2));
@@ -327,7 +383,7 @@ ccepOn = iff(isCCEP, 'on', 'off');
 on = @(tf) iff(tf, 'on', 'off');
 srcs = {'crp','n1'};
 iSrc = find(strcmpi(srcs, opt.matrix_source), 1); if isempty(iSrc), iSrc = 1; end
-corrs = {'fdr','bonferroni','none'};
+corrs = {'fdr','by','bonferroni','none'};
 iCorr = find(strcmpi(corrs, opt.correct), 1); if isempty(iCorr), iCorr = 1; end
 cb = @(h, ~) local_dialog_update(h);
 w = [0.08 1.1 0.6];                       % indented option row
@@ -335,16 +391,19 @@ bold = @(s) {'style' 'text' 'string' s 'fontweight' 'bold'};
 note = @(s) {'style' 'text' 'string' s};
 ccepNote = '';
 if ~isCCEP, ccepNote = ' (needs CCEP data: event types naming contact pairs)'; end
-uigeom = {1, 1, w, 1, w, ...                       % measures
+uigeom = {1, 1, w, w, 1, w, ...                    % measures
           1, 1, w, ...                             % matrix
-          1, [1.18 0.6], [1.18 0.6], [1.18 0.6], 1, ...   % statistics
+          1, [1.18 0.6], [1.18 0.6], [1.18 0.6], [1.18 0.6], 1, ...   % statistics
           1, 1, 1, [0.08 0.25 0.85 0.2]};          % output
 uilist = { ...
     bold('Measures (per stimulation site x recording contact)'), ...
     {'style' 'checkbox' 'string' 'CRP: response duration, shape and explained variance (Miller et al., 2023); for sEEG and ECoG' ...
         'value' opt.run_crp 'tag' 'runCRP' 'callback' cb}, ...
     note(''), {'style' 'text' 'string' 'Response window, ms (starts after the artifact)' 'tag' 'lbl_crpWin' 'enable' on(opt.run_crp)}, ...
-        {'style' 'edit' 'string' num2str(opt.crp_window) 'tag' 'crpWin' 'enable' on(opt.run_crp)}, ...
+        {'style' 'edit' 'string' num2str(local_crp_window(opt.crp_window, EEG)) 'tag' 'crpWin' 'enable' on(opt.run_crp)}, ...
+    note(''), {'style' 'text' 'string' 'Significance test' 'tag' 'lbl_crpTest' 'enable' on(opt.run_crp)}, ...
+        {'style' 'popupmenu' 'string' {'Permutation (accounts for choosing tau_R)','t-test at tau_R (as in HAPwave)'} ...
+        'value' 1 + strcmp(opt.crp_test, 'ttest') 'tag' 'crpTest' 'enable' on(opt.run_crp)}, ...
     {'style' 'checkbox' 'string' ['N1: amplitude and latency of the first negative peak (van Blooijs et al., 2018); an ECoG measure' ccepNote] ...
         'value' opt.run_n1 'tag' 'runN1' 'enable' ccepOn 'callback' cb}, ...
     note(''), {'style' 'text' 'string' 'Search window, ms' 'tag' 'lbl_n1Win' 'enable' on(isCCEP && opt.run_n1)}, ...
@@ -356,8 +415,11 @@ uilist = { ...
         {'style' 'popupmenu' 'string' {'CRP (sEEG)','N1 (ECoG)'} 'value' iSrc 'tag' 'matSrc' 'enable' on(isCCEP && opt.run_matrix) 'callback' cb}, ...
     bold('Statistics (both measures)'), ...
     {'style' 'text' 'string' 'Significance level (alpha)'}, {'style' 'edit' 'string' num2str(opt.alpha) 'tag' 'alpha'}, ...
-    {'style' 'text' 'string' 'Correction across contacts'}, ...
-        {'style' 'popupmenu' 'string' {'FDR (Benjamini-Hochberg)','Bonferroni','None'} 'value' iCorr 'tag' 'corr'}, ...
+    {'style' 'text' 'string' 'Multiple-comparison correction'}, ...
+        {'style' 'popupmenu' 'string' {'FDR (Benjamini-Hochberg)','FDR, any dependence (Benjamini-Yekutieli)','Bonferroni','None'} 'value' iCorr 'tag' 'corr'}, ...
+    {'style' 'text' 'string' 'CRP: correct across (N1: always within each site)'}, ...
+        {'style' 'popupmenu' 'string' {'All tested pairs of the dataset','The contacts of each site'} ...
+        'value' 1 + strcmp(opt.correct_scope, 'site') 'tag' 'scope'}, ...
     {'style' 'text' 'string' 'Minimum trials per stimulation site (2 or more)'}, {'style' 'edit' 'string' num2str(opt.min_trials) 'tag' 'minTr'}, ...
     {'style' 'checkbox' 'string' 'Do not test the stimulated pair for its own site (it records the artifact)' 'value' opt.exclude_stim 'tag' 'exclStim'}, ...
     bold('Output'), ...
@@ -375,6 +437,8 @@ if isCCEP, opt.n1_window = str2num(out.n1Win); end %#ok<ST2NM>
 opt.alpha        = str2double(out.alpha);
 opt.min_trials   = str2double(out.minTr);
 opt.correct      = corrs{out.corr};
+opt.correct_scope = iff(out.scope == 2, 'site', 'subject');
+opt.crp_test     = iff(out.crpTest == 2, 'ttest', 'permutation');
 opt.exclude_stim = logical(out.exclStim);
 opt.run_n1       = isCCEP && logical(out.runN1);
 opt.run_crp      = logical(out.runCRP);
@@ -421,7 +485,7 @@ if val('runMat')
 end
 st = @(tf) iff(tf, 'on', 'off');
 en = @(t) strcmp(get(get1(t), 'enable'), 'on');
-set([get1('crpWin') get1('lbl_crpWin')], 'enable', st(val('runCRP')));
+set([get1('crpWin') get1('lbl_crpWin') get1('crpTest') get1('lbl_crpTest')], 'enable', st(val('runCRP')));
 set([get1('n1Win') get1('lbl_n1Win')], 'enable', st(en('runN1') && val('runN1')));
 set([get1('matSrc') get1('lbl_matSrc')], 'enable', st(en('runMat') && val('runMat')));
 set([get1('exportDir') get1('lbl_exportDir') get1('browse')], 'enable', st(val('doExport')));
@@ -444,7 +508,7 @@ else
     ylabel('Significant site-contact pairs','FontWeight','bold');
     box on
 end
-title(sprintf('CRP: %d significant of %d tested (%s, \alpha=%g)', height(sig), height(T), opt.correct, opt.alpha), ...
+title(sprintf('CRP: %d significant of %d tested (%s, \\alpha=%g)', height(sig), height(T), opt.correct, opt.alpha), ...
     'FontWeight','normal');
 subplot(1,2,2);
 if ismember('explained_var', T.Properties.VariableNames) && any(isfinite(T.explained_var))
@@ -475,9 +539,10 @@ if n == 0, return; end
 switch lower(method)
     case 'bonferroni'
         padj(ok) = min(1, p(ok) * n);
-    case 'fdr'
+    case {'fdr', 'by'}
         [ps, ord] = sort(p(ok));
         q = ps(:) .* n ./ (1:n)';
+        if strcmpi(method, 'by'), q = q * sum(1 ./ (1:n)); end   % Benjamini-Yekutieli: any dependence
         q = min(1, flipud(cummin(flipud(q))));
         tmp = nan(n,1); tmp(ord) = q;
         padj(ok) = tmp;

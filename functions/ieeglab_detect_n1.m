@@ -26,21 +26,23 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %                                 a peak above threshold x baseline SD. A rule,
 %                                 not a test: p is NaN and no correction applies.
 %   .n_perm        permutations. Default 1000.
+%   .seed          seed of the permutations, so the same data give the same
+%                  result every time. Default 0.
 %   .threshold     SD multiple for method 'sd'. Default 3.4.
 %   .alpha         significance level. Default 0.05.
-%   .correct       'fdr' (default), 'bonferroni' or 'none', across contacts
+%   .correct       'fdr' (default), 'by' (Benjamini-Yekutieli), 'bonferroni' or 'none', across contacts
 %                  within each stimulation site (permutation method).
 %   .min_trials    minimum trials per site (at least 2). Default 5.
 %   .exclude_stim  skip each site's stimulated contacts. Default true.
 %   .require_peak  the maximum must be a local extremum inside the window, not
 %                  its first or last sample (a slope running out of the window
 %                  is not an N1). Default true.
-%   .polarity      'abs' (default) counts the largest deflection of either sign;
-%                  'negative' counts only negative-going peaks, the convention
-%                  used by erdetect; 'positive' only positive-going ones. On
-%                  HAPwave sub-02, 37% of responsive pairs have their largest
-%                  early deflection positive, so the two conventions disagree
-%                  for about a third of the data.
+%   .polarity      'negative' (default) counts only negative-going peaks, the
+%                  convention of erdetect and the N1 literature; 'abs' counts the
+%                  largest deflection of either sign; 'positive' only
+%                  positive-going ones. On HAPwave sub-02, 37% of responsive
+%                  pairs have their largest early deflection positive, so the
+%                  two conventions disagree for about a third of the data.
 %   .min_baseline_sd  floor on the baseline SD in uV, so that a quiet contact
 %                  cannot produce a large z. Default 50, which with the default
 %                  threshold of 3.4 gives erdetect's effective 170 uV criterion.
@@ -57,8 +59,7 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 % Output T (also EEG.ieeglab.n1.table): site, channel, n1_amplitude_uv,
 % n1_latency_ms, baseline_sd, z, p, p_adj, significant, n_trials.
 %
-% Amplitude is measured from the baseline median. Polarity depends on the
-% reference, so the largest ABSOLUTE deflection is taken and its sign kept.
+% Amplitude is measured from the baseline median, with its sign.
 %
 % Recomputing N1 invalidates a connectivity matrix built from N1.
 %
@@ -78,7 +79,7 @@ if nargin < 2 || isempty(opt), opt = struct(); end
 def = struct('n1_window',[10 100], 'baseline',[-500 -10], 'method','permutation', ...
              'n_perm',1000, 'threshold',3.4, 'alpha',0.05, 'correct','fdr', ...
              'min_trials',5, 'exclude_stim',true, 'require_peak',true, ...
-             'polarity','abs', 'min_baseline_sd',50, 'verbose',true);
+             'polarity','negative', 'min_baseline_sd',50, 'verbose',true, 'seed',0);
 fn = fieldnames(def);
 for i = 1:numel(fn)
     if ~isfield(opt,fn{i}) || isempty(opt.(fn{i})), opt.(fn{i}) = def.(fn{i}); end
@@ -149,6 +150,7 @@ if isfield(EEG.chanlocs,'status')
     isBadCh = cellfun(@(x) ~isempty(x) && strcmpi(char(x),'bad'), {EEG.chanlocs.status});
 end
 
+rs = RandStream('mt19937ar', 'Seed', opt.seed);       % same permutations every run
 rows = {};
 for g = 1:numel(uSites)
     tr = find(grp == g);
@@ -171,7 +173,7 @@ for g = 1:numel(uSites)
         if K < opt.min_trials, continue; end
 
         if strcmp(opt.method, 'permutation')
-            [S, exact] = local_signs(K, opt.n_perm);
+            [S, exact] = local_signs(K, opt.n_perm, rs);
         else
             S = ones(K, 1); exact = false;
         end
@@ -247,16 +249,17 @@ if opt.verbose
     end
 end
 
-% Plausibility: a CCEP N1 is tens to a few hundred microvolts. Thousands mean
-% residual stimulation artifact rather than a neural response.
-BIG = 1000;
+% Plausibility: above 3000 uV the lab's N1 code takes a peak for a saturated
+% recording and drops it (ccep_detect_n1peak.m); contacts next to the
+% stimulated pair reach 1000-1500 uV in real responses (tutorial ECoG: FB63, 1.3 mV).
+BIG = 3000;
 nBig = sum(T.significant & abs(T.n1_amplitude_uv) > BIG);
 if nBig > 0
     warning('ieeglab_detect_n1:implausibleAmplitude', ...
-        ['%d detected response(s) exceed %g uV, far above a physiological N1. They are very ' ...
-         'likely residual stimulation artifact. Check that the artifact was blanked before ' ...
-         'filtering and downsampling, and that n1_window starts late enough (now %g ms).'], ...
-        nBig, BIG, opt.n1_window(1));
+        ['%d detected response(s) exceed %g uV, where the N1 code of the Multimodal Neuroimaging Lab ' ...
+         'treats a peak as saturated: most likely residual stimulation artifact. Check that the ' ...
+         'artifact was blanked before filtering and downsampling, and that n1_window starts late ' ...
+         'enough (now %g ms).'], nBig, BIG, opt.n1_window(1));
 end
 if EEG.srate < 500
     warning('ieeglab_detect_n1:lowSampleRate', ...
@@ -303,7 +306,7 @@ else
 end
 end
 
-function [S, exact] = local_signs(K, nPerm)
+function [S, exact] = local_signs(K, nPerm, rs)
 % Sign patterns, K x P. Column 1 is the identity (the observed data). All 2^K
 % patterns when that is no more than nPerm + 1, otherwise random ones.
 exact = 2^K <= nPerm + 1;
@@ -311,7 +314,7 @@ if exact
     B = dec2bin(0:2^K-1, K) == '1';
     S = double(~B') * 2 - 1;          % first column: all +1
 else
-    S = [ones(K,1), (randi(2, K, nPerm) * 2 - 3)];
+    S = [ones(K,1), (randi(rs, 2, K, nPerm) * 2 - 3)];
 end
 end
 
@@ -323,9 +326,10 @@ if n == 0, return; end
 switch lower(method)
     case 'bonferroni'
         padj(ok) = min(1, p(ok)*n);
-    case 'fdr'
+    case {'fdr', 'by'}
         [ps, ord] = sort(p(ok));
         q = ps(:) .* n ./ (1:n)';
+        if strcmpi(method, 'by'), q = q * sum(1 ./ (1:n)); end   % Benjamini-Yekutieli
         q = min(1, flipud(cummin(flipud(q))));
         tmp = nan(n,1); tmp(ord) = q;
         padj(ok) = tmp;

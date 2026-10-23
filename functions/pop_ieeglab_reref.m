@@ -4,9 +4,9 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 % Usage:
 %   [EEG, com] = pop_ieeglab_reref(EEG)                       % dialog
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'carla')           % CCEP data
-%   EEG = pop_ieeglab_reref(EEG, 'method', 'carla', 'sensitive', true, 'neighbors', 2)
+%   EEG = pop_ieeglab_reref(EEG, 'method', 'carla', 'sensitive', false, 'neighbors', 0)  % CARLA.m alone
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'car')
-%   EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.25)
+%   EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.2)
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'ica')                % rank estimated
 %   EEG = pop_ieeglab_reref(EEG, 'method', 'ica', 'rank', 12)
 %
@@ -21,14 +21,17 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 %                              reference and other shared signals) are removed.
 %                              See ieeglab_icaref.
 %   'timewin'    [start end] response window in ms used to rank channels
-%                (carla, varsubset). Default [10 300].
-%   'sensitive'  CARLA's sensitive cutoff (true/false). Default false.
+%                (carla, varsubset). Default [10 300] for carla, [15 500] for
+%                varsubset (each method's publication scripts).
+%   'sensitive'  CARLA's sensitive cutoff (true/false). Default true, as the
+%                CARLA authors use it on real CCEP data.
 %   'persite'    choose the reference separately for each stimulation site
 %                (true/false). Default true.
 %   'neighbors'  also leave out of the reference the contacts within this many
 %                contacts of the stimulated pair, on the same lead (carla, car,
-%                varsubset). Default 0. The CARLA publication scripts use 2.
-%   'fraction'   share of channels kept by 'varsubset' (0-1). Default 0.25.
+%                varsubset). Default 2 for carla, as its publication scripts,
+%                0 for the others.
+%   'fraction'   share of channels kept by 'varsubset' (0-1). Default 0.2 (HAPwave).
 %   'rank'       number of ICA components ('ica'). Default [] = the effective rank
 %                of the data, estimated; give it when known (e.g. after a common
 %                average the rank is one less than the number of channels).
@@ -59,15 +62,17 @@ end
 isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
 prev = struct();
 if isfield(EEG, 'ieeglab') && isfield(EEG.ieeglab, 'opt') && isstruct(EEG.ieeglab.opt), prev = EEG.ieeglab.opt; end
-g = struct('method', iff(isCCEP, 'carla', 'car'), 'timewin', local_prev(prev, 'car_timewin', [10 300]), ...
-    'sensitive', local_prev(prev, 'car_sens', false), 'persite', local_prev(prev, 'car_persite', true), ...
-    'fraction', local_prev(prev, 'car_fraction', 0.25), 'neighbors', local_prev(prev, 'car_neighbors', 0), ...
+% timewin, sensitive, fraction, neighbors: [] = the method's published default, or
+% the value of the previous run when it used the same method (local_fill)
+g = struct('method', iff(isCCEP, 'carla', 'car'), 'timewin', [], 'sensitive', [], ...
+    'persite', local_prev(prev, 'car_persite', true), 'fraction', [], 'neighbors', [], ...
     'rank', [], 'p_broad', 0.2);
 
 if nargin < 2
     % ---- dialog: one section per method; options of the other methods are greyed out
     M = local_methods(isCCEP);
     iSel = find(strcmp({M.name}, g.method), 1); if isempty(iSel), iSel = 1; end
+    g = local_fill(g, prev, M(iSel).name);
     onFor = @(tag) iff(ismember(tag, M(iSel).uses), 'on', 'off');
     row = @(tag, label, ctrl) {{'style' 'text' 'string' label 'tag' ['lbl_' tag] 'enable' onFor(tag)}, ...
                                [ctrl {'tag' tag 'enable' onFor(tag)}]};
@@ -124,6 +129,7 @@ else
     end
     g.method = lower(char(g.method));
 end
+g = local_fill(g, prev, g.method);                  % each method's published settings
 
 if ~ismember(g.method, {'carla', 'car', 'varsubset', 'ica'})
     error('pop_ieeglab_reref:method', 'Unknown method ''%s'': use carla, car, varsubset or ica.', g.method);
@@ -178,7 +184,9 @@ args = {'''method''', ['''' g.method '''']};
 if ismember(g.method, {'carla', 'varsubset'}), args = [args {'''timewin''', mat2str(g.timewin)}]; end
 if strcmp(g.method, 'carla'), args = [args {'''sensitive''', mat2str(logical(g.sensitive)), '''persite''', mat2str(logical(g.persite))}]; end
 if strcmp(g.method, 'varsubset'), args = [args {'''fraction''', num2str(g.fraction)}]; end
-if ~strcmp(g.method, 'ica') && g.neighbors > 0, args = [args {'''neighbors''', num2str(g.neighbors)}]; end
+if ~strcmp(g.method, 'ica')                         % always: the default depends on the method
+    args = [args {'''neighbors''', num2str(g.neighbors)}];
+end
 if strcmp(g.method, 'ica')
     if ~isempty(g.rank), args = [args {'''rank''', num2str(g.rank)}]; end
     args = [args {'''p_broad''', num2str(g.p_broad)}];
@@ -211,6 +219,21 @@ for tag = {'timewin','sensitive','fraction','neighbors','rank','p_broad'}
     set(findobj(fig, 'tag', ['lbl_' tag{1}]), 'enable', st);
 end
 set(findobj(fig, 'tag', 'desc'), 'string', m.desc);
+[tw, nb] = ieeglab_car_defaults(m.name);   % switching method shows that method's defaults
+set(findobj(fig, 'tag', 'timewin'), 'string', sprintf('%g %g', tw));
+set(findobj(fig, 'tag', 'neighbors'), 'string', num2str(nb));
+end
+
+function g = local_fill(g, prev, method)
+% Options not given: the previous run's value when it used the same method,
+% else the method's published default (ieeglab_car_defaults).
+[tw0, nb0] = ieeglab_car_defaults(method);
+same = isfield(prev, 'car_method') && strcmpi(char(string(prev.car_method)), method);
+pick = @(f, def) iff(same, local_prev(prev, f, def), def);
+if isempty(g.timewin),   g.timewin   = pick('car_timewin', tw0); end
+if isempty(g.neighbors), g.neighbors = pick('car_neighbors', nb0); end
+if isempty(g.sensitive), g.sensitive = pick('car_sens', true); end
+if isempty(g.fraction),  g.fraction  = pick('car_fraction', 0.2); end
 end
 
 function v = local_prev(s, f, default)

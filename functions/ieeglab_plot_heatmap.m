@@ -80,7 +80,7 @@ ieeglab_figure('Name','iEEGLAB average heatmap');
 h = imagesc(info.times, 1:numel(labels), avg);
 set(h, 'AlphaData', isfinite(avg));                 % channels with no epoch left: grey
 set(gca, 'Color', [0.8 0.8 0.8], 'YDir', 'reverse', 'TickLabelInterpreter', 'none', 'Layer', 'top');
-colormap(gca, local_diverging(256));
+colormap(gca, parula(256));                         % limits symmetric: 0 uV is the middle (green)
 caxis(cl); %#ok<CAXIS> works before R2022a
 cb = colorbar; ylabel(cb, 'Amplitude (\muV)');
 step = max(1, ceil(numel(labels) / 60));            % at most ~60 labels
@@ -91,12 +91,6 @@ title({sprintf('Average of %d epochs (%s%s)', numel(tr), what, note), ...
        'grey: no epoch left for this channel'}, 'Interpreter', 'none', 'FontWeight', 'normal');
 end
 
-function cmap = local_diverging(n)
-% blue - white - red, white at zero
-h = floor(n/2);
-up = linspace(0, 1, h)';
-cmap = [[up up ones(h,1)]; [ones(n-h,1) flipud(linspace(0,1,n-h)') flipud(linspace(0,1,n-h)')]];
-end
 
 function s = local_args(o)
 s = '';

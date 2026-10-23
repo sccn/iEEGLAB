@@ -14,8 +14,15 @@ function g = ieeglab_read_gifti(f)
 % Replaces the @gifti class that iEEGLAB used to borrow from vistasoft
 % (issue #8), so the 3D plots need no other toolbox.
 %
+% Also reads FreeSurfer triangle surfaces (lh.pial, rh.pial, lh.white ...). Their
+% vertices are returned in scanner RAS (surface RAS + the cras of the file's
+% volume information, also in g.c_ras), the space of the T1 and of BIDS
+% electrode coordinates; for fsaverage this is its MNI305 space (cras 0).
+%
 % Cedric Cannard, iEEGLAB, 2026
 
+g = local_freesurfer(f);
+if ~isempty(g), return; end
 txt = fileread(f);
 blocks = regexp(txt, '<DataArray([^>]*)>(.*?)</DataArray>', 'tokens');
 if isempty(blocks)
@@ -40,6 +47,33 @@ end
 if max(g.faces(:)) > size(g.vertices, 1) || min(g.faces(:)) < 1
     error('ieeglab_read_gifti:badFaces', 'Triangle indices in %s do not match its %d vertices.', f, size(g.vertices, 1));
 end
+end
+
+function g = local_freesurfer(f)
+% FreeSurfer triangle surface: magic FF FF FE, two comment lines, then (big-endian)
+% vertex and face counts, float32 vertices and int32 0-based faces. [] if not one.
+g = [];
+fid = fopen(f, 'r', 'ieee-be');
+if fid < 0, error('ieeglab_read_gifti:open', 'Cannot open %s.', f); end
+c = onCleanup(@() fclose(fid));
+magic = fread(fid, 3, 'uint8=>double')';
+if ~isequal(magic, [255 255 254]), return; end
+fgetl(fid); fgetl(fid);                               % "created by ..." and an empty line
+nv = fread(fid, 1, 'int32'); nf = fread(fid, 1, 'int32');
+v = fread(fid, [3 nv], 'float32=>double')';
+t = fread(fid, [3 nf], 'int32=>double')' + 1;
+if size(v, 1) ~= nv || size(t, 1) ~= nf || max(t(:)) > nv || min(t(:)) < 1
+    error('ieeglab_read_gifti:badFreeSurfer', 'Truncated or invalid FreeSurfer surface: %s', f);
+end
+% FreeSurfer stores vertices in surface (tkr) RAS. The volume information at the
+% end of the file gives cras, the shift to the scanner RAS of the T1 in which
+% BIDS electrode coordinates are usually given (as mris_convert --to-scanner).
+% fsaverage's cras is 0.
+tail = fread(fid, [1 4096], 'uint8=>char');
+c = regexp(tail, 'cras\s*=\s*(\S+)\s+(\S+)\s+(\S+)', 'tokens', 'once');
+cras = [0 0 0];
+if ~isempty(c), cras = str2double(c); if any(~isfinite(cras)), cras = [0 0 0]; end, end
+g = struct('vertices', v + cras, 'faces', t, 'c_ras', cras);
 end
 
 function a = local_attributes(s)

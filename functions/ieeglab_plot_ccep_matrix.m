@@ -114,6 +114,7 @@ s = '';
 if ~isfield(M,'source_opt') || ~isstruct(M.source_opt), return; end
 o = M.source_opt;
 if isfield(o,'method') && ~isempty(o.method), s = [s ', ' char(string(o.method))]; end
+if isfield(o,'crp_test') && strcmpi(char(string(o.crp_test)),'ttest'), s = [s ', t-test at tau_R']; end
 if isfield(o,'correct') && ~isempty(o.correct), s = [s ', ' char(string(o.correct))]; end
 if isfield(o,'alpha') && ~isempty(o.alpha) && ~(isfield(o,'method') && strcmpi(char(string(o.method)),'sd'))
     s = [s sprintf(', alpha %g', o.alpha)];
