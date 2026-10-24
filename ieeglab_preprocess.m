@@ -10,7 +10,10 @@ function [EEG, com] = ieeglab_preprocess(EEG, opt)
 % scriptable and testable. The commonly used fields are:
 %
 %   .apply_highpass / .highpass        logical / Hz
-%   .apply_notch    / .notch          logical / Hz (scalar or vector)
+%   .apply_notch    / .notch          logical / Hz (scalar or vector): line-noise removal
+%   .line_method                      'fit' (default): sines fitted away from the pulses and
+%                                     subtracted, nothing spread around them (ieeglab_line_noise);
+%                                     'notch': band-stop filter of 2 Hz at each frequency
 %   .apply_lowpass  / .lowpass        logical / Hz
 %   .filter_type                      1 = noncausal zero-phase, 2 = minimum phase
 %   .apply_ds       / .downsample     logical / Hz
@@ -288,8 +291,12 @@ if doHP
     EEG = pop_eegfiltnew(EEG, 'locutoff', double(opt.highpass), 'usefftfilt', 1, 'minphase', minphase);
 end
 
-% Notch filter
-if doNotch
+% Line noise: sines fitted away from the pulses and subtracted (default), or a notch
+% filter, which spreads each response's own line-frequency content around it
+if doNotch && ~strcmpi(local_opt(opt,'line_method','fit'), 'notch')
+    EEG = ieeglab_line_noise(EEG, struct('freqs', double(opt.notch), 'verbose', opt.verbose, ...
+        'mask_ms', local_opt(opt,'line_mask',[-10 300]), 'window', local_opt(opt,'line_window',4)));
+elseif doNotch
     nyq = EEG.srate/2;
     BW = 2;                     % total bandwidth (Hz)
     for f0 = double(opt.notch(:))'

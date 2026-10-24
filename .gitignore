@@ -15,7 +15,7 @@ Thumbs.db
 # except the walkthrough screenshots (without the capture log: it holds local paths)
 tutorial/*/*/
 !tutorial/images/walkthrough/
-tutorial/images/walkthrough/capture_log.txt
+tutorial/images/walkthrough/capture_log*.txt
 
 # Local notes, papers and old scripts: kept locally, not distributed with the plugin
 .claude/

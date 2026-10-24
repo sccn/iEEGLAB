@@ -126,7 +126,7 @@ ieeglab_check_install</code></pre></details></li>
   <a href="https://openneuro.org/datasets/ds004080">ds004080</a>. Keep the folder structure.</p>
   <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*run-041456*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_electrodes.*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_coordsystem.json" --include "dataset_description.json" --include "participants.tsv"</code></pre>
-  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 2 to 3 hours. For a quicker
+  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes about 2 hours. For a quicker
   run, read only a few stimulation sites at step 1 of Part A.</div>
   </div>
 
@@ -166,14 +166,14 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest
-      (artifact blanking, notch 60 120 180 Hz, no high-pass, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
+      (artifact blanking, line noise at 60 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
       than 5 pulses, bad contacts and contacts without coordinates removed).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 14 contacts, 32 epochs. The command window names RA14
-      as not flat before the pulse: it is kept, as the clinicians marked it good.</span><span class="f">About 10 minutes:
+      as not flat before the pulse: it is kept, as the clinicians marked it good.</span><span class="f">About 2 minutes:
       198 contacts, 627 epochs.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', [60 120 180], ...
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', 60, ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
@@ -187,7 +187,7 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 
     <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults (sensitive cutoff; the stimulated pair and
       2 contacts on each side left out, as in Huang et al., 2024).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">2 to 3 hours for the
+      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">About 2 hours for the
       57 sites (minutes for a few sites).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -195,9 +195,9 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 
     <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
-      sites are next to each other on one lead, so most contacts respond).</span><span class="f">8 minutes or more: about
+      sites are next to each other on one lead, so most contacts respond).</span><span class="f">About 10 minutes: about
       3900 of 11172 site-contact pairs respond. Against the published CRP of this participant: the same decision for 83%
-      of the 484 published pairs tested here (90% with the published t-test at tau_R and Benjamini-Yekutieli correction,
+      of the 484 published pairs tested here (89% with the published t-test at tau_R and Benjamini-Yekutieli correction,
       both options in this window).</span> The results repeat exactly from run to run (fixed random seed).</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_summary_1.png" alt="CRP summary" onerror="this.closest('figure').style.display='none'"></figure>
@@ -276,12 +276,12 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B3_electrodes.png" alt="Electrodes on fsaverage" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (notch 50 100 150 Hz here).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About half a
-      minute: 86 contacts, 160 epochs.</span></div>
+    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50 Hz here).
+      <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 15 s:
+      86 contacts, 160 epochs.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', [50 100 150], ...
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', 50, ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
@@ -298,7 +298,7 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 11 of 48 pairs respond, N1 latency median 21 ms (14 to
-      99 ms).</span><span class="f">About 15 s: about 300 of 672 pairs respond, N1 latency median about 47 ms.</span></div>
+      99 ms).</span><span class="f">About 15 s: about 300 of 672 pairs respond, N1 latency median about 46 ms.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, 'run_matrix', true, 'matrix_source', 'n1'));</code></pre></details></li>

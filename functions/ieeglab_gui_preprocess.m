@@ -25,14 +25,15 @@ choices.exclude_soz       = false;     % seizure-onset-zone contacts
 choices.apply_ds          = false;
 
 % High-pass is off by default: a zero-phase filter can ring around the stimulation
-% artifact and around large responses, so the defaults are a power-line notch and
-% baseline subtraction only.
+% artifact and around large responses, so the defaults are line-noise removal by
+% fitted sines (no filter) and baseline subtraction only.
 choices.apply_highpass    = false;
 choices.highpass          = 0.1;        % Hz
 
 choices.apply_notch       = true;
-choices.notch             = local_powerline(EEG) * (1:3);   % Hz: PowerLineFrequency of the BIDS ieeg.json (else 60) and 2 harmonics
+choices.notch             = local_powerline(EEG);   % Hz: PowerLineFrequency of the BIDS ieeg.json (else 60); harmonics only if typed in
 choices.notch             = choices.notch(choices.notch < EEG.srate/2 - 1);   % below Nyquist
+choices.line_method       = 'fit';      % sines fitted away from the pulses (ieeglab_line_noise); or 'notch'
 
 choices.apply_lowpass     = false;
 choices.lowpass           = 40;         % Hz (empty -> none)
@@ -125,7 +126,8 @@ onoff_ds  = iff(choices.apply_ds,'on','off');
 onoff_hp  = iff(choices.apply_highpass,'on','off');
 onoff_no  = iff(choices.apply_notch,'on','off');
 onoff_lp  = iff(choices.apply_lowpass,'on','off');
-onoff_ft  = iff(choices.apply_highpass || choices.apply_notch || choices.apply_lowpass,'on','off');
+onoff_ft  = iff(choices.apply_highpass || (choices.apply_notch && strcmp(choices.line_method,'notch')) || ...
+                choices.apply_lowpass,'on','off');
 onoff_rare = iff(haveEv && choices.remove_rare_cond,'on','off');
 
 onoff_seg = iff(haveEv && choices.apply_epoch,'on','off');
@@ -157,8 +159,9 @@ uigeom = {
     [0.70 0.30]
     [0.06 0.64 0.30]
 
-    % Notch
+    % Line noise
     [0.70 0.30]
+    [0.06 0.64 0.30]
     [0.06 0.64 0.30]
 
     % Low-pass
@@ -237,12 +240,17 @@ append({'style' 'text' 'string' ''});
 append({'style' 'text' 'tag' 'lbl_highpass' 'string' 'Cutoff (Hz):' 'horizontalalignment' 'left' 'enable' onoff_hp});
 append({'style' 'edit' 'tag' 'highpass' 'string' num2str(choices.highpass) 'enable' onoff_hp});
 
-% Notch
-append({'style' 'text' 'string' 'Notch filter (line noise: 60 Hz in the Americas, 50 Hz elsewhere):' 'horizontalalignment' 'left'});
+% Line noise: fitted sines by default (a notch spreads each response around the pulse)
+append({'style' 'text' 'string' 'Remove line noise (60 Hz in the Americas, 50 Hz elsewhere):' 'horizontalalignment' 'left'});
 append({'style' 'checkbox' 'tag' 'apply_notch' 'value' choices.apply_notch 'string' 'Enable' 'callback' cb_no});
 append({'style' 'text' 'string' ''});
-append({'style' 'text' 'tag' 'lbl_notch' 'string' 'Frequencies, with harmonics (Hz):' 'horizontalalignment' 'left' 'enable' onoff_no});
+append({'style' 'text' 'tag' 'lbl_notch' 'string' 'Frequencies (Hz):' 'horizontalalignment' 'left' 'enable' onoff_no});
 append({'style' 'edit' 'tag' 'notch' 'string' num2str(choices.notch) 'enable' onoff_no});
+append({'style' 'text' 'string' ''});
+append({'style' 'text' 'tag' 'lbl_line_method' 'string' 'Method:' 'horizontalalignment' 'left' 'enable' onoff_no});
+append({'style' 'popupmenu' 'tag' 'line_method' 'callback' cb_no 'enable' onoff_no ...
+        'string' {'Fitted sines (default)' 'Notch filter'} ...
+        'value' 1 + strcmp(choices.line_method,'notch')});
 
 % Low-pass
 append({'style' 'text' 'string' 'Low-pass filter:' 'horizontalalignment' 'left'});
@@ -321,6 +329,9 @@ if isfield(out,'notch') && ~isempty(out.notch)
     nv = str2num(out.notch); %#ok<ST2NM>
     if isempty(nv), nv = str2double(out.notch); end
     if all(isfinite(nv)), choices.notch = nv; end
+end
+if isfield(out,'line_method') && ~isempty(out.line_method)
+    choices.line_method = iff(out.line_method == 2, 'notch', 'fit');
 end
 
 choices.apply_lowpass = isfield(out,'apply_lowpass') && logical(out.apply_lowpass);
@@ -439,9 +450,11 @@ v = @(t) local_value(hFig, t);
 local_set_enable(hFig, {'lbl_min_trials','min_trials'}, haveEv && v('remove_rare_cond'));
 local_set_enable(hFig, {'lbl_ds_rate','ds_rate'}, v('apply_ds'));
 local_set_enable(hFig, {'lbl_highpass','highpass'}, v('apply_highpass'));
-local_set_enable(hFig, {'lbl_notch','notch'}, v('apply_notch'));
+local_set_enable(hFig, {'lbl_notch','notch','lbl_line_method','line_method'}, v('apply_notch'));
 local_set_enable(hFig, {'lbl_lowpass','lowpass'}, v('apply_lowpass'));
-local_set_enable(hFig, {'lbl_filter_type','filter_type'}, v('apply_highpass') || v('apply_notch') || v('apply_lowpass'));
+h = findobj(hFig, 'tag', 'line_method');
+isNotch = v('apply_notch') && ~isempty(h) && get(h(1), 'value') == 2;   % the fit is not a filter
+local_set_enable(hFig, {'lbl_filter_type','filter_type'}, v('apply_highpass') || isNotch || v('apply_lowpass'));
 ep = haveEv && v('apply_epoch');
 local_set_enable(hFig, {'lbl_epoch','epoch_window','lbl_rej','reject_trials','lbl_apply_baseline','apply_baseline'}, ep);
 local_set_enable(hFig, {'lbl_bl_method','bl_method','lbl_bl_period','bl_period'}, ep && v('apply_baseline'));

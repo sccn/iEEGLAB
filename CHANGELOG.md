@@ -2,6 +2,17 @@
 
 ## Unreleased (2026-10-21 to 23)
 
+- **Line noise is removed without a filter by default** (`ieeglab_line_noise`,
+  `line_method` 'fit'). In windows of 4 s, a sine at the line frequency is fitted
+  to the samples away from the pulses (-10 to 300 ms left out) and subtracted; the
+  exact mains frequency (within 0.1 Hz of 60 or 50) is found once from each
+  continuous stretch of the recording. A notch removes each response's
+  own line-frequency content and spreads it up to 1.6 s around the pulse (a 2 Hz
+  notch is a 3.3 s filter at 2048 Hz): on the tutorial sEEG it took 32 uV RMS out
+  of the trial average around the pulse, the fit 3.6 uV, the same as 600 ms
+  before it (line noise 1.7 uV per contact). A wider, shorter notch took twice as
+  much. The notch stays available (*Method* in the preprocessing window,
+  `line_method` 'notch'). The tutorial results are unchanged.
 - *Plot average of all channels (heatmap)* now comes before *iEEG re-referencing*
   in the iEEGLAB menu, in the order of the walkthrough.
 - **The brain drawn follows the space of the coordinates**
@@ -39,8 +50,10 @@
   bootstrap draw from their own random stream with a fixed seed (options `seed`
   and `car_seed`, default 0), so the same data give the same results every run;
   MATLAB's global random state is not touched.
-- The preprocessing window proposes the power-line frequency and its first two
-  harmonics for the notch (60 120 180 Hz or 50 100 150 Hz), below Nyquist.
+- The preprocessing window proposes the power-line frequency alone (60 or 50 Hz,
+  from the recording's `ieeg.json`); harmonics can be typed in.
+- The CRP explained-variance histogram outlines the non-significant pairs, so they
+  stay visible behind the significant ones.
 - **CRP window 15-1000 ms by default** (was 15-500 ms), as in the published CRP
   analyses: with 500 ms, about a quarter of the tutorial's pairs ended exactly at the
   window end. A window longer than the epoch is cut at the epoch end with a

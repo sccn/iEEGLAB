@@ -515,12 +515,20 @@ if ismember('explained_var', T.Properties.VariableNames) && any(isfinite(T.expla
     edges = 0:0.05:1;
     ns = T.explained_var(~T.significant & isfinite(T.explained_var));
     hold on
-    if ~isempty(ns), histogram(ns, edges, 'FaceColor', [0.7 0.7 0.7], 'EdgeColor', 'none'); end
-    if ~isempty(sig), histogram(sig.explained_var(isfinite(sig.explained_var)), edges, 'FaceColor', [0.05 0.40 0.47]); end
-    lg = {};
-    if ~isempty(ns), lg{end+1} = sprintf('not significant (n=%d)', numel(ns)); end
-    if ~isempty(sig), lg{end+1} = sprintf('significant (n=%d)', height(sig)); end
-    legend(lg, 'Location', 'northwest', 'Box', 'off');
+    h = gobjects(0); lg = {};
+    if ~isempty(ns)
+        h(end+1) = histogram(ns, edges, 'FaceColor', [0.55 0.55 0.55], 'FaceAlpha', 0.5, 'EdgeColor', 'none');
+        lg{end+1} = sprintf('not significant (n=%d)', numel(ns));
+    end
+    if ~isempty(sig)
+        h(end+1) = histogram(sig.explained_var(isfinite(sig.explained_var)), edges, ...
+            'FaceColor', [0.05 0.40 0.47], 'FaceAlpha', 0.55);
+        lg{end+1} = sprintf('significant (n=%d)', height(sig));
+    end
+    if ~isempty(ns)   % outline on top: the not-significant bars stay visible behind the significant ones
+        histogram(ns, edges, 'DisplayStyle', 'stairs', 'EdgeColor', [0.3 0.3 0.3], 'LineWidth', 1.2);
+    end
+    legend(h, lg, 'Location', 'northwest', 'Box', 'off');
     xlim([0 1]);
     xlabel('Explained variance (fraction, per pair: mean over trials)','FontWeight','bold');
     ylabel('Site-contact pairs','FontWeight','bold');
