@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (2026-10-21 to 23)
+## 1.2.0 (2026-10-25)
+
+### 2026-10-21 to 23
 
 - **Line noise is removed without a filter by default** (`ieeglab_line_noise`,
   `line_method` 'fit'). In windows of 4 s, a sine at the line frequency is fitted
@@ -121,7 +123,7 @@
 - **Tutorial sEEG without RB13.** It was the only contact of its lead on the
   brain and looked like an error; the extract now has 17 contacts.
 
-## Unreleased (2026-10-09)
+### 2026-10-09
 
 - **Import raw recording** (`pop_ieeglab_import`, `ieeglab_import`): a new menu
   item that reads a recording of a BIDS dataset (MEF3, BrainVision, EDF, BDF,
@@ -137,7 +139,7 @@
   plugin folder is added to the path. It now looks at the file MATLAB resolves
   (`ieeglab_is_mex`).
 
-## Unreleased (2026-10-08)
+### 2026-10-08
 
 - **No high-pass filter by default.** The preprocessing dialog now proposes a
   power-line notch and baseline subtraction only: a zero-phase high-pass can ring
@@ -173,7 +175,7 @@
   shipped. `iEEGLAB_GUI_walkthrough.html` now starts from the recordings as
   downloaded from OpenNeuro.
 
-## Unreleased (2026-09-30)
+### 2026-09-30
 
 - **Menu follows the dataset state.** Check installation is the first iEEGLAB
   item and is always available; the other items are greyed out until a dataset
@@ -283,7 +285,7 @@
   the README), sEEG with CRP and ECoG with N1.
 - Events whose type is empty or `n/a` are dropped whichever event field is used.
 
-## 2026-09-21
+### 2026-09-21
 
 - **N1 detection gains erdetect's rule as options.** `ieeglab_detect_n1` now
   takes `polarity` ('abs' default, 'negative' as erdetect, 'positive') and

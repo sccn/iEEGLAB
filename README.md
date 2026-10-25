@@ -30,8 +30,10 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    **firfilt** and **EEG-BIDS** plugins that iEEGLAB uses. For raw BIDS data
    also install, from *File > Manage EEGLAB extensions*, **MEF3** (Mayo MEF3
    files) or **bva-io** (BrainVision).
-2. Install iEEGLAB: clone or download this repository into `eeglab/plugins/`
-   (the version in the extension manager is older until the next release).
+2. Install iEEGLAB: download the latest
+   [release](https://github.com/sccn/iEEGLAB/releases) (`iEEGLAB1.2.0.zip`) and
+   unzip it into `eeglab/plugins/`, or clone this repository there. The EEGLAB
+   extension manager lists 1.2.0 once its list is updated.
 3. Start EEGLAB and run *iEEGLAB > Check installation*
    (`ieeglab_check_install`), which lists anything missing. The iEEGLAB menu is
    right of *Help*:

@@ -10,7 +10,8 @@ authors:
     given-names: Cedric
   - family-names: Delorme
     given-names: Arnaud
-version: 1.1.0
+version: 1.2.0
+date-released: 2026-10-25
 license: GPL-3.0-or-later
 repository-code: "https://github.com/sccn/iEEGLAB"
 keywords:
