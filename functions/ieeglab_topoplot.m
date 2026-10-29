@@ -150,9 +150,9 @@ if ~o.draw, return; end
 ieeglab_figure('Name', 'iEEGLAB electrode values');
 hold on
 surfFiles = o.surf_files;
-if isempty(surfFiles), surfFiles = ieeglab_remembered_surfaces(EEG); end   % as chosen in Visualize electrodes
-useTemplate = isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.opt,'brain') && ...
-    strcmp(EEG.ieeglab.opt.brain, 'template');     % chosen in Visualize electrodes
+useTemplate = isempty(surfFiles) && isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && ...
+    isfield(EEG.ieeglab.opt,'brain') && strcmp(EEG.ieeglab.opt.brain, 'template');   % chosen in Choose brain surfaces
+if isempty(surfFiles) && ~useTemplate, surfFiles = ieeglab_remembered_surfaces(EEG); end   % as chosen in Choose brain surfaces
 if isempty(surfFiles) && ~useTemplate       % none chosen: the brain matching the coordinates' space
     [surfFiles, bi] = ieeglab_brain_surfaces(EEG, 'check_fit', false);
     fprintf('[topoplot] %s\n', bi.message);

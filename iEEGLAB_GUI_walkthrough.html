@@ -156,14 +156,16 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       <figure class="shot f"><img src="tutorial/images/walkthrough/A2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Visualize electrodes</span>: <i>Use these</i> (sub-02's pial surfaces, asked once).
+    <li><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i> (sub-02's pial surfaces), then
+      <span class="menu">iEEGLAB &gt; Visualize electrodes</span>. Chosen once, the surfaces are used by every brain figure.
       <div class="expect"><b>Expect</b>The contacts inside the brain, seen from the front and slightly above; drag to
       rotate.<span class="t"> One lead here (RA), in the right hemisphere.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA3_electrodes.png" alt="Electrodes on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A3_electrodes.png" alt="Electrodes on the brain" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));</code></pre></details></li>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', ieeglab_brain_surfaces(EEG));
+EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest
       (artifact blanking, line noise at 60 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
@@ -265,7 +267,8 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Visualize electrodes</span>: <i>Use these</i>. This dataset shares no MRI; its
+    <li><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i>, then
+      <span class="menu">iEEGLAB &gt; Visualize electrodes</span>. This dataset shares no MRI; its
       coordinates are on fsaverage, so fsaverage's pial surfaces are offered.
       <div class="expect"><b>Expect</b>The grid and strip contacts on the left frontal cortex of fsaverage, seen face-on.
       The grid does not look regular: the dataset moved its contacts to fsaverage with a surface-based transformation that,
@@ -274,7 +277,8 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB3_electrodes.png" alt="Electrodes on fsaverage" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B3_electrodes.png" alt="Electrodes on fsaverage" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));</code></pre></details></li>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', ieeglab_brain_surfaces(EEG));
+EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50 Hz here).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 15 s:

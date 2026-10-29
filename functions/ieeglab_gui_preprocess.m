@@ -31,7 +31,7 @@ choices.apply_highpass    = false;
 choices.highpass          = 0.1;        % Hz
 
 choices.apply_notch       = true;
-choices.notch             = local_powerline(EEG);   % Hz: PowerLineFrequency of the BIDS ieeg.json (else 60); harmonics only if typed in
+choices.notch             = local_powerline(EEG) * (1:3);   % Hz: PowerLineFrequency of the BIDS ieeg.json (else 60) and 2 harmonics
 choices.notch             = choices.notch(choices.notch < EEG.srate/2 - 1);   % below Nyquist
 choices.line_method       = 'fit';      % sines fitted away from the pulses (ieeglab_line_noise); or 'notch'
 

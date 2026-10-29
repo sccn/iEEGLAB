@@ -43,7 +43,8 @@ end
 function test_rejects_bad_options(tc)
 b = tc.TestData.pre; b.apply_car = false;
 [~, B] = evalc('ieeglab_preprocess(tc.TestData.EEG, b)');
-tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'bipolar'), 'pop_ieeglab_reref:method');
+tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'laplacian'), 'pop_ieeglab_reref:method');
+tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'montage'), 'pop_ieeglab_reref:noMontage');
 tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'varsubset', 'fraction', 2), 'pop_ieeglab_reref:fraction');
 tc.verifyError(@() pop_ieeglab_reref(B, 'window', [10 300]), 'pop_ieeglab_reref:unknownOption');
 end
@@ -85,6 +86,37 @@ for g = R2.ieeglab.car.groups
         'Only the neighbours may leave the plain common average.');
 end
 tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'car', 'neighbors', -1), 'pop_ieeglab_reref:neighbors');
+end
+
+function test_continuous_car_and_ica(tc)
+% Continuous data without stimulation: the common average and ICA are offered.
+% Seven good contacts share a reference signal (equal weight on each) on top
+% of their own sources; LA8 is marked bad.
+fs = 500; T = 60 * fs; rng(4);
+common = 3 * randn(1, T).^3;                      % super-Gaussian, as ICA needs
+S = randn(6, T).^3 .* (1 + (0:5)' / 5);              % own sources, 1 to 2 x
+X = [S; 0.5 * S(6, :)] + common;                   % 7 contacts, 7 sources
+X(8, :) = 10 * randn(1, T);
+EEG = eeg_emptyset();
+EEG.srate = fs; EEG.nbchan = 8; EEG.pnts = T; EEG.trials = 1;
+EEG.data = single(X); EEG.xmin = 0; EEG.xmax = (T - 1) / fs; EEG.times = (0:T-1) / fs * 1000;
+for c = 8:-1:1, cl(c) = struct('labels', sprintf('LA%d', c), 'type', 'SEEG', 'status', 'good'); end
+cl(8).status = 'bad';
+EEG.chanlocs = cl;
+
+[~, B, com] = evalc('pop_ieeglab_reref(EEG, ''method'', ''car'')');
+ref = mean(double(EEG.data(1:7, :)), 1);
+tc.verifyEqual(double(B.data), double(EEG.data) - ref, 'AbsTol', 1e-4, 'Every channel minus the mean of the 7 good ones.');
+tc.verifyEqual(B.ref, 'CAR');
+tc.verifyTrue(contains(com, '''car'''));
+
+[~, I] = evalc('pop_ieeglab_reref(EEG, ''method'', ''ica'')');
+r0 = abs(corr(double(EEG.data(1:7, :))', common'));
+r1 = abs(corr(double(I.data(1:7, :))', common'));
+tc.verifyGreaterThan(min(r0), 0.5);
+tc.verifyLessThan(max(r1), 0.2, 'The shared reference signal must be removed.');
+tc.verifyEqual(I.data(8, :), EEG.data(8, :), 'The bad contact must be left untouched.');
+tc.verifyError(@() pop_ieeglab_reref(EEG, 'method', 'carla'), 'pop_ieeglab_reref:notEpoched');
 end
 
 function [lead, num] = local_lead_number(labels)

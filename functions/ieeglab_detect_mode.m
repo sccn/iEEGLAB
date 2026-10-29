@@ -54,15 +54,18 @@ if ~isfield(EEG,'chanlocs') || isempty(EEG.chanlocs)
     mode = 'erp';
     return
 end
-labels = upper(string({EEG.chanlocs.labels}));
+% Contacts, not channel labels: after bipolar re-referencing a channel is
+% 'RA1-RA2' and the contacts RA1 and RA2 are what the event types name.
+contacts = ieeglab_label_contacts({EEG.chanlocs.labels});
+labels = upper(contacts(:))';
 
 % A type is a stimulation pair when it splits on a separator into two or more
-% tokens that are BOTH recording-channel labels. Requiring both tokens to match
+% tokens that are BOTH recording contacts. Requiring both tokens to match
 % is what stops ordinary hyphenated condition names ('face-house') registering
 % as stimulation sites.
 isPair = false(1, numel(uTypes));
 for i = 1:numel(uTypes)
-    parts = upper(strtrim(ieeglab_site_tokens(uTypes(i), {EEG.chanlocs.labels})));
+    parts = upper(strtrim(ieeglab_site_tokens(uTypes(i), cellstr(contacts))));
     if numel(parts) >= 2
         isPair(i) = all(ismember(parts, labels));
     end

@@ -110,6 +110,40 @@ end
 
 rs = RandStream('mt19937ar', 'Seed', opt.car_seed);   % CARLA's bootstrap: same draws every run
 
+% ---------------- continuous data, plain average ----------------
+% One reference for every sample, subtracted block by block in the data's own
+% class: a long recording is never copied to double as a whole. (No stimulated
+% pair can be left out here; pop_ieeglab_reref offers this on non-CCEP data.)
+if size(EEG.data, 3) == 1 && strcmpi(opt.car_method, 'car') && (~isfield(EEG, 'epoch') || isempty(EEG.epoch))
+    labels = string({EEG.chanlocs.labels});
+    badIdx = local_resolve_channels(opt.bad_channels, labels);
+    if isfield(EEG.chanlocs, 'status')
+        isBad = cellfun(@(x) ~isempty(x) && strcmpi(char(x), 'bad'), {EEG.chanlocs.status});
+        badIdx = unique([badIdx(:); find(isBad(:))]);
+    end
+    good = setdiff(1:EEG.nbchan, badIdx);
+    if isempty(good)
+        warning('ieeglab_car:noRefChannels', 'No good channel left for the reference; the data are unchanged.');
+        return
+    end
+    T = size(EEG.data, 2);
+    for b0 = 1:2^20:T
+        k = b0:min(T, b0 + 2^20 - 1);
+        EEG.data(:, k) = EEG.data(:, k) - cast(mean(double(EEG.data(good, k)), 1), 'like', EEG.data);
+    end
+    EEG.ref = 'CAR';
+    out = struct('group', 'all', 'trials', 1, 'car_channels', good, 'excluded_channels', badIdx(:)', ...
+        'n_sel', numel(good), 'stats', struct());
+    EEG.ieeglab.car = struct('method', 'car', 'timewin_ms', [], 'persite', false, 'neighbors', 0, 'n_groups', 1, ...
+        'groups', struct('site', 'all', 'reference', {cellstr(labels(good))}, ...
+        'excluded', {cellstr(labels(badIdx))}, 'stats', struct()));
+    if opt.verbose
+        fprintf('[CAR] Continuous data: %d/%d channels in the reference, %d excluded (%s).\n', ...
+            numel(good), EEG.nbchan, numel(badIdx), strjoin(cellstr(labels(badIdx)), ','));
+    end
+    return
+end
+
 % ---------------- data ----------------
 X = EEG.data;
 if ismatrix(X), X = reshape(X, size(X,1), size(X,2), 1); end

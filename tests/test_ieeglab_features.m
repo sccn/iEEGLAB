@@ -396,6 +396,47 @@ E3 = E2; E3.ieeglab.opt.surf_files = {f1};
 tc.verifyEqual(ieeglab_remembered_surfaces(E3), {f1});
 end
 
+function test_choose_surfaces_once(tc)
+% Choose brain surfaces stores the brain on the dataset (surfaces, template, or
+% none), and the history line replays the choice. The user's preference is restored.
+old = [];
+if ispref('iEEGLAB', 'surf_files'), old = getpref('iEEGLAB', 'surf_files'); end
+c = onCleanup(@() local_restore_pref(old));
+EEG = pop_loadset('filename', tc.TestData.set, 'filepath', tc.TestData.seegDir);
+[~, A, com] = evalc('pop_ieeglab_surfaces(EEG, ''surf_files'', {''pial.L.surf.gii'', ''pial.R.surf.gii''})');
+want = fullfile(tc.TestData.seegDir, {'pial.L.surf.gii', 'pial.R.surf.gii'});
+tc.verifyEqual(A.ieeglab.opt.surf_files, want, 'Bare names resolve next to the dataset.');
+tc.verifyEqual(ieeglab_remembered_surfaces(EEG), want, 'Remembered for the same participant.');
+B = local_replay(EEG, com);
+tc.verifyEqual(B.ieeglab.opt.surf_files, want, 'The history line must replay the choice.');
+
+[~, T, com] = evalc('pop_ieeglab_surfaces(A, ''brain'', ''template'')');
+tc.verifyEqual(T.ieeglab.opt.brain, 'template');
+tc.verifyFalse(isfield(T.ieeglab.opt, 'surf_files'), 'The template replaces the surfaces.');
+tc.verifyTrue(contains(com, '''template'''));
+[~, N] = evalc('pop_ieeglab_surfaces(T, ''brain'', ''auto'')');
+tc.verifyFalse(isfield(N.ieeglab.opt, 'surf_files') || isfield(N.ieeglab.opt, 'brain'));
+tc.verifyEmpty(ieeglab_remembered_surfaces(N), 'No choice left, for this participant either.');
+
+tc.verifyError(@() pop_ieeglab_surfaces(EEG, 'brain', 'pial'), 'pop_ieeglab_surfaces:brain');
+tc.verifyError(@() pop_ieeglab_surfaces(EEG, 'brain', 'template', 'surf_files', want), 'pop_ieeglab_surfaces:both');
+tc.verifyWarning(@() local_try_missing(EEG), 'pop_ieeglab_surfaces:surfaceNotFound');
+tc.verifyError(@() local_quiet_missing(EEG), 'pop_ieeglab_surfaces:notFound');
+end
+
+function EEG = local_replay(EEG, com)
+evalc(com);
+end
+
+function local_quiet_missing(EEG)
+w = warning('off', 'pop_ieeglab_surfaces:surfaceNotFound'); c = onCleanup(@() warning(w));
+pop_ieeglab_surfaces(EEG, 'surf_files', {'nope.gii'});
+end
+
+function local_try_missing(EEG)
+try pop_ieeglab_surfaces(EEG, 'surf_files', {'nope.gii'}); catch, end
+end
+
 function local_restore_pref(old)
 if isempty(old)
     if ispref('iEEGLAB', 'surf_files'), rmpref('iEEGLAB', 'surf_files'); end

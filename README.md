@@ -17,9 +17,11 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 | Read a raw recording of a BIDS dataset (MEF3, BrainVision, EDF, .set): brain channels by default (ECG, EMG and other types on request, for example for BrainBeats), optionally only some stimulation sites, in single precision | Import raw recording | `pop_ieeglab_import`, `ieeglab_import` |
 | Or import a whole BIDS dataset with EEGLAB (every channel, double precision: fine for short recordings) | File > Import data > From BIDS folder structure | `pop_importbids` (EEG-BIDS) |
 | Electrode coordinates, events and clinician channel labels from the BIDS files | Load electrode coordinates and events | `ieeglab_load` |
+| The brain every brain figure is drawn on, chosen once (else the one matching the coordinates) | Choose brain surfaces | `pop_ieeglab_surfaces` |
 | Electrodes on the brain | Visualize electrodes | `ieeglab_vis_elec` |
 | Stimulation-artifact blanking, filtering, epoching, trial and channel rejection, baseline | Preprocess iEEG data | `ieeglab_preprocess` |
-| Re-referencing: CARLA (CCEP), common average, ICA-based | iEEG re-referencing | `pop_ieeglab_reref` |
+| Re-referencing: CARLA (CCEP), common average, ICA-based, bipolar, custom montages (e.g. a local average) | iEEG re-referencing | `pop_ieeglab_reref`, `ieeglab_montage` |
+| Power spectrum of each contact; time-frequency power and band power (high-frequency activity by default), on the brain | Frequency analysis | `pop_ieeglab_spectral`, `ieeglab_spectral` |
 | CRP (sEEG) and N1 (ECoG) with permutation statistics; connectivity matrix | CCEP analysis (N1, CRP, connectivity) | `ieeglab_stats_subject` |
 | One site-contact pair (CRP), the connectivity matrix, values on the brain | Plot CRP of one site and contact; Plot connectivity matrix; Plot electrode values on brain | `ieeglab_plot_crp`, `ieeglab_plot_ccep_matrix`, `ieeglab_topoplot` |
 | Export (TSV, JSON, MAT) | Export results | `ieeglab_export` |
@@ -39,6 +41,10 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    right of *Help*:
 
    <img src="tutorial/images/00_eeglab_start.png" width="360" alt="EEGLAB with the iEEGLAB menu">
+
+   *Help > iEEGLAB documentation* (also at the bottom of the iEEGLAB menu)
+   opens this page, the menu-by-menu walkthrough shipped with the plugin, the
+   tutorial script, and the help of each menu's function.
 
 CARLA needs MATLAB's Statistics and Machine Learning Toolbox; the Signal
 Processing Toolbox is recommended.
@@ -82,17 +88,19 @@ marked here and removed during preprocessing.
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 ```
 
-**3. Electrodes on the brain.** *iEEGLAB > Visualize electrodes*. The pial
-surfaces found next to the dataset (`pial.L.surf.gii`, `pial.R.surf.gii`) are
-offered; they are asked for once and then used by every brain figure
-(*Choose brain surfaces* changes them). Which brain is offered follows the
-space of the coordinates in `coordsystem.json`: the participant's pial surfaces
-for participant coordinates (ACPC here), fsaverage's for fsaverage or MNI
+**3. Electrodes on the brain.** *iEEGLAB > Choose brain surfaces*, then
+*iEEGLAB > Visualize electrodes*. The brain is chosen once, here *Use these*:
+the pial surfaces found next to the dataset (`pial.L.surf.gii`,
+`pial.R.surf.gii`). Every brain figure then uses it without asking. Without a
+choice, figures are drawn on the brain that matches the space of the
+coordinates in `coordsystem.json`: the participant's pial surfaces for
+participant coordinates (ACPC here), fsaverage's for fsaverage or MNI
 coordinates (`ieeglab_brain_surfaces`).
 
 ```matlab
 surf = fullfile(tut, {'pial.L.surf.gii', 'pial.R.surf.gii'});
-EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));
+EEG = pop_ieeglab_surfaces(EEG, 'surf_files', surf);
+EEG = ieeglab_vis_elec(EEG);
 ```
 
 <p align="center">
@@ -104,7 +112,8 @@ EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf}));
 **4. Preprocess.** *iEEGLAB > Preprocess iEEG data*: tick *Reject outlier
 trials* and keep the other defaults (the command below sets the same). They
 blank the stimulation artifact,
-remove the line noise (60 Hz, from the recording's `ieeg.json`) by subtracting
+remove the line noise (60 Hz from the recording's `ieeg.json`, and its harmonics
+120 and 180 Hz) by subtracting
 sines fitted away from the pulses (no filter: a notch or a high-pass spreads each
 response around the pulse), cut epochs from -1
 to 1 s around each pulse, drop stimulation sites with fewer than 5 pulses,
@@ -114,7 +123,7 @@ the clinicians marked it good, but look at it in the heatmap.
 
 ```matlab
 EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
-    'apply_notch', true, 'notch', 60, ...
+    'apply_notch', true, 'notch', [60 120 180], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));
@@ -209,12 +218,54 @@ style), a JSON record of every option used, and a MAT file.
 ieeglab_export(EEG, 'results_seeg');
 ```
 
+### Bipolar montages and frequency analysis
+
+Both work on any iEEG dataset, with or without stimulation. *iEEG
+re-referencing* offers what the data allow: on continuous data the common
+average, ICA, bipolar and custom montages; after segmentation also CARLA and
+the lowest-covariance subset. On stimulation data the common average and ICA
+wait for the epochs, where each pulse's stimulated pair is known and left out.
+Re-referencing from this menu after *Preprocess iEEG data* gives the same
+result as choosing it inside preprocessing.
+
+*iEEGLAB > iEEG re-referencing > Bipolar* subtracts from each contact the next
+one on its lead (`RA1-RA2` = RA1 - RA2), as FieldTrip does for depth electrodes
+(Stolk et al., 2018). Bad contacts are not paired, a missing contact leaves a gap,
+and with coordinates two contacts farther apart than twice their lead's median
+spacing are not paired (the end of one grid row and the start of the next). On
+CCEP data a bipolar channel that uses a stimulated contact counts as stimulated.
+A custom montage is a table, one row per new channel: `positive` (a contact),
+`negative` (one contact, several for a local average, or `n/a`) and an optional
+`name`, in a `.tsv` or `.csv` file; a FieldTrip montage (`labelold`, `labelnew`,
+`tra`) also works.
+
+*iEEGLAB > Frequency analysis* gives the power spectrum of each contact
+(continuous or epoched data), or, on epoched data, time-frequency power against
+a baseline and the power of a band over time and on the brain. The defaults
+follow FieldTrip's intracranial tutorial: Hann windows of 0.2 s, 5 to 200 Hz,
+high-frequency activity 70-150 Hz. Only windows that lie entirely inside the
+baseline are used for it. On CCEP data each contact's own stimulation epochs
+are left out of its average, windows that contain the pulse are left out (grey),
+and the spectrum of continuous data uses only stretches away from the pulses.
+From the menu it only draws figures: the dataset is not changed.
+
+```matlab
+EEG_bip = pop_ieeglab_reref(EEG, 'method', 'bipolar');
+EEG_lap = pop_ieeglab_reref(EEG, 'method', 'montage', 'montage', 'my_montage.tsv');
+EEG     = pop_ieeglab_spectral(EEG, 'type', 'spectrum');
+EEG     = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'band', [70 150], ...
+              'baseline', [-500 -100], 'norm', 'relchange');
+ieeglab_plot_spectral(EEG, EEG.ieeglab.spectral, 'channel', 'RA10');
+```
+
 ### Part B: ECoG
 
 The same steps, with these differences: the coordinates are in fsaverage space
 (no individual MRI is shared; *Visualize electrodes* offers fsaverage's pial
 surfaces when FreeSurfer or MNE's fsaverage is installed), the line noise is
-50 Hz, the reference is the common average of the good contacts, and the CCEP
+50 Hz (the command removes 50 Hz alone, as for the numbers below; with the
+window's default, 50, 100 and 150 Hz, 10 of 48 pairs respond instead of 11), the
+reference is the common average of the good contacts, and the CCEP
 measure is the N1 (van Blooijs et al., 2018): the largest negative peak 10-100 ms
 after the pulse, tested with a permutation test across trials, with erdetect's
 polarity and its 50 uV floor on the baseline SD (the 3.4 SD rule of erdetect is an
@@ -275,6 +326,7 @@ comes from Dora Hermes and the Multimodal Neuroimaging Lab
 - Michelmann, S., Treder, M. S., Griffiths, B., Kerrén, C., Roux, F., Wimber, M., Rollings, D., Sawlani, V., Chelvarajah, R., Gollwitzer, S., Kreiselmeyer, G., Hamer, H., Bowman, H., Staresina, B., & Hanslmayr, S. (2018). Data-driven re-referencing of intracranial EEG based on independent component analysis (ICA). *Journal of Neuroscience Methods, 307*, 125-137.
 - Miller, K. J., Müller, K.-R., Ojeda Valencia, G., Huang, H., Gregg, N. M., Worrell, G. A., & Hermes, D. (2023). Canonical response parameterization: Quantifying the structure of responses to single-pulse intracranial electrical brain stimulation. *PLOS Computational Biology, 19*(5), e1011105.
 - Ojeda Valencia, G., Gregg, N. M., Huang, H., Lundstrom, B. N., Brinkmann, B. H., Pal Attia, T., Van Gompel, J. J., Bernstein, M. A., In, M.-H., Huston, J., III, Worrell, G. A., Miller, K. J., & Hermes, D. (2023). Signatures of electrical stimulation driven network interactions in the human limbic system. *Journal of Neuroscience, 43*(39), 6697-6711.
+- Stolk, A., Griffin, S., van der Meij, R., Dewar, C., Saez, I., Lin, J. J., Piantoni, G., Schoffelen, J.-M., Knight, R. T., & Oostenveld, R. (2018). Integrated analysis of anatomical and electrophysiological human intracranial data. *Nature Protocols, 13*(7), 1699-1723.
 - van Blooijs, D., Leijten, F. S. S., van Rijen, P. C., Meijer, H. G. E., & Huiskamp, G. J. M. (2018). Evoked directional network characteristics of epileptogenic tissue derived from single pulse electrical stimulation. *Human Brain Mapping, 39*(11), 4611-4622.
 - van Blooijs, D., van den Boom, M. A., van der Aar, J. F., Huiskamp, G. M., Castegnaro, G., Demuru, M., Zweiphenning, W. J. E. M., van Eijsden, P., Miller, K. J., Leijten, F. S. S., & Hermes, D. (2023). Developmental trajectory of transmission speed in the human brain. *Nature Neuroscience, 26*(4), 537-541.
 

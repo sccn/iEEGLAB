@@ -38,6 +38,13 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %                start to -50 ms, so the stimulation artifact cannot drive the
 %                decomposition; for other data, the whole epoch. The unmixing
 %                is then applied to every sample.
+%   .max_fit_samples  continuous data: at most this many samples, evenly
+%                spaced, estimate the unmixing (ICA is spatial: the order of
+%                samples does not matter). Default max(100000, 20 x contacts^2).
+%
+% Continuous data are accepted, except stimulation (CCEP) data, whose pulses
+% would drive the decomposition: segment those first. High-pass the data
+% (about 1 Hz) before ICA, as usual.
 %   .extended    runica 'extended' option. Default 1 (as pop_runica).
 %   .reproducible  true (default) runs runica with its random seed fixed
 %                ('rndreset' 'no'), so the same data give the same result; false
@@ -60,15 +67,18 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 
 if nargin < 2 || isempty(opt), opt = struct(); end
 def = struct('rank', [], 'p_broad', 0.2, 'weights', 'normalized', 'fit_window', [], 'extended', 1, 'reproducible', true, ...
-    'bad_channels', [], 'verbose', true);
+    'bad_channels', [], 'verbose', true, 'max_fit_samples', []);
 for f = fieldnames(def)'
     if ~isfield(opt, f{1}), opt.(f{1}) = def.(f{1}); end
 end
 if isempty(which('runica'))
     error('ieeglab_icaref:noRunica', 'runica (EEGLAB) is not on the path. Start EEGLAB first.');
 end
-if ~isfield(EEG, 'trials') || EEG.trials < 2
-    error('ieeglab_icaref:notEpoched', 'ICA re-referencing runs on epoched data.');
+continuous = size(EEG.data, 3) == 1 && (~isfield(EEG, 'epoch') || isempty(EEG.epoch));
+if continuous && strcmp(ieeglab_detect_mode(EEG), 'ccep')
+    error('ieeglab_icaref:ccepContinuous', ...
+        ['On continuous stimulation data the pulses would drive the decomposition. Segment the data ' ...
+         'first: the unmixing is then fitted on the pre-stimulus part of each epoch.']);
 end
 
 % ---- channels: good contacts only
@@ -81,8 +91,7 @@ if ~isempty(opt.bad_channels)
     if isnumeric(opt.bad_channels), bad(opt.bad_channels) = true;
     else, bad(ismember(lower(labels), lower(cellstr(opt.bad_channels)))) = true; end
 end
-X = double(EEG.data);
-bad = bad | squeeze(any(any(~isfinite(X), 2), 3))';
+bad = bad | reshape(any(any(~isfinite(EEG.data), 2), 3), 1, []);
 good = find(~bad);
 nGood = numel(good);
 if nGood < 3
@@ -102,7 +111,16 @@ fitIdx = t >= opt.fit_window(1) & t <= opt.fit_window(2);
 if nnz(fitIdx) < 10
     error('ieeglab_icaref:fitWindow', 'The fit window [%g %g] ms holds fewer than 10 samples.', opt.fit_window);
 end
-Xfit = reshape(X(good, fitIdx, :), nGood, []);
+if continuous
+    % evenly spaced samples, without copying the whole recording to double
+    if isempty(opt.max_fit_samples), opt.max_fit_samples = max(1e5, 20 * nGood^2); end
+    idx = find(fitIdx);
+    idx = idx(1:ceil(numel(idx) / opt.max_fit_samples):end);
+    Xfit = double(EEG.data(good, idx));
+else
+    X = double(EEG.data);
+    Xfit = reshape(X(good, fitIdx, :), nGood, []);
+end
 
 % ---- effective rank of the data used for the fit
 ev = sort(eig(cov(Xfit')), 'descend');
@@ -154,10 +172,19 @@ end
 % ---- back-project the local components onto the contacts, every sample
 if ~keepAll
     P = A(:, ~broad) * U(~broad, :);        % nGood x nGood projector
-    Y = reshape(X(good, :, :), nGood, []);
-    X(good, :, :) = reshape(P * Y, nGood, EEG.pnts, EEG.trials);
+    if continuous
+        % block by block in the data's class, with all BLAS threads again
+        maxNumCompThreads(prevThreads);
+        for b0 = 1:2^20:EEG.pnts
+            k = b0:min(EEG.pnts, b0 + 2^20 - 1);
+            EEG.data(good, k) = cast(P * double(EEG.data(good, k)), 'like', EEG.data);
+        end
+    else
+        Y = reshape(X(good, :, :), nGood, []);
+        X(good, :, :) = reshape(P * Y, nGood, EEG.pnts, EEG.trials);
+        EEG.data = cast(X, 'like', EEG.data);
+    end
 end
-EEG.data = cast(X, 'like', EEG.data);
 EEG.ref = 'ICA re-referencing (Michelmann et al., 2018)';
 info = struct('method', 'ica', 'rank', r, 'estimated_rank', estRank, 'n_components', r, ...
     'broad', broad, 'chi2', chi2, 'p', p, 'p_broad', opt.p_broad, 'weights', char(opt.weights), ...

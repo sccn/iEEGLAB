@@ -13,11 +13,15 @@ function [site, stimIdx] = ieeglab_canonical_site(types, labels)
 % 'house-face' are never reordered or merged.
 %
 % Labels are compared trimmed and case-insensitively, with a second pass that
-% ignores punctuation (sEEG prime conventions: LA'3 vs LA3).
+% ignores punctuation (sEEG prime conventions: LA'3 vs LA3). Derived channels
+% ('RA1-RA2' after bipolar re-referencing) are matched through their contacts
+% (ieeglab_label_contacts): a channel is stimulated when it uses a stimulated
+% contact.
 %
 % Outputs:
 %   site    - string array, one per type
-%   stimIdx - cell array of column vectors: montage indices of the named contacts
+%   stimIdx - cell array of column vectors: montage indices of the channels
+%             that use a named contact
 %
 % Every step that needs a site - rare-condition removal, re-referencing, N1,
 % CRP, the connectivity matrix, trial rejection - goes through this function.
@@ -28,8 +32,9 @@ if ischar(types) || isstring(types), types = cellstr(types); end
 n = numel(types);
 site = strings(1, n);
 stimIdx = repmat({zeros(0,1)}, 1, n);
-labels = cellstr(string(labels));
-L = upper(strtrim(string(labels)));
+[contacts, owner] = ieeglab_label_contacts(labels);   % = labels, 1:n, unless channels are derived
+labels = cellstr(contacts);
+L = upper(strtrim(contacts));
 Lbare = regexprep(L, '[^\w]', '');
 contactRe = '^[A-Za-z][A-Za-z'' ]*\d+$';
 
@@ -48,7 +53,7 @@ for i = 1:n
         loc(~tf & tf2) = loc2(~tf & tf2);
         tf = tf | tf2;
     end
-    v = unique(loc(tf));
+    v = unique(owner(ismember(L, L(loc(tf)))));     % every channel using a named contact
     stimIdx{i} = v(:);
 
     looksLikeContact = tf | ~cellfun(@isempty, regexp(cellstr(tok), contactRe, 'once'));

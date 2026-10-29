@@ -48,22 +48,24 @@ EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'fi
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
 %% A4. Electrodes on the brain
-% Menu: iEEGLAB > Visualize electrodes. The pial surfaces next to the dataset
-% are offered; they are asked for once and then used by every brain figure.
+% Menu: iEEGLAB > Choose brain surfaces (Use these: the participant's pial
+% surfaces next to the dataset), then iEEGLAB > Visualize electrodes. Chosen
+% once, the surfaces are used by every brain figure without asking.
 surf_seeg = fullfile(tut_seeg, {'pial.L.surf.gii', 'pial.R.surf.gii'});
+EEG = pop_ieeglab_surfaces(EEG, 'surf_files', surf_seeg);
 if show_figures
-    EEG = ieeglab_vis_elec(EEG, struct('surf_files', {surf_seeg}));
+    EEG = ieeglab_vis_elec(EEG);
 end
 
 %% A5. Preprocess
 % Menu: iEEGLAB > Preprocess iEEG data.
-% Blank the stimulation artifact, remove the line noise (60 Hz, United States;
-% sines fitted away from the pulses, no filter), cut epochs around each pulse,
+% Blank the stimulation artifact, remove the line noise (60 Hz, United States, and
+% its harmonics; sines fitted away from the pulses, no filter), cut epochs around each pulse,
 % drop sites with fewer than 5 pulses, outlier trials and clinician-bad contacts,
 % and remove the baseline.
 EEG = ieeglab_preprocess(EEG, struct( ...
     'apply_blank',         true, ...
-    'apply_notch',         true,  'notch', 60, ...
+    'apply_notch',         true,  'notch', [60 120 180], ...
     'apply_epoch',         true,  'epoch_window', [-1000 1000], ...
     'reject_trials',       true, ...
     'remove_rare_cond',    true,  'min_trials', 5, ...   % as the window's defaults
@@ -95,11 +97,12 @@ M = EEG.ieeglab.ccep_matrix;
 fprintf('sEEG: %d of %d tested site-contact pairs respond (CRP).\n', M.n_significant, M.n_tested);
 
 %% A8. Results on the brain
-% Menu: iEEGLAB > Plot connectivity matrix, and > Plot electrode values on brain.
+% Menu: iEEGLAB > Plot connectivity matrix, and > Plot electrode values on brain
+% (on the surfaces chosen in A4).
 if show_figures
     ieeglab_plot_ccep_matrix(M);
-    ieeglab_topoplot(EEG, 'in_degree', 'surf_files', surf_seeg);
-    ieeglab_topoplot(EEG, 'crp_explained_var', 'site', 'RA3-RA4', 'surf_files', surf_seeg);
+    ieeglab_topoplot(EEG, 'in_degree');
+    ieeglab_topoplot(EEG, 'crp_explained_var', 'site', 'RA3-RA4');
 end
 
 %% A9. Export
@@ -115,11 +118,12 @@ EEG = pop_loadset('filename', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_
 EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 
 %% B4. Electrodes
-% Coordinates are in fsaverage space and no individual MRI is shared:
-% ieeglab_brain_surfaces finds fsaverage's pial surfaces (FreeSurfer or MNE's
-% fsaverage); without them, the template brain is drawn.
+% Coordinates are in fsaverage space and no individual MRI is shared. Without a
+% choice in Choose brain surfaces, every brain figure is drawn on the brain
+% that matches the coordinates (ieeglab_brain_surfaces): fsaverage's pial
+% surfaces (FreeSurfer or MNE's fsaverage), else the template brain.
 if show_figures
-    EEG = ieeglab_vis_elec(EEG, struct('surf_files', {ieeglab_brain_surfaces(EEG)}));
+    EEG = ieeglab_vis_elec(EEG);
 end
 
 %% B5. Preprocess (line noise at 50 Hz: recorded in the Netherlands)
