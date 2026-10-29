@@ -124,13 +124,158 @@ tc.verifyEqual(double(B2.data), double(B.data));
 i = find(strcmp({B.chanlocs.labels}, B.ieeglab.montage.labelnew{1}));
 a = strcmp({E.chanlocs.labels}, B.ieeglab.montage.labelold{find(B.ieeglab.montage.tra(1, :) > 0)}); %#ok<FNDSB>
 b = strcmp({E.chanlocs.labels}, B.ieeglab.montage.labelold{find(B.ieeglab.montage.tra(1, :) < 0)}); %#ok<FNDSB>
-tc.verifyEqual(double(B.data(i, :, :)), double(E.data(a, :, :)) - double(E.data(b, :, :)), 'AbsTol', 1e-3);
+D = double(E.data(a, :, :)) - double(E.data(b, :, :));
+kb = local_baseline_idx(E.times, pre.baseline_period);
+tc.verifyEqual(double(B.data(i, :, :)), D - median(D(:, kb, :), 2), 'AbsTol', 1e-3, ...
+    'The difference of the two contacts, with the (median) baseline applied again.');
 [~, stimIdx] = ieeglab_epoch_sites(B);
 tc.verifyTrue(any(~cellfun(@isempty, stimIdx)), 'Stimulated bipolar channels must still be found.');
 tc.verifyError(@() pop_ieeglab_reref(B, 'method', 'car'), 'pop_ieeglab_reref:afterMontage');
 end
 
+function test_prime_leads_are_separate(tc)
+% sEEG writes the other hemisphere's electrode with a prime: A'1 is not on
+% lead A. No pair may cross from one to the other.
+labels = {'A1','A2','A3','A''1','A''2','A''3'};
+xyz = [30 0 0; 30 3.5 0; 30 7 0; -30 0 0; -30 3.5 0; -30 7 0];
+EEG = local_eeg(labels, repmat({'SEEG'}, 1, 6), xyz, 200, 1);
+M = ieeglab_montage(EEG, 'bipolar');
+tc.verifyEqual(sort(M.labelnew), sort({'A1-A2', 'A2-A3', 'A''1-A''2', 'A''2-A''3'}));
+[lead, num] = ieeglab_lead_number({'A''1', 'LA''12', 'ROP 3', 'RA1', 'EKG', [char(65) char(8217) '2']});
+tc.verifyEqual(lead, ["A'" "LA'" "ROP" "RA" "" "A'"]);
+tc.verifyEqual(num, [1 12 3 1 NaN 2]);
+end
+
+function test_custom_names_still_stimulated(tc)
+% Channels named freely in a custom montage still resolve stimulation sites
+% through the contacts they use (chanlocs.contacts).
+labels = {'RA1','RA2','RA3','RA4'};
+EEG = local_eeg(labels, repmat({'SEEG'}, 1, 4), (0:3)' * [3.5 0 0], 300, 4, {'RA1-RA2', 'RA3-RA4'});
+T = table(["RA3"; "RA4"], ["RA2 RA4"; "RA1"], ["RA3_lap"; "far"], 'VariableNames', {'positive', 'negative', 'name'});
+[~, B] = evalc('ieeglab_apply_montage(EEG, ieeglab_montage(EEG, T))');
+tc.verifyEqual({B.chanlocs.contacts}, {'RA3, RA2, RA4', 'RA4, RA1'});
+tc.verifyEqual(ieeglab_detect_mode(B), 'ccep');
+[sites, stimIdx] = ieeglab_epoch_sites(B);
+tc.verifyEqual(sites(1:2), ["RA1-RA2" "RA3-RA4"]);
+tc.verifyEqual(sort(stimIdx{1})', [1 2], 'RA3_lap uses RA2, far uses RA1.');
+tc.verifyEqual(sort(stimIdx{2})', [1 2], 'Both use RA3 or RA4.');
+end
+
+function test_negatives_with_spaces_and_repeats(tc)
+% Labels with a space ('ROP 1') in the negative column, separated by commas;
+% a contact listed twice weighs twice.
+labels = {'ROP 1', 'ROP 2', 'ROP 3'};
+EEG = local_eeg(labels, repmat({'SEEG'}, 1, 3), (0:2)' * [3.5 0 0], 200, 1);
+M = ieeglab_montage(EEG, table(["ROP 2"; "ROP 1"], ["ROP 1, ROP 3"; "ROP 2"], 'VariableNames', {'positive', 'negative'}));
+tc.verifyEqual(M.labelnew, {'ROP 2-ROP 1-ROP 3', 'ROP 1-ROP 2'});
+tc.verifyEqual(M.tra, [-0.5 1 -0.5; 1 -1 0], 'AbsTol', 1e-15);
+M2 = ieeglab_montage(EEG, table("ROP 1", "ROP 2, ROP 2, ROP 3", 'VariableNames', {'positive', 'negative'}));
+tc.verifyEqual(M2.tra, [1 -2/3 -1/3], 'AbsTol', 1e-15);
+end
+
+function test_bipolar_matches_fieldtrip(tc)
+% Same pairs and weights as FieldTrip's bipolar montage per lead
+% (ft_prepare_montage, refmethod 'bipolar', groupchans 'yes') on the good
+% contacts of both tutorials. FieldTrip pairs every consecutive pair; iEEGLAB
+% also skips the pairs farther apart than twice the lead's spacing.
+tc.assumeNotEmpty(which('ft_prepare_montage'), 'FieldTrip is not on the path.');
+sets = {'seeg', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set'; ...
+        'ecog', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set'};
+for s = 1:2
+    EEG = pop_loadset('filename', sets{s, 2}, 'filepath', fullfile(tc.TestData.root, 'tutorial', sets{s, 1}));
+    [~, EEG] = evalc('ieeglab_load(EEG, struct())');
+    M = ieeglab_montage(EEG, 'bipolar');
+    good = {EEG.chanlocs(~strcmpi({EEG.chanlocs.status}, 'bad')).labels};
+    cfg = struct('refmethod', 'bipolar', 'groupchans', 'yes', 'channel', {good(:)});
+    [~, F] = evalc('ft_prepare_montage(cfg)');
+    extra = setdiff(F.labelnew, M.labelnew);
+    tc.verifyEmpty(setdiff(M.labelnew, F.labelnew), sprintf('%s: pairs FieldTrip does not make.', sets{s, 1}));
+    tc.verifyTrue(all(ismember(extra, cellstr(M.skipped.item(contains(M.skipped.reason, 'apart'))))), ...
+        sprintf('%s: FieldTrip pairs that iEEGLAB skips must be the distant ones.', sets{s, 1}));
+    [~, io] = ismember(M.labelold, F.labelold);
+    [~, in] = ismember(M.labelnew, F.labelnew);
+    tc.verifyEqual(M.tra, F.tra(in, io), sprintf('%s: weights differ from FieldTrip''s.', sets{s, 1}));
+end
+tc.verifyNotEmpty(extra, 'The ECoG tutorial has two distant pairs (FB56-FB57, FB63-FB64).');
+end
+
+function test_montage_commutes_with_preprocessing(tc)
+% Bipolar then preprocessing = preprocessing then bipolar, for the linear steps
+% (epochs, median baseline, high-pass, notch filter, linear blanking). The
+% baseline is a median: re-referencing must apply it again after the montage.
+% Not linear, so not compared: pchip blanking (differs inside the blanked
+% window only) and the sine fit (searches the mains frequency over all channels).
+d = fullfile(tc.TestData.root, 'tutorial', 'seeg');
+EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath', d);
+[~, EEG] = evalc('ieeglab_load(EEG, struct())');
+pre = struct('apply_blank', true, 'blank_method', 'linear', 'apply_highpass', true, 'highpass', 0.5, ...
+    'apply_notch', true, 'notch', 60, 'line_method', 'notch', 'apply_epoch', true, 'epoch_window', [-1000 1000], ...
+    'remove_bad_channels', true, 'remove_no_coords', true, 'apply_baseline', true, 'baseline_period', [-500 -50], ...
+    'plot', false, 'verbose', false);
+[~, A] = evalc('ieeglab_preprocess(EEG, pre)');
+[~, A] = evalc('pop_ieeglab_reref(A, ''method'', ''bipolar'')');
+[~, B] = evalc('pop_ieeglab_reref(EEG, ''method'', ''bipolar'')');
+[~, B] = evalc('ieeglab_preprocess(B, pre)');
+tc.verifyEqual({A.chanlocs.labels}, {B.chanlocs.labels});
+tol = 8 * double(eps(single(max(abs(A.data(:))))));
+tc.verifyEqual(double(A.data), double(B.data), 'AbsTol', tol);
+k = local_baseline_idx(A.times, pre.baseline_period);
+tc.verifyEqual(median(double(A.data(:, k, :)), 2), zeros(A.nbchan, 1, A.trials), 'AbsTol', 1e-3, ...
+    'Each bipolar channel''s baseline median must be 0.');
+end
+
+function test_analysis_after_bipolar(tc)
+% The whole analysis runs on bipolar channels of both tutorials: CCEP statistics
+% leave out every channel that uses a stimulated contact, values reach the
+% brain plot, export writes the bipolar labels, and band power runs.
+sets = {'seeg', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 60; ...
+        'ecog', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set', 50};
+for s = 1:2
+    EEG = pop_loadset('filename', sets{s, 2}, 'filepath', fullfile(tc.TestData.root, 'tutorial', sets{s, 1}));
+    [~, EEG] = evalc('ieeglab_load(EEG, struct())');
+    pre = struct('apply_blank', true, 'apply_notch', true, 'notch', sets{s, 3}, 'apply_epoch', true, ...
+        'epoch_window', [-1000 1000], 'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
+        'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50], 'plot', false, 'verbose', false);
+    [~, E] = evalc('ieeglab_preprocess(EEG, pre)');
+    [~, E] = evalc('pop_ieeglab_reref(E, ''method'', ''bipolar'')');
+    % each modality's default: CRP for sEEG, N1 for ECoG
+    [~, E] = evalc('ieeglab_stats_subject(E, struct(''run_matrix'', true, ''min_trials'', 5, ''verbose'', false))');
+    if s == 1
+        tc.verifyTrue(isfield(E.ieeglab, 'stats') && height(E.ieeglab.stats.table) > 0, 'sEEG: no CRP statistics.');
+    else
+        tc.verifyTrue(isfield(E.ieeglab, 'n1') && height(E.ieeglab.n1.table) > 0, 'ECoG: no N1 statistics.');
+    end
+    tc.verifyTrue(isfield(E.ieeglab, 'ccep_matrix'), sprintf('%s: no connectivity matrix.', sets{s, 1}));
+    [sites, stimIdx] = ieeglab_epoch_sites(E);
+    [us, iu] = unique(sites, 'stable');
+    labels = {E.chanlocs.labels};
+    for k = 1:numel(us)
+        stim = labels(stimIdx{iu(k)});
+        pair = regexp(char(us(k)), '[A-Za-z'' ]+\d+', 'match');
+        uses = labels(cellfun(@(l) any(ismember(regexp(l, '[A-Za-z'' ]+\d+', 'match'), pair)), labels));
+        tc.verifyEqual(sort(stim(:)), sort(uses(:)), sprintf('%s, site %s: stimulated channels.', sets{s, 1}, us(k)));
+    end
+    v = ieeglab_topoplot(E, 'in_degree', 'draw', false);
+    tc.verifyNumElements(v, E.nbchan);
+    out = tempname; mkdir(out); c = onCleanup(@() rmdir(out, 's'));
+    [~, files] = evalc('ieeglab_export(E, out, struct(''formats'', {{''tsv''}}, ''verbose'', false))');
+    txt = strjoin(cellfun(@fileread, files(endsWith(files, '.tsv')), 'UniformOutput', false), newline);
+    tc.verifyTrue(contains(txt, labels{1}), sprintf('%s: export must carry the bipolar labels.', sets{s, 1}));
+    [~, S] = evalc('ieeglab_spectral(E, ''freqs'', 70:20:150, ''verbose'', false)');
+    tc.verifyEqual(numel(S.band_value), E.nbchan);
+    tc.verifyTrue(any(isfinite(S.band_value)));
+    clear c
+end
+end
+
 % ------------------------------------------------------------------ helpers
+
+function k = local_baseline_idx(times, period)
+% Baseline samples as ieeglab_rm_baseline takes them: nearest samples to the ends
+[~, i0] = min(abs(double(times) - period(1)));
+[~, i1] = min(abs(double(times) - period(2)));
+k = i0:i1;
+end
 
 function EEG = local_eeg(labels, types, xyz, T, N, epochTypes)
 % Synthetic dataset: random data, given channels; epoched (N > 1) with one

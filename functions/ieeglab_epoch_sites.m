@@ -29,7 +29,7 @@ types = cell(1, N);
 for i = 1:N
     types{i} = char(local_epoch_type(EEG.epoch(i)));
 end
-[sites, stimIdx] = ieeglab_canonical_site(types, {EEG.chanlocs.labels});
+[sites, stimIdx] = ieeglab_canonical_site(types, EEG.chanlocs);
 end
 
 function ty = local_epoch_type(ep)

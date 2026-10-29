@@ -20,13 +20,14 @@ function EEG = ieeglab_apply_montage(EEG, M, verbose)
 %   status   'bad' if any contact it uses is marked bad
 %   ref      'bipolar' or 'montage', as EEG.ref (the contacts subtracted from
 %            each channel are in EEG.ieeglab.montage)
+%   contacts the contacts it uses, positive first ('RA3, RA2, RA4')
 %
 % Results computed on the old channels (CCEP statistics, connectivity matrix,
 % spectra) and any ICA decomposition no longer describe the data and are
 % removed. EEG.ieeglab.montage keeps the montage, restricted to the contacts
-% used; stimulation sites still resolve through the contacts of each channel
+% used; stimulation sites resolve through chanlocs.contacts
 % (ieeglab_label_contacts), so a channel that uses a stimulated contact is
-% treated as stimulated.
+% treated as stimulated, whatever its name.
 %
 % Cedric Cannard, iEEGLAB, 2026
 
@@ -65,6 +66,7 @@ isBad = false(1, C);
 if isfield(old, 'status')
     isBad = cellfun(@(x) ~isempty(x) && strcmpi(char(string(x)), 'bad'), {old.status});
 end
+[oldContacts, oldOwner] = ieeglab_label_contacts(old);   % contacts behind the old channels
 spherical = intersect(fieldnames(old), {'theta', 'radius', 'sph_theta', 'sph_phi', 'sph_radius', 'sph_theta_besa', 'sph_phi_besa'});
 if strcmp(M.method, 'bipolar'), refName = 'bipolar'; else, refName = 'montage'; end
 for r = numel(newLabels):-1:1
@@ -93,6 +95,11 @@ for r = numel(newLabels):-1:1
     end
     if isfield(cl, 'urchan'), cl.urchan = []; end
     cl.ref = refName;                                % eeg_checkset copies chanlocs(1).ref into EEG.ref
+    cs = strings(0, 1);
+    for w = [pos neg]
+        cs = [cs; oldContacts(oldOwner == w)]; %#ok<AGROW>
+    end
+    cl.contacts = char(strjoin(unique(cs, 'stable'), ', '));   % stimulation sites resolve through these
     newLocs(r) = cl; %#ok<AGROW>
 end
 EEG.chanlocs = newLocs;

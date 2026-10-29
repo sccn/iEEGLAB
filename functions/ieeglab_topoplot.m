@@ -84,7 +84,7 @@ elseif isnumeric(what) && any(numel(what) == [1 2])
             error('ieeglab_topoplot:notEpoched', '''site'' needs epoched data.');
         end
         sites = ieeglab_epoch_sites(EEG);
-        cs = ieeglab_canonical_site({char(o.site)}, labels);
+        cs = ieeglab_canonical_site({char(o.site)}, EEG.chanlocs);
         tr = find(sites == cs(1));
         if isempty(tr)
             error('ieeglab_topoplot:unknownSite', 'No epoch was stimulated at "%s". Sites: %s', ...

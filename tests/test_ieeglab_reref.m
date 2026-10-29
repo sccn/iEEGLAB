@@ -119,6 +119,43 @@ tc.verifyEqual(I.data(8, :), EEG.data(8, :), 'The bad contact must be left untou
 tc.verifyError(@() pop_ieeglab_reref(EEG, 'method', 'carla'), 'pop_ieeglab_reref:notEpoched');
 end
 
+function test_continuous_long_recording_blocks(tc)
+% Continuous data longer than one block (2^20 samples): the common average and
+% the ICA back-projection are the same on every block, across the boundary.
+fs = 1000; T = 2^20 + 5000; rng(11);
+common = 3 * randn(1, T).^3;
+S = randn(5, T).^3 .* (1 + (0:4)' / 4);
+X = [S; 0.5 * S(5, :)] + common;
+EEG = eeg_emptyset();
+EEG.srate = fs; EEG.nbchan = 6; EEG.pnts = T; EEG.trials = 1;
+EEG.data = single(X); EEG.xmin = 0; EEG.xmax = (T - 1) / fs; EEG.times = (0:T-1) / fs * 1000;
+for c = 6:-1:1, cl(c) = struct('labels', sprintf('LA%d', c), 'type', 'SEEG', 'status', 'good'); end
+EEG.chanlocs = cl;
+[~, B] = evalc('pop_ieeglab_reref(EEG, ''method'', ''car'')');
+tc.verifyEqual(double(B.data), double(EEG.data) - mean(double(EEG.data), 1), 'AbsTol', 1e-3);
+[~, I] = evalc('pop_ieeglab_reref(EEG, ''method'', ''ica'')');
+info = I.ieeglab.car;
+A = info.mixing; U = pinv(A);
+P = A(:, ~info.broad) * U(~info.broad, :);
+k = [1:10, 2^20 - 5:2^20 + 5, T - 9:T];                     % both sides of the block boundary
+tc.verifyEqual(double(I.data(:, k)), P * double(EEG.data(:, k)), 'AbsTol', 1e-3);
+end
+
+function test_continuous_car_ignores_nan(tc)
+% Continuous common average: a NaN sample in one contact is left out of the
+% average, as on epoched data, instead of turning every contact to NaN.
+fs = 500; T = 5000; rng(16);
+EEG = eeg_emptyset();
+EEG.srate = fs; EEG.nbchan = 4; EEG.pnts = T; EEG.trials = 1;
+X = randn(4, T); X(2, 100:110) = NaN;
+EEG.data = single(X); EEG.xmin = 0; EEG.xmax = (T - 1) / fs; EEG.times = (0:T-1) / fs * 1000;
+for c = 4:-1:1, cl(c) = struct('labels', sprintf('LA%d', c), 'type', 'SEEG', 'status', 'good'); end
+EEG.chanlocs = cl;
+[~, B] = evalc('pop_ieeglab_reref(EEG, ''method'', ''car'')');
+tc.verifyTrue(all(isfinite(B.data([1 3 4], :)), 'all'));
+tc.verifyEqual(double(B.data(1, 105)), X(1, 105) - mean(X([1 3 4], 105)), 'AbsTol', 1e-5);
+end
+
 function [lead, num] = local_lead_number(labels)
 lead = string(upper(regexprep(labels, '\d+$', '')));
 num = cellfun(@(s) str2double(regexp(s, '\d+$', 'match', 'once')), labels);

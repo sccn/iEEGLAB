@@ -226,16 +226,20 @@ average, ICA, bipolar and custom montages; after segmentation also CARLA and
 the lowest-covariance subset. On stimulation data the common average and ICA
 wait for the epochs, where each pulse's stimulated pair is known and left out.
 Re-referencing from this menu after *Preprocess iEEG data* gives the same
-result as choosing it inside preprocessing.
+result as choosing it inside preprocessing. A bipolar montage also gives the
+same result before or after preprocessing, except inside the blanked artifact
+window (its default interpolation is not linear) and for the line-noise fit,
+which estimates the mains frequency from all channels together.
 
 *iEEGLAB > iEEG re-referencing > Bipolar* subtracts from each contact the next
 one on its lead (`RA1-RA2` = RA1 - RA2), as FieldTrip does for depth electrodes
-(Stolk et al., 2018). Bad contacts are not paired, a missing contact leaves a gap,
+(Stolk et al., 2018); A'1 is on lead A', not A. Bad contacts are not paired, a missing contact leaves a gap,
 and with coordinates two contacts farther apart than twice their lead's median
 spacing are not paired (the end of one grid row and the start of the next). On
-CCEP data a bipolar channel that uses a stimulated contact counts as stimulated.
-A custom montage is a table, one row per new channel: `positive` (a contact),
-`negative` (one contact, several for a local average, or `n/a`) and an optional
+CCEP data a channel that uses a stimulated contact counts as stimulated,
+whatever its name. A custom montage is a table, one row per new channel:
+`positive` (a contact), `negative` (one contact, several for a local average
+separated by spaces or commas, or `n/a`) and an optional
 `name`, in a `.tsv` or `.csv` file; a FieldTrip montage (`labelold`, `labelnew`,
 `tra`) also works.
 
@@ -246,7 +250,8 @@ follow FieldTrip's intracranial tutorial: Hann windows of 0.2 s, 5 to 200 Hz,
 high-frequency activity 70-150 Hz. Only windows that lie entirely inside the
 baseline are used for it. On CCEP data each contact's own stimulation epochs
 are left out of its average, windows that contain the pulse are left out (grey),
-and the spectrum of continuous data uses only stretches away from the pulses.
+and the spectrum uses only stretches away from the pulses (on epochs, the part
+before the pulse). Windows that touch a NaN sample are left out.
 From the menu it only draws figures: the dataset is not changed.
 
 ```matlab

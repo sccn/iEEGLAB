@@ -42,7 +42,7 @@ isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
 what = 'all epochs';
 if ~isempty(o.site)
     sites = ieeglab_epoch_sites(EEG);
-    cs = ieeglab_canonical_site({char(o.site)}, labels);
+    cs = ieeglab_canonical_site({char(o.site)}, EEG.chanlocs);
     tr = find(sites == cs(1));
     if isempty(tr)
         error('ieeglab_plot_heatmap:unknownSite', 'No epoch was stimulated at "%s". Sites: %s', ...

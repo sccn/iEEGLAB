@@ -129,7 +129,7 @@ if size(EEG.data, 3) == 1 && strcmpi(opt.car_method, 'car') && (~isfield(EEG, 'e
     T = size(EEG.data, 2);
     for b0 = 1:2^20:T
         k = b0:min(T, b0 + 2^20 - 1);
-        EEG.data(:, k) = EEG.data(:, k) - cast(mean(double(EEG.data(good, k)), 1), 'like', EEG.data);
+        EEG.data(:, k) = EEG.data(:, k) - cast(mean(double(EEG.data(good, k)), 1, 'omitnan'), 'like', EEG.data);   % NaN: as the epoched path
     end
     EEG.ref = 'CAR';
     out = struct('group', 'all', 'trials', 1, 'car_channels', good, 'excluded_channels', badIdx(:)', ...
@@ -389,30 +389,17 @@ function stimExcl = local_add_neighbors(stimExcl, siteName, labels, n)
 % Add to each epoch's stimulated contacts the contacts of the same lead within
 % n contact numbers, read from the site name so that the neighbours of a
 % stimulated contact removed as bad are still found.
-[leadL, numL] = local_lead_number(labels);
+[leadL, numL] = ieeglab_lead_number(labels);
 [uSites, ~, idx] = unique(siteName);
 for s = 1:numel(uSites)
     if uSites(s) == "", continue; end
-    [leadS, numS] = local_lead_number(ieeglab_site_tokens(uSites(s), labels));
+    [leadS, numS] = ieeglab_lead_number(ieeglab_site_tokens(uSites(s), labels));
     nb = false(numel(labels), 1);
     for t = find(~isnan(numS))
         nb = nb | (leadL(:) == leadS(t) & abs(numL(:) - numS(t)) <= n);
     end
     for k = find(idx(:)' == s)
         stimExcl{k} = unique([stimExcl{k}(:); find(nb)]);
-    end
-end
-end
-
-function [lead, num] = local_lead_number(names)
-% 'RMO8' -> "RMO", 8; "LA'3" -> "LA", 3 (punctuation ignored, as the site parser does).
-names = upper(regexprep(strtrim(string(names)), '[^A-Za-z0-9]', ''));
-tok = regexp(names, '^(.*?)(\d+)$', 'tokens', 'once');
-if ~iscell(tok), tok = {tok}; end
-lead = strings(size(names)); num = nan(size(names));
-for i = 1:numel(names)
-    if numel(tok{i}) == 2
-        lead(i) = tok{i}(1); num(i) = str2double(tok{i}(2));
     end
 end
 end

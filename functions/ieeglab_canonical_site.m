@@ -3,6 +3,7 @@ function [site, stimIdx] = ieeglab_canonical_site(types, labels)
 %                            event type, and the stimulated contacts it names.
 %
 % Usage:
+%   [site, stimIdx] = ieeglab_canonical_site({EEG.event.type}, EEG.chanlocs)
 %   [site, stimIdx] = ieeglab_canonical_site({EEG.event.type}, {EEG.chanlocs.labels})
 %
 % For a type that names a stimulated pair - two or more tokens that all look
@@ -15,8 +16,8 @@ function [site, stimIdx] = ieeglab_canonical_site(types, labels)
 % Labels are compared trimmed and case-insensitively, with a second pass that
 % ignores punctuation (sEEG prime conventions: LA'3 vs LA3). Derived channels
 % ('RA1-RA2' after bipolar re-referencing) are matched through their contacts
-% (ieeglab_label_contacts): a channel is stimulated when it uses a stimulated
-% contact.
+% (ieeglab_label_contacts; give the chanlocs so that channels with custom
+% names are too): a channel is stimulated when it uses a stimulated contact.
 %
 % Outputs:
 %   site    - string array, one per type

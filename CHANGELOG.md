@@ -7,14 +7,18 @@
 - **Bipolar re-referencing** (*iEEG re-referencing > Bipolar*,
   `pop_ieeglab_reref(EEG, 'method', 'bipolar')`, `ieeglab_montage`,
   `ieeglab_apply_montage`). Each contact minus the next one on its lead
-  (`RA1-RA2`), as FieldTrip's montage for depth electrodes. Bad contacts are not
-  paired, a missing contact leaves a gap, and with coordinates contacts farther
-  apart than twice the lead's median spacing are not paired (grid row ends,
-  `'spacing_factor'`). Each new channel sits at the midpoint of its two contacts.
-  Works on continuous and epoched data.
+  (`RA1-RA2`), with the same pairs and weights as FieldTrip's bipolar montage
+  per lead on the tutorial sEEG. A'1 is on lead A', not A (`ieeglab_lead_number`).
+  Bad contacts are not paired, a missing contact leaves a gap, and with
+  coordinates contacts farther apart than twice the lead's median spacing are
+  not paired (grid row ends, `'spacing_factor'`; FieldTrip pairs them). Each new
+  channel sits at the midpoint of its two contacts and lists its contacts
+  (`chanlocs.contacts`), so stimulation sites resolve whatever its name. Works
+  on continuous and epoched data.
 - **Custom montages** (`'method', 'montage'`): a `.tsv`/`.csv` file or a table
   with columns `positive`, `negative` (one contact, several for a local average,
-  or `n/a`) and `name`, or a FieldTrip montage (`labelold`, `labelnew`, `tra`).
+  or `n/a`; commas between labels that contain a space) and `name`, or a
+  FieldTrip montage (`labelold`, `labelnew`, `tra`).
 - **Frequency analysis** (*iEEGLAB > Frequency analysis*,
   `pop_ieeglab_spectral`, `ieeglab_spectral`, `ieeglab_plot_spectral`): the
   power spectrum of each contact (Welch, uV^2/Hz; continuous data skip
@@ -24,10 +28,15 @@
   brain. Only windows entirely inside the baseline are used for it. On CCEP data
   each contact's own stimulation epochs are left out of its average, windows
   that contain the pulse are left out (`'artifact_window'`, -5 to 15 ms), and
-  the spectrum of continuous data uses only segments away from the pulses
-  (`'stim_exclude'`, -50 to 1000 ms). From the menu it only draws: the dataset
-  is not changed and no new dataset is proposed. The data are transformed once
-  per block of epochs and reused for every frequency.
+  the spectrum uses only segments away from the pulses (`'stim_exclude'`, -50
+  to 1000 ms; on epochs the default window shrinks to the part before the
+  pulse). Windows and segments that touch a NaN sample (artifact blanked with
+  `'nan'`) are left out for that contact and epoch only. Band power of a
+  spectrum is its integral over the band. The spectrum equals MATLAB's `pwelch`
+  and time-frequency power equals FieldTrip's `mtmconvol` with a Hann taper, up
+  to FieldTrip's constant scaling. From the menu it only draws: the dataset is
+  not changed and no new dataset is proposed. The data are transformed once per
+  block of epochs and reused for every frequency.
 - **Documentation in EEGLAB's Help menu** (*Help > iEEGLAB documentation*, also
   at the bottom of the iEEGLAB menu): the README, the menu-by-menu walkthrough,
   the tutorial script, and the help of each menu's function.
@@ -39,14 +48,19 @@
   a stimulated contact is treated as stimulated (left out of the reference,
   not tested for its own site), and the dataset is still recognized as CCEP.
   Referential data behave as before. A contact listed under two channels
-  now marks both.
+  now marks both. An event that names contacts all removed as bad (on a lead
+  of the dataset) still counts as a stimulation, so the dataset stays CCEP.
+- The contacts left out of the common average next to a stimulated pair
+  (`'neighbors'`) are on the same lead with the prime kept: LA'3 is not a
+  neighbour of LA2.
 - *iEEG re-referencing* offers what the data allow: on continuous data the
   common average, ICA re-referencing, bipolar and custom montages; after
   segmentation also CARLA and the lowest-covariance subset (CCEP). On continuous
   stimulation data only the montages are offered: the common average and ICA
   wait for epochs, where each pulse's stimulated pair is known and left out.
-  On continuous data the common average and ICA work block by block in the
-  data's own precision (no double copy of the recording), and ICA fits its
+  On continuous data the common average (ignoring NaN samples, as on epochs)
+  and ICA work block by block in the data's own precision (no double copy of
+  the recording), and ICA fits its
   unmixing on evenly spaced samples (`max_fit_samples`). Once a montage is
   applied, no further re-referencing is offered.
 - **Menu**: the items that need epochs (average heatmap, CCEP analysis, CRP and
@@ -60,6 +74,12 @@
   the brain chosen, else the one that matches the space of the coordinates.
   A template brain chosen for a dataset is now also used by *Plot electrode
   values on brain* when surfaces were remembered for the participant.
+- **Baseline after a montage**: a bipolar or custom montage applied to
+  baseline-corrected epochs now applies the baseline correction again, as the
+  other re-referencing methods do. The default baseline is a median, and the
+  median of a difference is not the difference of the medians: bipolar
+  channels of the tutorial kept baselines up to 51 uV away from 0. Montage
+  then preprocessing now equals preprocessing then montage for the linear steps.
 - **Line noise**: the preprocessing window proposes the power-line frequency and
   its first two harmonics (60, 120, 180 Hz; below Nyquist), still removed by
   fitted sines. The fundamental alone left a 180 Hz peak in the tutorial sEEG.

@@ -109,10 +109,12 @@ type = types{out.type};
 freqs = str2num(out.freqs); %#ok<ST2NM>
 if isempty(freqs), error('pop_ieeglab_spectral:freqs', 'Enter the frequencies, e.g. 5:5:200 or 1 200.'); end
 if strcmp(type, 'spectrum'), freqs = [min(freqs) max(freqs)]; end
-args = {'type', type, 'freqs', freqs, 'window', str2double(out.window)};
+args = {'type', type, 'freqs', freqs};
+win = local_number(out.window, 'Window');
+if ~isempty(win), args = [args {'window', win}]; end
 if strcmp(type, 'timefreq')
-    cyc = str2double(out.cycles);
-    if isfinite(cyc), args = [args {'cycles', cyc}]; end
+    cyc = local_number(out.cycles, 'Cycles');
+    if ~isempty(cyc), args = [args {'cycles', cyc}]; end
     args = [args {'timestep', str2double(out.timestep), 'baseline', sscanf(out.baseline, '%f')', ...
         'norm', norms{out.norm}, 'band_window', sscanf(out.bandwin, '%f')'}];
 end
@@ -130,13 +132,25 @@ set(findobj(fig, 'tag', 'freqs'), 'string', d{1});
 set(findobj(fig, 'tag', 'window'), 'string', d{2});
 end
 
+function x = local_number(s, what)
+% One positive number from a dialog box; empty box = the default
+s = strtrim(s);
+x = [];
+if isempty(s), return; end
+x = str2double(s);
+if ~(isscalar(x) && isfinite(x) && x > 0)
+    error('pop_ieeglab_spectral:badNumber', '%s: enter one positive number, or leave it empty for the default (got "%s").', what, s);
+end
+end
+
 function s = local_literal(v)
 if ischar(v) || isstring(v)
     s = ['''' strrep(char(v), '''', '''''') ''''];
 elseif islogical(v) && isscalar(v)
     s = mat2str(v);
-elseif isnumeric(v) && isvector(v) && numel(v) > 2 && all(abs(diff(v, 2)) < 1e-9)
-    s = sprintf('%g:%g:%g', v(1), v(2) - v(1), v(end));     % a regular list, e.g. 5:5:200
+elseif isnumeric(v) && isvector(v) && numel(v) > 2 && v(2) ~= v(1) ...
+        && isequal(v(1):(v(2) - v(1)):v(end), v(:)')
+    s = sprintf('%s:%s:%s', mat2str(v(1)), mat2str(v(2) - v(1)), mat2str(v(end)));   % a regular list, e.g. 5:5:200
 else
     s = mat2str(v);
 end

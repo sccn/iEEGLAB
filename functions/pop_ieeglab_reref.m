@@ -69,7 +69,9 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 % neither the reference channels (CARLA ranks by covariance and correlation)
 % nor the re-referenced signal once its baseline is removed.
 %
-% A montage is linear, so a baseline removed earlier stays removed.
+% The baseline is applied again after a montage too: a montage is linear, but
+% the default baseline is a median, and the median of a difference is not the
+% difference of the medians.
 % The work is done by ieeglab_car, ieeglab_icaref, ieeglab_montage and
 % ieeglab_apply_montage.
 %
@@ -217,7 +219,7 @@ if ~isMontage && isfield(EEG, 'ieeglab') && isfield(EEG.ieeglab, 'car') && ~isem
 end
 
 if isMontage
-    % ---- run: montage (linear, so an earlier baseline correction still holds)
+    % ---- run: montage
     if strcmp(g.method, 'bipolar')
         Mt = ieeglab_montage(EEG, 'bipolar', 'spacing_factor', g.spacing_factor);
     else
@@ -227,9 +229,14 @@ if isMontage
     if ~isfield(EEG.ieeglab, 'opt') || ~isstruct(EEG.ieeglab.opt), EEG.ieeglab.opt = struct(); end
     EEG.ieeglab.opt.montage_method = Mt.method;
     EEG.ieeglab.opt.montage_source = Mt.source;
+    if hadBaseline
+        % a median (default) or trimmed-mean baseline of the new channels is not
+        % the montage of the old ones' baselines
+        EEG = ieeglab_rm_baseline(EEG);
+    end
     EEG = eeg_checkset(EEG);
     if strcmp(g.method, 'bipolar')
-        com = sprintf('EEG = pop_ieeglab_reref(EEG, ''method'', ''bipolar'', ''spacing_factor'', %g);', g.spacing_factor);
+        com = sprintf('EEG = pop_ieeglab_reref(EEG, ''method'', ''bipolar'', ''spacing_factor'', %s);', mat2str(g.spacing_factor));
     elseif ischar(g.montage) || isstring(g.montage)
         com = sprintf('EEG = pop_ieeglab_reref(EEG, ''method'', ''montage'', ''montage'', ''%s'');', strrep(char(g.montage), '''', ''''''));
     else
@@ -266,13 +273,13 @@ EEG = eeg_checkset(EEG);
 args = {'''method''', ['''' g.method '''']};
 if ismember(g.method, {'carla', 'varsubset'}), args = [args {'''timewin''', mat2str(g.timewin)}]; end
 if strcmp(g.method, 'carla'), args = [args {'''sensitive''', mat2str(logical(g.sensitive)), '''persite''', mat2str(logical(g.persite))}]; end
-if strcmp(g.method, 'varsubset'), args = [args {'''fraction''', num2str(g.fraction)}]; end
+if strcmp(g.method, 'varsubset'), args = [args {'''fraction''', mat2str(g.fraction)}]; end
 if ~strcmp(g.method, 'ica')                         % always: the default depends on the method
     args = [args {'''neighbors''', num2str(g.neighbors)}];
 end
 if strcmp(g.method, 'ica')
     if ~isempty(g.rank), args = [args {'''rank''', num2str(g.rank)}]; end
-    args = [args {'''p_broad''', num2str(g.p_broad)}];
+    args = [args {'''p_broad''', mat2str(g.p_broad)}];
 end
 com = sprintf('EEG = pop_ieeglab_reref(EEG, %s);', strjoin(args, ', '));
 end

@@ -11,7 +11,8 @@ function M = ieeglab_montage(EEG, src, varargin)
 %   M = ieeglab_montage(EEG, ftMontage)                         % FieldTrip montage struct
 %
 % Bipolar: on each lead (the label without its trailing number: RA1, RA2, ...
-% form lead RA), every contact minus the next one, 'RA1-RA2' = RA1 - RA2, as
+% form lead RA; A'1 is on lead A', not A: ieeglab_lead_number), every contact
+% minus the next one, 'RA1-RA2' = RA1 - RA2, as
 % FieldTrip's tutorial montage for depth electrodes (Stolk et al., 2018). Only
 % consecutive numbers are paired, so a removed contact leaves a gap rather than
 % a pair spanning two spacings. Clinician-bad contacts are never paired.
@@ -31,7 +32,8 @@ function M = ieeglab_montage(EEG, src, varargin)
 %   positive  the contact (required)
 %   negative  empty or n/a = the contact as it is; one contact = their
 %             difference; several contacts separated by spaces, commas or
-%             semicolons = the contact minus their mean (a local average)
+%             semicolons (commas when a label has a space in it, 'ROP 1, ROP 3')
+%             = the contact minus their mean (a local average)
 %   name      optional; default 'positive-negative', or the contact's name
 % read from a .tsv, .csv or .txt file (tab or comma separated, header row) or
 % given as a table. 'anode'/'cathode' and 'reference' are accepted for
@@ -99,7 +101,7 @@ skipItem = strings(0, 1); skipWhy = strings(0, 1);
 for r = 1:nR
     p = strtrim(pos(r));
     ip = find(Lu == upper(p), 1);
-    nTok = local_split_negative(neg(r));
+    nTok = local_split_negative(neg(r), labels);
     [inN, iN] = ismember(upper(nTok), Lu);
     if isempty(ip) || ~all(inN)
         missing = [p(isempty(ip)) nTok(~inN)];
@@ -109,8 +111,8 @@ for r = 1:nR
         continue
     end
     rows(r, ip) = 1;
-    if ~isempty(iN)
-        rows(r, iN) = rows(r, iN) - 1 / numel(iN);
+    for j = iN(:)'                     % a contact listed twice weighs twice
+        rows(r, j) = rows(r, j) - 1 / numel(iN);
     end
     used([ip; iN(:)]) = true;
     newNames(r) = local_row_name(nam(r), labels(ip), labels(iN)');
@@ -152,7 +154,7 @@ if isfield(EEG.chanlocs, 'X')
         if ~isempty(cl.X) && ~isempty(cl.Y) && ~isempty(cl.Z), xyz(c, :) = double([cl.X cl.Y cl.Z]); end
     end
 end
-[lead, num] = local_lead_number(labels);
+[lead, num] = ieeglab_lead_number(labels);
 
 skipItem = strings(0, 1); skipWhy = strings(0, 1);
 iEEGtype = ismember(type, upper(string(o.types))) | type == "" | type == "N/A";
@@ -212,19 +214,6 @@ end
 
 % ========================== helpers ==========================
 
-function [lead, num] = local_lead_number(names)
-% Lead = the label without punctuation and trailing number; same rule as the
-% neighbour exclusion of ieeglab_car.
-names = upper(regexprep(strtrim(string(names)), '[^A-Za-z0-9]', ''));
-lead = strings(size(names)); num = nan(size(names));
-tok = regexp(names, '^(.*[A-Z])(\d+)$', 'tokens', 'once');
-for i = 1:numel(names)
-    if ~isempty(tok{i})
-        lead(i) = tok{i}(1); num(i) = str2double(tok{i}(2));
-    end
-end
-end
-
 function T = local_read_table(f)
 [~, ~, ext] = fileparts(f);
 args = {'FileType', 'text', 'TextType', 'string', 'Delimiter', {'\t', ','}};
@@ -242,10 +231,13 @@ v = strtrim(string(T{:, k}));
 v(ismissing(v)) = "";
 end
 
-function tok = local_split_negative(s)
+function tok = local_split_negative(s, labels)
+% Contacts separated by spaces, commas or semicolons; a label with a space in
+% it ('ROP 1') stays whole (the stimulation-site tokenizer)
 s = strtrim(string(s));
 if s == "" || any(strcmpi(s, ["n/a", "na", "none", "nan"])), tok = strings(1, 0); return; end
-tok = strtrim(split(s, {' ', ',', ';'}))';
+tok = strtrim(ieeglab_site_tokens(s, cellstr(labels)));
+if any(upper(s) == upper(labels)), tok = s; end   % the whole cell is one label
 tok = tok(tok ~= "");
 end
 

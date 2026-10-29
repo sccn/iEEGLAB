@@ -68,7 +68,7 @@ if nargin < 3 || isempty(channel)
     channel = rows.channel{k};
 end
 channel = string(channel);
-cs = ieeglab_canonical_site({char(site)}, {EEG.chanlocs.labels});
+cs = ieeglab_canonical_site({char(site)}, EEG.chanlocs);
 iRes = find(allSites == cs(1) & strcmpi(allChans, channel), 1);
 if isempty(iRes)
     error('ieeglab_plot_crp:noPair', 'No CRP result for contact %s at site %s.', channel, site);

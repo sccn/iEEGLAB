@@ -16,12 +16,14 @@ function S = ieeglab_spectral(EEG, varargin)
 %                              or epoched data. Units uV^2/Hz.
 %                 'timefreq' - power of each contact over time and frequency,
 %                              averaged over trials. Epoched data. Default.
-%   'freqs'       spectrum: [low high] range, default [1 200]. Time-frequency:
-%                 the frequencies, default 5:5:200 (FieldTrip's intracranial
-%                 tutorial, Stolk et al., 2018). Frequencies at or above the
-%                 Nyquist frequency are dropped.
-%   'window'      seconds. Spectrum: segment length, default 1. Time-frequency:
-%                 fixed Hann window, default 0.2 (as the FieldTrip tutorial).
+%   'freqs'       spectrum: [low high] range, default [1 200] (up to the
+%                 Nyquist frequency included). Time-frequency: the frequencies,
+%                 default 5:5:200 (FieldTrip's intracranial tutorial, Stolk et
+%                 al., 2018); those at or above the Nyquist frequency are dropped.
+%   'window'      seconds. Spectrum: segment length, default 1 (on CCEP epochs,
+%                 shortened to the longest part outside 'stim_exclude' when
+%                 that is shorter). Time-frequency: fixed Hann window, default
+%                 0.2 (as the FieldTrip tutorial).
 %   'cycles'      time-frequency: a window of this many cycles at each
 %                 frequency instead of a fixed one (wavelet-like). Default [].
 %   'timestep'    time-frequency: ms between output times. Default 10.
@@ -32,15 +34,18 @@ function S = ieeglab_spectral(EEG, varargin)
 %                 'relchange' (power/baseline - 1, as FieldTrip's tutorial),
 %                 'ratio', or 'none'.
 %   'band'        [low high] Hz averaged into one band. Default [70 150], high-
-%                 frequency activity (HFA). Spectrum: band power in uV^2.
+%                 frequency activity (HFA). Spectrum: band power in uV^2, the
+%                 spectrum integrated over the band (trapezoids).
 %   'band_window' time-frequency: [start end] ms averaged into one value per
 %                 contact (for the brain map). Default [0, epoch end].
 %   'condition'   only the epochs of this condition (event type at time 0, or
 %                 stimulation site for CCEP data). Default all.
-%   'stim_exclude' spectrum of continuous CCEP data: [start end] ms around each
-%                 pulse that no segment may overlap, so the spectrum is that of
-%                 the ongoing activity, not of the artifact and the responses.
-%                 Default [-50 1000]; [] keeps every segment.
+%   'stim_exclude' spectrum of CCEP data: [start end] ms around each pulse
+%                 (continuous data) or around time 0 (epochs) that no segment
+%                 may overlap, so the spectrum is that of the ongoing activity,
+%                 not of the artifact and the responses. Every event that names
+%                 a stimulation site counts, also when its contacts were
+%                 removed. Default [-50 1000]; [] keeps every segment.
 %   'artifact_window' time-frequency of CCEP data: [start end] ms around the
 %                 pulse; times whose window overlaps it are NaN (grey), since a
 %                 window that contains the artifact shows power at every
@@ -51,7 +56,9 @@ function S = ieeglab_spectral(EEG, varargin)
 %
 % On CCEP data each contact's own stimulation epochs are left out of its
 % average (its artifact would dominate), as N1 and CRP do; S.n_trials gives the
-% epochs each contact averages.
+% epochs each contact averages. NaN samples (an artifact blanked with
+% blank_method 'nan') are never averaged: segments and time-frequency windows
+% that touch one are left out, for that contact and epoch only.
 %
 % Time-frequency power is the squared magnitude of the data convolved with
 % Hann-tapered complex sinusoids (FieldTrip's mtmconvol with a Hann taper),
@@ -106,12 +113,13 @@ end
 N = size(EEG.data, 3);
 use = true(C, N);                                   % use(c, n): contact c averages epoch n
 condition = string(o.condition);
-isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
+[mode, modeInfo] = ieeglab_detect_mode(EEG);
+isCCEP = strcmp(mode, 'ccep');
 if epoched
     [sites, stimIdx] = ieeglab_epoch_sites(EEG);
     if condition ~= ""
         want = condition;
-        if isCCEP, want = ieeglab_canonical_site({char(condition)}, labels); end
+        if isCCEP, want = ieeglab_canonical_site({char(condition)}, EEG.chanlocs); end
         keep = sites == want;
         if ~any(keep)
             error('ieeglab_spectral:noCondition', 'No epoch of condition "%s".', condition);
@@ -130,8 +138,11 @@ end
 
 S = struct('type', o.type, 'labels', {labels}, 'bad', bad, 'n_trials', nTrials, ...
     'condition', char(condition), 'srate', fs, 'ccep', isCCEP);
+if any(isnan(EEG.data(:))) && o.verbose
+    fprintf('[spectral] The data hold NaN samples (blanked artifact?): windows that touch them are left out.\n');
+end
 if strcmp(o.type, 'spectrum')
-    S = local_spectrum(EEG, o, S, use, epoched);
+    S = local_spectrum(EEG, o, S, use, epoched, modeInfo.pair_types);
 else
     S = local_timefreq(EEG, o, S, use);
 end
@@ -139,18 +150,40 @@ end
 
 % =============================== spectrum ===============================
 
-function S = local_spectrum(EEG, o, S, use, epoched)
+function S = local_spectrum(EEG, o, S, use, epoched, pairTypes)
 fs = S.srate;
 if isempty(o.freqs), o.freqs = [1 200]; end
-if isempty(o.window), o.window = 1; end
+defaultWindow = isempty(o.window);
+if defaultWindow, o.window = 1; end
 [C, T, N] = size(EEG.data);
 L = round(o.window * fs);
+% CCEP epochs: no segment may overlap stim_exclude around the pulse at time 0
+excl = [];
+i0 = find(double(EEG.times) >= 0, 1);
+if epoched && S.ccep && ~isempty(o.stim_exclude) && ~isempty(i0)
+    excl = i0 + round(double(o.stim_exclude) / 1000 * fs);   % first and last excluded sample
+    room = max(excl(1) - 1, T - excl(2));                    % longest stretch outside them
+    if L > room && defaultWindow && room >= round(0.25 * fs)
+        L = room;
+        if o.verbose
+            fprintf('[spectral] Window shortened to %.3f s: the longest part of the epochs outside %s ms around the pulse.\n', ...
+                L / fs, mat2str(o.stim_exclude));
+        end
+    end
+end
 if L > T
     L = T;
     warning('ieeglab_spectral:shortData', 'Data shorter than the window: one segment of %.3f s.', T / fs);
 end
 step = max(1, round(L / 2));
 starts = 1:step:(T - L + 1);
+if ~isempty(excl)
+    starts = starts(starts + L - 1 < excl(1) | starts > excl(2));
+    if isempty(starts)
+        error('ieeglab_spectral:noSegments', ['No %.2f s segment of the epochs lies outside %s ms around ' ...
+            'the pulse; shorten ''window'' or ''stim_exclude'', or epoch longer.'], L / fs, mat2str(o.stim_exclude));
+    end
+end
 if ~epoched
     % continuous data: no segment across a discontinuity (EEGLAB 'boundary' event)
     bnd = [];
@@ -163,9 +196,10 @@ if ~epoched
     end
     if isempty(starts), error('ieeglab_spectral:noSegments', 'No segment without a discontinuity.'); end
     if S.ccep && ~isempty(o.stim_exclude)
-        % nor across a pulse, its artifact or its response
-        [~, si] = ieeglab_canonical_site(cellfun(@(x) char(string(x)), {EEG.event.type}, 'UniformOutput', false), S.labels);
-        lat = [EEG.event(~cellfun(@isempty, si)).latency];
+        % nor across a pulse, its artifact or its response (every event that
+        % names a stimulation site, also when its contacts were removed)
+        types = string(cellfun(@(x) char(string(x)), {EEG.event.type}, 'UniformOutput', false));
+        lat = [EEG.event(ismember(types, pairTypes)).latency];
         w = round(double(o.stim_exclude) / 1000 * fs);
         n0 = numel(starts);
         for b = lat(:)'
@@ -187,23 +221,31 @@ scale = 2 * ones(nf, 1) / (fs * sum(w.^2));                 % one-sided PSD
 scale(1) = scale(1) / 2;
 if mod(L, 2) == 0, scale(end) = scale(end) / 2; end         % Nyquist bin
 
-% Psum: (n_freq x n_chan x n_epochs), summed over segments. Blocks of segments:
-% one FFT call for every segment, contact and epoch of the block.
+% Psum: (n_freq x n_chan x n_epochs), summed over the segments without NaN
+% samples (blanked artifact), counted in nSeg. Blocks of segments: one FFT
+% call for every segment, contact and epoch of the block.
 nS = numel(starts);
 nb = max(1, floor(o.max_mb * 2^20 / (2 * 16 * L * C * N)));
 Psum = zeros(nf, C, N);
+nSeg = zeros(1, C, N);
 for b0 = 1:nb:nS
     sb = starts(b0:min(nS, b0 + nb - 1));
     I = (0:L-1)' + sb;                                       % (L x n_seg) sample indices
     seg = reshape(double(EEG.data(:, I(:), :)), C, L, numel(sb), N);
     seg = reshape(permute(seg, [2 1 3 4]), L, []);           % (L x C*n_seg*N)
+    clean = ~any(isnan(seg), 1);
+    seg(:, ~clean) = 0;
     seg = (seg - mean(seg, 1)) .* w;
     Fs = fft(seg);
-    Psum = Psum + reshape(sum(reshape(abs(Fs(1:nf, :)).^2, nf, C, numel(sb), N), 3), nf, C, N);
+    pw = abs(Fs(1:nf, :)).^2 .* clean;
+    Psum = Psum + reshape(sum(reshape(pw, nf, C, numel(sb), N), 3), nf, C, N);
+    nSeg = nSeg + reshape(sum(reshape(clean, 1, C, numel(sb), N), 3), 1, C, N);
 end
-Pep = Psum .* scale / nS;                                    % (n_freq x n_chan x n_epochs)
-U = reshape(double(use), 1, C, N);                           % use: (n_chan x n_epochs)
-P = sum(Pep .* U, 3) ./ reshape(S.n_trials, 1, C);           % (n_freq x n_chan)
+U = reshape(use, 1, C, N) & nSeg > 0;                        % epochs each contact averages
+Pep = Psum .* scale ./ max(nSeg, 1);                         % (n_freq x n_chan x n_epochs)
+Pep(~repmat(U, nf, 1, 1)) = 0;                               % (not NaN * 0)
+S.n_trials = reshape(sum(U, 3), C, 1);
+P = sum(Pep, 3) ./ reshape(S.n_trials, 1, C);                % (n_freq x n_chan)
 P(:, S.n_trials == 0) = NaN;
 
 f = (0:nf-1)' * fs / L;
@@ -217,8 +259,10 @@ S.band = o.band;
 S.band_value = nan(C, 1);
 if ~isempty(o.band)
     inB = f >= o.band(1) & f <= o.band(2);
-    if any(inB)
-        S.band_value = sum(P(inB, :), 1)' * fs / L;         % band power, uV^2
+    if nnz(inB) >= 2
+        S.band_value = trapz(f(inB), P(inB, :), 1)';        % band power, uV^2 (trapezoids: half the edge bins)
+    elseif any(inB)
+        S.band_value = P(inB, :)' * fs / L;
     elseif o.verbose
         warning('ieeglab_spectral:bandOutside', 'Band %s Hz is outside 0-%g Hz.', mat2str(o.band), fs / 2);
     end
@@ -272,18 +316,31 @@ for k = 1:F
     Hf(:, k) = fft(w .* exp(1i * 2 * pi * freqs(k) * tk), nfft);
     gain(k) = 2 / sum(w);                                    % amplitude A -> |coefficient| A
 end
+% NaN samples (a blanked artifact): set to 0 and leave out every window that
+% touches one, found by convolving the NaN mask with a box of the window length
+anyNaN = any(isnan(EEG.data(:)));
+if anyNaN
+    Bf = zeros(nfft, F);
+    for k = 1:F, Bf(:, k) = fft(ones(Lw(k), 1), nfft); end
+end
 
 % blocks of epochs: nfft x (contacts x epochs) complex, three times (transform,
-% product, inverse)
-perEpoch = 3 * 16 * nfft * C;
+% product, inverse), five with NaN samples
+perEpoch = (3 + 2 * anyNaN) * 16 * nfft * C;
 nB = max(1, floor(o.max_mb * 2^20 / perEpoch));
 Psum = zeros(C, F, Nt);
+Cnt = zeros(C, F, Nt);                                       % epochs averaged per window
 if o.keeptrials, Ptr = nan(C, F, Nt, N, 'single'); end
 for b0 = 1:nB:N
     tr = b0:min(N, b0 + nB - 1);
     n = numel(tr);
     Z = reshape(permute(double(EEG.data(:, :, tr)), [2 1 3]), T, C * n);   % (T x C*n)
-    Z = Z - mean(Z, 1);
+    Z = Z - mean(Z, 1, 'omitnan');
+    if anyNaN
+        isN = isnan(Z);
+        Z(isN) = 0;
+        Mf = fft(double(isN), nfft);
+    end
     Zf = fft(Z, nfft);
     U = reshape(double(use(:, tr)), 1, C * n);
     for k = 1:F
@@ -292,11 +349,18 @@ for b0 = 1:nB:N
         Y = ifft(Zf .* Hf(:, k));
         cf = Y(sIdx(v) + hL(k), :) * gain(k);                % (n_valid x C*n)
         pw = real(cf).^2 + imag(cf).^2;
-        if o.keeptrials
-            Ptr(:, k, v, tr) = single(permute(reshape(pw, numel(v), C, n), [2 4 1 3]));
+        clean = true(size(pw));
+        if anyNaN
+            nNaN = real(ifft(Mf .* Bf(:, k)));               % NaN samples in each window
+            clean = nNaN(sIdx(v) + hL(k), :) < 0.5;
+            pw(~clean) = 0;
         end
-        pw = reshape(pw .* U, numel(v), C, n);
-        Psum(:, k, v) = Psum(:, k, v) + reshape(sum(pw, 3)', C, 1, numel(v));
+        if o.keeptrials
+            pk = pw; pk(~clean) = NaN;
+            Ptr(:, k, v, tr) = single(permute(reshape(pk, numel(v), C, n), [2 4 1 3]));
+        end
+        Psum(:, k, v) = Psum(:, k, v) + reshape(sum(reshape(pw .* U, numel(v), C, n), 3)', C, 1, numel(v));
+        Cnt(:, k, v) = Cnt(:, k, v) + reshape(sum(reshape(clean .* U, numel(v), C, n), 3)', C, 1, numel(v));
     end
 end
 % CCEP: a window that contains the stimulation artifact shows power at every
@@ -307,8 +371,8 @@ if S.ccep && ~isempty(o.artifact_window)
     valid = valid & ~hitsArtifact;
     S.artifact_window = o.artifact_window;
 end
-P = Psum ./ S.n_trials;                                     % (n_chan x n_freq x n_times)
-P(S.n_trials == 0, :, :) = NaN;
+P = Psum ./ Cnt;                                            % (n_chan x n_freq x n_times)
+P(Cnt == 0) = NaN;
 P(repmat(reshape(~valid, 1, F, Nt), C, 1, 1)) = NaN;
 if o.keeptrials, Ptr(repmat(reshape(~valid, 1, F, Nt), C, 1, 1, N)) = NaN; end
 

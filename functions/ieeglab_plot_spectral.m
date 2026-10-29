@@ -69,7 +69,14 @@ else
     end
     ieeglab_figure('Name', 'iEEG time-frequency', 'Position', [80 80 1100 480]);
     ax1 = subplot(1, 2, 1);
-    imagesc(ax1, S.times, S.freqs, M, 'AlphaData', isfinite(M));
+    fy = S.freqs;
+    if numel(fy) < 3 || all(abs(diff(fy, 2)) < 1e-6 * max(fy))
+        imagesc(ax1, S.times, fy, M, 'AlphaData', isfinite(M));
+    else                                             % imagesc spaces rows evenly: label them
+        imagesc(ax1, S.times, 1:numel(fy), M, 'AlphaData', isfinite(M));
+        tk = unique(round(linspace(1, numel(fy), min(numel(fy), 10))));
+        set(ax1, 'YTick', tk, 'YTickLabel', compose('%g', fy(tk)));
+    end
     axis(ax1, 'xy'); set(ax1, 'Color', [0.9 0.9 0.9]);
     cl = o.clim;
     if isempty(cl)
