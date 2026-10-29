@@ -121,6 +121,13 @@ remove the bad contacts and those without coordinates, and subtract the baseline
 (-500 to -50 ms). RA14 is reported as not flat before the pulse: it is kept, as
 the clinicians marked it good, but look at it in the heatmap.
 
+The line-noise removal was compared with a notch filter, ZapLine (de Cheveigné,
+2020) and ZapLine-plus (Klug & Kloosterman, 2022), on synthetic stimulation
+data with a known clean signal and on both tutorial datasets. The fitted sines
+left the least error 5 to 50 ms after the pulse (0.1 uV, against 0.5 uV for
+the notch and 18 to 20 uV for ZapLine, whose spatial components take in the
+pulses); details in the help of `ieeglab_line_noise`.
+
 ```matlab
 EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
     'apply_notch', true, 'notch', [60 120 180], ...
@@ -129,7 +136,7 @@ EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));
 ```
 
-*iEEGLAB > Plot average of all channels (heatmap)* shows the average of all
+*iEEGLAB > Plot average of epochs, every channel (heatmap)* shows the average of all
 epochs, one row per contact, at any step once the data are epoched:
 
 ```matlab
@@ -254,6 +261,13 @@ and the spectrum uses only stretches away from the pulses (on epochs, the part
 before the pulse). Windows that touch a NaN sample are left out.
 From the menu it only draws figures: the dataset is not changed.
 
+On the tutorial (steps A10-A11 and B10 of `ieeglab_tutorial.m`, and the
+step-by-step page): the sEEG's 14 contacts give 13 bipolar channels; the ECoG's
+17 give 14, as the ends of two grid rows are not paired. With the default 0.2 s
+windows, the times from -100 to 110 ms are grey, and no contact's 70-150 Hz
+power moves by more than 0.5 dB over the second after the pulse; the spectra
+show no line-noise peak in their median.
+
 ```matlab
 EEG_bip = pop_ieeglab_reref(EEG, 'method', 'bipolar');
 EEG_lap = pop_ieeglab_reref(EEG, 'method', 'montage', 'montage', 'my_montage.tsv');
@@ -327,7 +341,9 @@ each method prints its reference when it runs. Much of the CCEP methodology
 comes from Dora Hermes and the Multimodal Neuroimaging Lab
 ([github.com/MultimodalNeuroimagingLab](https://github.com/MultimodalNeuroimagingLab)).
 
+- de Cheveigné, A. (2020). ZapLine: A simple and effective method to remove power line artifacts. *NeuroImage, 207*, 116356.
 - Huang, H., Ojeda Valencia, G., Gregg, N. M., Osman, G. M., Montoya, M. N., Worrell, G. A., Miller, K. J., & Hermes, D. (2024). CARLA: Adjusted common average referencing for cortico-cortical evoked potential data. *Journal of Neuroscience Methods, 407*, 110153.
+- Klug, M., & Kloosterman, N. A. (2022). Zapline-plus: A Zapline extension for automatic and adaptive removal of frequency-specific noise artifacts in M/EEG. *Human Brain Mapping*. https://doi.org/10.1002/hbm.25832
 - Michelmann, S., Treder, M. S., Griffiths, B., Kerrén, C., Roux, F., Wimber, M., Rollings, D., Sawlani, V., Chelvarajah, R., Gollwitzer, S., Kreiselmeyer, G., Hamer, H., Bowman, H., Staresina, B., & Hanslmayr, S. (2018). Data-driven re-referencing of intracranial EEG based on independent component analysis (ICA). *Journal of Neuroscience Methods, 307*, 125-137.
 - Miller, K. J., Müller, K.-R., Ojeda Valencia, G., Huang, H., Gregg, N. M., Worrell, G. A., & Hermes, D. (2023). Canonical response parameterization: Quantifying the structure of responses to single-pulse intracranial electrical brain stimulation. *PLOS Computational Biology, 19*(5), e1011105.
 - Ojeda Valencia, G., Gregg, N. M., Huang, H., Lundstrom, B. N., Brinkmann, B. H., Pal Attia, T., Van Gompel, J. J., Bernstein, M. A., In, M.-H., Huston, J., III, Worrell, G. A., Miller, K. J., & Hermes, D. (2023). Signatures of electrical stimulation driven network interactions in the human limbic system. *Journal of Neuroscience, 43*(39), 6697-6711.

@@ -110,6 +110,27 @@ end
 % used, and a MAT file.
 ieeglab_export(EEG, fullfile(outroot, 'seeg'));
 
+%% A10. Frequency analysis
+% Menu: iEEGLAB > Frequency analysis. Time-frequency power in dB against the
+% baseline (Hann windows of 0.2 s, 5 to 200 Hz, as FieldTrip's intracranial
+% tutorial), the high-frequency activity (70-150 Hz) of each contact over time
+% and on the brain. Windows that contain the pulse are left out (grey), and
+% each contact's own stimulation epochs are left out of its average. Then the
+% power spectrum of the part of each epoch before the pulse. It only draws:
+% the dataset is not changed (from the command line the result is also in
+% EEG.ieeglab.spectral).
+EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'plot', show_figures);
+EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum', 'plot', show_figures);
+
+%% A11. Bipolar montage, and frequency analysis again
+% Menu: iEEGLAB > iEEG re-referencing > Bipolar. Each contact minus the next
+% one on its lead (RA1-RA2 = RA1 - RA2). A bipolar difference cancels any
+% reference common to its two contacts, so it gives the same channels from the
+% CARLA data as from the preprocessed ones. The CCEP results describe the old
+% channels and are removed.
+EEG_bip = pop_ieeglab_reref(EEG, 'method', 'bipolar');
+EEG_bip = pop_ieeglab_spectral(EEG_bip, 'type', 'timefreq', 'plot', show_figures);
+
 %% ===== Part B: ECoG =====================================================
 
 %% B2-B3. Open the dataset and load the sidecars
@@ -156,4 +177,13 @@ if show_figures
     ieeglab_topoplot(EEG, 'n1_amplitude', 'site', 'FB54-FB62');
 end
 ieeglab_export(EEG, fullfile(outroot, 'ecog'));
+
+%% B10. Frequency analysis, bipolar montage
+% As A10-A11. On a grid the last contact of a row and the first of the next have
+% consecutive numbers but are not neighbours: with coordinates, pairs farther
+% apart than twice the lead's median spacing are not formed.
+EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'plot', show_figures);
+EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum', 'plot', show_figures);
+EEG_bip = pop_ieeglab_reref(EEG, 'method', 'bipolar');
+EEG_bip = pop_ieeglab_spectral(EEG_bip, 'type', 'timefreq', 'plot', show_figures);
 fprintf('Results in %s\n', outroot);

@@ -13,6 +13,15 @@ function [EEG, info] = ieeglab_line_noise(EEG, opt)
 %   .mask_ms    [start stop] ms around each stimulation left out of the fit.
 %               Default [-10 300]. Used on CCEP data only (event types that
 %               name a pair of contacts, see ieeglab_detect_mode).
+%   .stim_mask_ms  [start stop] ms around each stimulation left out of the fit
+%               of the contacts stimulated (the channels that use them).
+%               Default [-10 2000]: on a stimulated contact the artifact's
+%               recovery carries tens of uV at the line harmonics for 1 to 2 s
+%               (tutorial sEEG, RA4 at 180 Hz: 64 uV 0.3-1 s after the pulse,
+%               5 uV 1-2 s, 1.3 uV later); fitted with it, the sine put 13 to
+%               21 uV of 180 Hz back into the rest of the recording. Where the
+%               pulses are too close for it (less than 0.5 s left in a
+%               window), mask_ms is used for them too.
 %   .search_hz  the mains frequency is searched within +-search_hz of each
 %               value (it can run a few hundredths of a Hz off). Default 0.1.
 %   .verbose    logical. Default true.
@@ -23,19 +32,34 @@ function [EEG, info] = ieeglab_line_noise(EEG, opt)
 %   skipped (fraction of samples in no window with enough data away from the
 %   pulses to fit; their line noise stays).
 %
-% Why not a notch filter
-% ----------------------
+% Why not a notch filter, or ZapLine
+% ---------------------------------
 % A notch removes the narrow band around 60 Hz of everything, including each
-% stimulation response, and a 2 Hz notch is a 3.3 s filter at 2048 Hz: the
-% response's own 60 Hz content is taken out and spread up to 1.6 s before and
-% after the pulse. On the tutorial sEEG this takes 32 uV RMS out of the trial
-% average around the pulse, for line noise of 1.7 uV per contact. A shorter
-% (wider) notch spreads it over less time but takes out twice as much. A notch
-% also takes out the brain's own activity at 60 Hz.
+% stimulation response and the brain's own 60 Hz activity, and a 2 Hz notch is a
+% 3.3 s filter at 2048 Hz: what it removes is spread up to 1.6 s before and
+% after the pulse. On the tutorials (artifact blanked first, each contact's own
+% stimulation epochs left out, as every analysis does), it changes the trial
+% average 10 to 50 ms after the pulse by 0.76 uV RMS (sEEG) and 0.94 uV (ECoG),
+% the fit by 0.32 and 0.44 uV; in the stimulated contacts' own epochs, where the
+% artifact remains, by 32 uV. On synthetic CCEP data with a known clean signal,
+% the error left 5 to 50 ms after the pulse is 0.48 uV with the notch and
+% 0.12 uV with the fit (stimulated contacts: 10.9 and 0.20 uV).
+% ZapLine (de Cheveigne, 2020) and ZapLine-plus (Klug & Kloosterman, 2022)
+% remove the spatial components that carry the line noise, estimated over the
+% whole recording, pulses included. On CCEP data the pulses take part in those
+% components: they changed the tutorials' trial average 10 to 50 ms after the
+% pulse by 9 to 19 uV (ZapLine) and 9 to 400 uV (ZapLine-plus), left 18 to
+% 21 uV of error after the pulse on synthetic data with line noise from two
+% shared sources, and on the tutorial sEEG left most of the 60 Hz (36 and 14
+% times the neighbouring frequencies, median over contacts; the fit 1.3).
 %
 % Here, in each window, a sine at each line frequency (its amplitude and phase)
 % is fitted by least squares to the samples away from the pulses, then subtracted
-% from all samples. The fit never sees a pulse or its response, so nothing is
+% from all samples: FieldTrip's DFT filter (Oostenveld et al., 2011) in
+% cross-faded windows, as CleanLine (Mullen, 2012) after Mitra and Pesaran
+% (1999), so that slow changes of the line noise are followed (Leske & Dalal,
+% 2019), with the fit restricted to the samples away from the pulses
+% (least squares on unevenly sampled data; Lomb, 1976). The fit never sees a pulse or its response, so nothing is
 % spread around them: on the full ds004696 sub-02 recording, 0.22 uV RMS is taken
 % out of the trial average 900 to 500 ms before the pulse and 0.21 uV 10 to 50 ms
 % after it (notch: 0.53 and 1.93 uV); what is left at 60 Hz equals the activity at
@@ -55,10 +79,28 @@ function [EEG, info] = ieeglab_line_noise(EEG, opt)
 % at a time (one window when an epoch is shorter than 1.5 windows). Samples that
 % are NaN are left out of the fit and stay NaN.
 %
+% References
+%   de Cheveigne, A. (2020). ZapLine: A simple and effective method to remove
+%     power line artifacts. NeuroImage, 207, 116356.
+%   Klug, M., & Kloosterman, N. A. (2022). Zapline-plus: A Zapline extension for
+%     automatic and adaptive removal of frequency-specific noise artifacts in
+%     M/EEG. Human Brain Mapping. https://doi.org/10.1002/hbm.25832
+%   Leske, S., & Dalal, S. S. (2019). Reducing power line noise in EEG and MEG
+%     data via spectrum interpolation. NeuroImage, 189, 763-776.
+%   Lomb, N. R. (1976). Least-squares frequency analysis of unequally spaced
+%     data. Astrophysics and Space Science, 39(2), 447-462.
+%   Mitra, P. P., & Pesaran, B. (1999). Analysis of dynamic brain imaging data.
+%     Biophysical Journal, 76(2), 691-708.
+%   Mullen, T. (2012). CleanLine EEGLAB plugin. NITRC.
+%   Oostenveld, R., Fries, P., Maris, E., & Schoffelen, J.-M. (2011). FieldTrip:
+%     Open source software for advanced analysis of MEG, EEG, and invasive
+%     electrophysiological data. Computational Intelligence and Neuroscience,
+%     2011, 156869.
+%
 % Cedric Cannard, iEEGLAB, 2026
 
 if nargin < 2 || isempty(opt), opt = struct(); end
-def = struct('freqs', 60, 'window', 4, 'mask_ms', [-10 300], 'search_hz', 0.1, 'verbose', true);
+def = struct('freqs', 60, 'window', 4, 'mask_ms', [-10 300], 'stim_mask_ms', [-10 2000], 'search_hz', 0.1, 'verbose', true);
 fn = fieldnames(def);
 for i = 1:numel(fn)
     if ~isfield(opt, fn{i}) || isempty(opt.(fn{i})), opt.(fn{i}) = def.(fn{i}); end
@@ -91,15 +133,23 @@ else
     segs = [[1; b(:) + 1], [b(:); L]];
 end
 
-% Samples left out of the fit: around each stimulation of CCEP data
+% Samples left out of the fit: around each stimulation of CCEP data, for every
+% contact (keep), and longer for the contacts stimulated (stimIv: per channel,
+% [first last] sample intervals)
 keep = true(1, L);
+stimIv = repmat({zeros(0, 2)}, C, 1);
 if strcmp(ieeglab_detect_mode(EEG), 'ccep')
     ev = EEG.event(~strcmpi(cellfun(@(x) char(string(x)), {EEG.event.type}, 'UniformOutput', false), 'boundary'));
     w = round(double(opt.mask_ms) / 1000 * fs);
+    wStim = round(double(opt.stim_mask_ms) / 1000 * fs);
+    [~, si] = ieeglab_canonical_site(cellfun(@(x) char(string(x)), {ev.type}, 'UniformOutput', false), EEG.chanlocs);
     for e = 1:numel(ev)
         l = round(double(ev(e).latency));
         if ~isscalar(l) || ~isfinite(l), continue; end           % an event without a latency masks nothing
         keep(max(1, l + w(1)):min(L, l + w(2))) = false;
+        for ch = si{e}(:)'
+            stimIv{ch}(end+1, :) = [max(1, l + wStim(1)), min(L, l + wStim(2))];
+        end
     end
 end
 info.masked = 1 - mean(keep);
@@ -137,6 +187,15 @@ for s = 1:size(segs, 1)
         t = (idx - a) / fs;                                   % time from the segment start
         A = local_design(t, fk);
         c = A(g, :) \ X(:, g)';                               % 2*nfreq x C
+        % the stimulated contacts of a pulse in this window: fitted on their own,
+        % without stim_mask_ms around that pulse (its artifact tail)
+        for ch = find(cellfun(@(v) any(v(:, 1) <= idx(end) & v(:, 2) >= idx(1)), stimIv))'
+            gc = g;
+            for r = find(stimIv{ch}(:, 1) <= idx(end) & stimIv{ch}(:, 2) >= idx(1))'
+                gc(idx >= stimIv{ch}(r, 1) & idx <= stimIv{ch}(r, 2)) = false;
+            end
+            if nnz(gc) >= minGood, c(:, ch) = A(gc, :) \ X(ch, gc)'; end   % else: pulses too close, mask_ms only
+        end
         W(end+1) = struct('idx', [idx(1) idx(end)], 'w', wk, 'f', fk, 'c', c, 't0', a); %#ok<AGROW>
     end
 end

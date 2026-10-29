@@ -108,7 +108,9 @@
       <div class="note f">Mac with Apple Silicon: compile the MEF3 reader
       (<a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">instructions</a>).</div></li>
     <li>Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
-      <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.</div>
+      <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.
+      <span class="menu">Help &gt; iEEGLAB documentation</span> (also at the bottom of the iEEGLAB menu) opens this page,
+      the README, the tutorial script, and the help of each menu.</div>
       <figure class="shot"><img src="tutorial/images/00_eeglab_start.png" alt="EEGLAB with the iEEGLAB menu" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>eeglab
 ieeglab_check_install</code></pre></details></li>
@@ -168,19 +170,22 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest
-      (artifact blanking, line noise at 60 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
+      (artifact blanking, line noise at 60, 120 and 180 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
       than 5 pulses, bad contacts and contacts without coordinates removed).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 14 contacts, 32 epochs. The command window names RA14
       as not flat before the pulse: it is kept, as the clinicians marked it good.</span><span class="f">About 2 minutes:
       198 contacts, 627 epochs.</span></div>
+      <div class="note">Line noise: the fitted sines were compared with a notch filter, ZapLine and ZapLine-plus, on
+      synthetic stimulation data with a known clean signal and on both datasets. They left the least error 5 to 50 ms
+      after the pulse (0.1 uV, against 0.5 uV for the notch and 18 to 20 uV for ZapLine), and are the default.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', 60, ...
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', [60 120 180], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot average of all channels (heatmap)</span>.
+    <li><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
       <div class="expect"><b>Expect</b>One row per contact, the average of all epochs in colour: flat before 0 ms,
       responses after it.<span class="t"> RA14 is the row that is not flat before 0 ms.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
@@ -244,6 +249,44 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Export results</span>: choose a folder.
       <div class="expect"><b>Expect</b>TSV tables, a JSON record of the options, a MAT file.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_export(EEG, 'results_seeg');</code></pre></details></li>
+
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
+      the defaults (5 to 200 Hz, Hann windows of 0.2 s, dB against the baseline, high-frequency activity 70-150 Hz). It only
+      draws figures: the dataset is not changed.
+      <div class="expect"><b>Expect</b>Two figures. The first shows the power of the average of the contacts over time and
+      frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
+      1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
+      frequency. Each contact's own stimulation epochs are left out of its average.
+      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.5 dB over 0 to 1000 ms (median -0.3 dB): the grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
+      <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
+      frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
+      pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
+      the median: the line noise was removed. <span class="t">The largest peak left is on RA3 at 180 Hz, next to the stimulated pairs.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
+      (pairs farther apart than twice their lead's spacing are not formed).
+      <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
+      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">The numbers for the full recording will be added here.</span> The CCEP results are removed: they describe the
+      old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
+      the CARLA data as from the preprocessed ones.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
+      bipolar channels.
+      <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
+      <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). The others stay within 0.5 dB of their baseline.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
   </ol>
 
   <h2 id="ecog">4. Part B: ECoG (ds004080, sub-ccepAgeUMCU02)</h2>
@@ -280,17 +323,17 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', ieeglab_brain_surfaces(EEG));
 EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50 Hz here).
+    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50, 100 and 150 Hz here).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 15 s:
       86 contacts, 160 epochs.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', 50, ...
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', [50 100 150], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, ...
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot average of all channels (heatmap)</span>.
+    <li><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_plot_heatmap(EEG);</code></pre></details></li>
@@ -301,8 +344,8 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds: 11 of 48 pairs respond, N1 latency median 21 ms (14 to
-      99 ms).</span><span class="f">About 15 s: about 300 of 672 pairs respond, N1 latency median about 46 ms.</span></div>
+      <div class="expect"><b>Expect</b><span class="t">A few seconds: 10 of 48 pairs respond, N1 latency median 21 ms (14 to
+      99 ms).</span><span class="f">About a minute: 299 of 672 pairs respond, N1 latency median 47 ms (11 to 99 ms).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, 'run_matrix', true, 'matrix_source', 'n1'));</code></pre></details></li>
@@ -323,6 +366,44 @@ pop_ieeglab_ccep_matrix(EEG, 'latency_ms');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B9_brain.png" alt="N1 amplitude on the grid" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>pop_ieeglab_topoplot(EEG, 'n1_amplitude', 'site', 'FB54-FB62');
 ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
+
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
+      the defaults (5 to 200 Hz, Hann windows of 0.2 s, dB against the baseline, high-frequency activity 70-150 Hz). It only
+      draws figures: the dataset is not changed.
+      <div class="expect"><b>Expect</b>Two figures. The first shows the power of the average of the contacts over time and
+      frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
+      1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
+      frequency. Each contact's own stimulation epochs are left out of its average.
+      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.3 dB over 0 to 1000 ms (highest: FB55 and FB62). FB54 has no value: it is stimulated at all three sites of the extract.</span><span class="f">No contact's 70-150 Hz power differs from its baseline by more than 0.4 dB over 0 to 1000 ms (highest: FB55).</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B10_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B10_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B10_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
+      <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
+      frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
+      pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
+      the median: the line noise was removed. <span class="t">The largest peak left is on FB53 at 100 Hz, next to the stimulated FB54.</span><span class="f">No peak above 2.5 times the neighbouring frequencies on any contact.</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
+      (pairs farther apart than twice their lead's spacing are not formed).
+      <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
+      <span class="t">17 contacts become 14 channels. FB56-FB57 (79 mm apart) and FB63-FB64 (29 mm) are not formed, as the lead's contacts are 13.4 mm apart: the grid's numbering runs on from one row to the next.</span><span class="f">85 contacts become 71 channels. Ten pairs are not formed, their contacts being more than twice their lead's spacing apart: the ends of grid rows (FC08-FC09, FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41, FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64, vT3-vT4, vT6-vT7).</span> The CCEP results are removed: they describe the
+      old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
+      the common average data as from the preprocessed ones.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
+    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
+      bipolar channels.
+      <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
+      <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others stay within 0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
   </ol>
 
   <h2 id="report">5. What to report</h2>

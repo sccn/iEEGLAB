@@ -83,6 +83,19 @@
 - **Line noise**: the preprocessing window proposes the power-line frequency and
   its first two harmonics (60, 120, 180 Hz; below Nyquist), still removed by
   fitted sines. The fundamental alone left a 180 Hz peak in the tutorial sEEG.
+  The sines of the stimulated contacts are now fitted without the 2 s after
+  each of their pulses (`stim_mask_ms`, -10 to 2000 ms): their artifact
+  recovery carries tens of uV at the line harmonics for 1 to 2 s, and the fit
+  put that back into the rest of the recording (tutorial sEEG, RA4 at 180 Hz:
+  75 times the neighbouring frequencies before removal, 338 after; 15 now).
+- **Line noise, compared** (help of `ieeglab_line_noise`, with references): on
+  the epochs that analyses use (each contact's own stimulation epochs left
+  out), a notch changes the tutorial trial average 10-50 ms after the pulse by
+  0.76 uV (sEEG) and 0.94 uV (ECoG), the sine fit by 0.32 and 0.44 uV. The
+  32 uV given for 1.2.0 included the stimulated contacts' own epochs, where
+  the artifact remains. ZapLine and ZapLine-plus, whose spatial components
+  include the pulses, changed it by 9 to 400 uV and left most of the 60 Hz on
+  the sEEG.
 
 ## 1.2.0 (2026-10-25)
 

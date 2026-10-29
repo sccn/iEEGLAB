@@ -173,3 +173,33 @@ Z = ieeglab_line_noise(EEG, struct('freqs', 50, 'search_hz', 0, 'verbose', false
 tc.verifyGreaterThan(sqrt(mean((Z.data - S).^2, 'all')), 2 * ry, ...
     'At the nominal frequency more should be left (11% of the line noise when measured).');
 end
+
+function test_artifact_tail_of_stimulated_contacts_left_out(tc)
+% The stimulated pair's artifact recovery carries power at the line frequency
+% for over a second after each pulse (tutorial sEEG at 180 Hz). Fitted with it,
+% the sine put line noise back into the stimulated contacts; left out
+% (stim_mask_ms), they are cleaned like the others.
+fs = 1000; dur = 120; n = dur * fs; t = (0:n-1) / fs;
+rs = RandStream('mt19937ar', 'Seed', 4);
+C = 4; S = 3 * randn(rs, C, n);
+lat = round((2:4.6:dur-3) * fs) + 1;
+tau = (0:round(1.6 * fs)) / fs;
+for l = lat                                         % C1, C2: a 60 Hz-rich tail 0.3 to 1.6 s after the pulse
+    tail = 80 * exp(-(tau - 0.3) / 0.4) .* (tau >= 0.3) .* sin(2 * pi * 60.02 * tau + 2 * pi * rand(rs));
+    S(1:2, l + (0:numel(tau)-1)) = S(1:2, l + (0:numel(tau)-1)) + tail;
+end
+line = 10 * sin(2 * pi * 60.02 * t + 2 * pi * rand(rs, C, 1));
+EEG = struct('data', single(S + line), 'srate', fs, 'nbchan', C, 'pnts', n, 'trials', 1, ...
+    'chanlocs', struct('labels', compose('C%d', 1:C)), 'event', struct('type', 'C1-C2', 'latency', num2cell(lat)), 'xmin', 0);
+Y = ieeglab_line_noise(EEG, struct('freqs', 60, 'verbose', false));
+Y0 = ieeglab_line_noise(EEG, struct('freqs', 60, 'stim_mask_ms', [-10 300], 'verbose', false));
+quiet = false(1, n);                                % 2 to 4 s after each pulse: no tail
+for l = lat, quiet(l + (2 * fs:4 * fs)) = true; end
+quiet = quiet(1:n);
+left = sqrt(mean((double(Y.data(1:2, quiet)) - S(1:2, quiet)).^2, 'all'));
+left0 = sqrt(mean((double(Y0.data(1:2, quiet)) - S(1:2, quiet)).^2, 'all'));
+tc.verifyLessThan(left, 0.1 * 10 / sqrt(2), 'Line noise left on the stimulated contacts.');
+tc.verifyGreaterThan(left0, 2 * left, 'With the tail in the fit, more should be left.');
+other = sqrt(mean((double(Y.data(3:4, :)) - S(3:4, :)).^2, 'all'));
+tc.verifyLessThan(other, 0.1 * 10 / sqrt(2), 'The other contacts must be cleaned as before.');
+end
