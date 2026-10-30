@@ -65,7 +65,54 @@ tc.verifyEqual(double(B.data), double(A.data), 'AbsTol', 1e-4);
 tc.verifyTrue(contains(com, '''method'', ''ica'''));
 end
 
+function test_stimulated_contacts_stay_out_of_the_others(tc)
+% An artifact on the stimulated contacts, in the epochs of their site, must
+% reach no other contact.
+[E, ~, r] = local_sim(8, 0);
+E = local_ccep(E);
+tc.assumeEqual(ieeglab_detect_mode(E), 'ccep');
+[~, A] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
+post = E.times > 0;
+tr = 1:2:E.trials;                                   % the epochs of site C2-C3
+Bad = E;
+Bad.data([2 3], post, tr) = Bad.data([2 3], post, tr) + 5000;
+[~, B] = evalc('ieeglab_icaref(Bad, struct(''verbose'', false))');
+others = [1 4:8];
+tc.verifyEqual(double(B.data(others, :, :)), double(A.data(others, :, :)), 'AbsTol', 1e-2);
+gap = double(B.data([2 3], post, tr)) - double(A.data([2 3], post, tr));
+tc.verifyEqual(gap, 5000 * ones(size(gap)), 'AbsTol', 1e-2, 'They keep their own artifact.');
+% The reference still leaves the epochs in which contacts were left out
+Y = reshape(double(A.data(others, :, tr)), numel(others), []);
+R = reshape(r, E.pnts, E.trials);
+R = reshape(R(:, tr), [], 1);
+tc.verifyLessThan(max(abs(corr(Y', R))), 0.25);
+end
+
+function test_blanked_samples_cost_no_contact(tc)
+% Blanking by NaN writes NaN into every contact: not a reason to leave them out
+[E, ~, ~] = local_sim(8, 0);
+E = local_ccep(E);
+gap = E.times >= 0 & E.times < 10;
+E.data(:, gap, :) = NaN;
+[~, A, info] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
+tc.verifyNumElements(info.channels, 8);
+tc.verifyTrue(all(isnan(A.data(:, gap, :)), 'all'));
+tc.verifyTrue(all(isfinite(A.data(:, ~gap, :)), 'all'));
+end
+
 % -------------------------------------------------------------------------
+function E = local_ccep(E)
+% Two stimulation sites taking turns, as pop_epoch records them
+sites = {'C2-C3', 'C5-C6'};
+i0 = find(E.times >= 0, 1);
+E.event = struct('type', {}, 'latency', {}, 'epoch', {});
+for n = 1:E.trials
+    s = sites{mod(n - 1, 2) + 1};
+    E.event(n) = struct('type', s, 'latency', (n - 1) * E.pnts + i0, 'epoch', n);
+    E.epoch(n).event = n; E.epoch(n).eventtype = {s}; E.epoch(n).eventlatency = {0};
+end
+end
+
 function [E, S, r] = local_sim(nCh, seed)
 % nCh-1 local sources (Laplacian, non-Gaussian) on contacts 1..nCh-1, each
 % strongest on its own contact and decaying to the neighbours, plus one

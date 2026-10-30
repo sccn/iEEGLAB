@@ -160,7 +160,7 @@ sigCells = cell(nCh, nR);
 lenMat   = zeros(nCh, nR);  % double is fine; avoids parfor broadcast issues
 
 % Use parfor only if a pool is already open (otherwise parfor overhead can hurt)
-usePar = ~isempty(gcp('nocreate'));
+usePar = ~isempty(which('gcp')) && ~isempty(gcp('nocreate'));   % gcp needs the Parallel Computing Toolbox
 
 if usePar
     parfor iCh = 1:nCh

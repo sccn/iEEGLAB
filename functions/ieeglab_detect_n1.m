@@ -57,7 +57,9 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %   .verbose       default true
 %
 % Output T (also EEG.ieeglab.n1.table): site, channel, n1_amplitude_uv,
-% n1_latency_ms, baseline_sd, z, p, p_adj, significant, n_trials.
+% n1_latency_ms, baseline_sd, z, p, p_adj, significant, n_trials, p_min (the
+% smallest p possible: 1/2^K exact, 2/2^K with 'abs', 1/(n_perm + 1) sampled),
+% testable (false when it cannot reach significance; see ieeglab_testable).
 %
 % Amplitude is measured from the baseline median, with its sign.
 %
@@ -230,6 +232,18 @@ end
 
 T = cell2table(rows, 'VariableNames', ...
     {'site','channel','n1_amplitude_uv','n1_latency_ms','baseline_sd','z','p','p_adj','significant','n_trials'});
+T.p_min = nan(height(T), 1);
+T.testable = true(height(T), 1);
+if strcmp(opt.method, 'permutation')
+    exact = 2.^T.n_trials <= opt.n_perm + 1;
+    tiedSigns = 1 + strcmp(opt.polarity, 'abs');       % |x| gives s and -s the same statistic
+    T.p_min(:) = 1 / (opt.n_perm + 1);
+    T.p_min(exact) = tiedSigns ./ 2.^T.n_trials(exact);
+    [~, ~, family] = unique(string(T.site));           % corrected within each site
+    [testable, msg] = ieeglab_testable(T.p, T.p_min, family, @(x) local_correct(x, opt.correct), opt.alpha);
+    T.testable = testable;
+    if ~isempty(msg), warning('ieeglab_detect_n1:untestable', '%s', msg); end
+end
 T = sortrows(T, {'site','channel'});
 EEG.ieeglab.n1 = struct('table', T, 'opt', opt);
 

@@ -9,9 +9,10 @@ function [EEG, M, com] = ieeglab_ccep_matrix(EEG, opt)
 % The standard summary of a single-pulse stimulation experiment: one row per
 % stimulated pair, one column per recording contact, and in each cell whether
 % stimulating that pair evoked a significant response at that contact. Cells
-% for the stimulated contacts themselves, marked-bad contacts and pairs not
-% tested are NaN - "not measured" stays distinct from "no response", including
-% in the degrees.
+% for the stimulated contacts themselves, marked-bad contacts, pairs not tested
+% and pairs that could not reach significance (too few trials, see
+% ieeglab_testable) are NaN - "not measured" stays distinct from "no response",
+% including in the degrees.
 %
 % Options:
 %   .source           'n1' (default) or 'crp' - which detector defines a response
@@ -28,6 +29,7 @@ function [EEG, M, com] = ieeglab_ccep_matrix(EEG, opt)
 %   .sites        stimulation sites, in montage order of their contacts
 %   .channels     recording contacts, montage order
 %   .response     1 significant, 0 tested and not significant, NaN not tested
+%   .n_untestable pairs left NaN because they could not reach significance
 %   .p_adj        corrected p-values (NaN for the 'sd' rule)
 %   .amplitude_uv, .latency_ms       when source = 'n1' (all tested pairs)
 %   .tR_ms, .explained_var           when source = 'crp'
@@ -113,6 +115,11 @@ M.response(lin) = double(T.significant(ok));
 M.p_adj(lin)    = T.p_adj(ok);
 for k = 1:size(metrics,1)
     M.(metrics{k,1})(lin) = T.(metrics{k,2})(ok);
+end
+M.n_untestable = 0;
+if ismember('testable', T.Properties.VariableNames)      % results saved before this column have none
+    M.n_untestable = nnz(~T.testable(ok));
+    M.response(lin(~T.testable(ok))) = NaN;
 end
 
 testedRow = any(~isnan(M.response), 2);

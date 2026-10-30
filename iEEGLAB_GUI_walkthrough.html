@@ -99,9 +99,10 @@
 
   <h2 id="install">1. Install</h2>
   <ol class="steps">
-    <li>Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Unzip iEEGLAB 1.2.0 from
-      <a href="https://github.com/sccn/iEEGLAB/releases">its releases</a> (<code>iEEGLAB1.2.0.zip</code>) in
-      <code>eeglab/plugins/</code> (the extension manager lists it once its list is updated).<span class="f"> From
+    <li>Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Clone
+      <a href="https://github.com/sccn/iEEGLAB">iEEGLAB</a> into <code>eeglab/plugins/</code>, or
+      <a href="https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip">download it</a> and unzip it there: release
+      1.2.0 does not have all the steps below yet.<span class="f"> From
       <span class="menu">File &gt; Manage EEGLAB extensions</span>, install <b>MEF3</b> (Part A) and <b>bva-io</b> (Part B).</span>
       Part B draws the ECoG contacts on fsaverage: FreeSurfer has it, or get it once from Python with
       <code>import mne; mne.datasets.fetch_fsaverage()</code>.
@@ -129,7 +130,8 @@ ieeglab_check_install</code></pre></details></li>
   <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*run-041456*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_electrodes.*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_coordsystem.json" --include "dataset_description.json" --include "participants.tsv"</code></pre>
   <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 10 to 20 minutes. For a quicker
-  run, read only a few stimulation sites at step 1 of Part A.</div>
+  run, read only a few stimulation sites at step 1 of Part A; the numbers then differ a little, also for the sites you
+  keep, as CARLA and the permutations draw from one random stream.</div>
   </div>
 
   <h2 id="seeg">3. Part A: sEEG (ds004696, sub-02)</h2>
@@ -177,7 +179,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       198 contacts, 627 epochs.</span></div>
       <div class="note">Line noise: the fitted sines were compared with a notch filter, ZapLine and ZapLine-plus, on
       synthetic stimulation data with a known clean signal and on both datasets. They left the least error 5 to 50 ms
-      after the pulse (0.1 uV, against 0.5 uV for the notch and 18 to 20 uV for ZapLine), and are the default.</div>
+      after the pulse (0.1 uV, against 0.5 uV for the notch and 19 to 20 uV for ZapLine), and are the default.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('apply_blank', true, 'apply_notch', true, 'notch', [60 120 180], ...
@@ -203,9 +205,11 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
       sites are next to each other on one lead, so most contacts respond).</span><span class="f">A few minutes: 3937
-      of 11172 site-contact pairs respond. Against the published CRP of this participant: the same decision for 78%
+      of 10780 site-contact pairs respond. A warning says that 392 more cannot reach significance, at sites with too
+      few trials, and count as not tested. Against the published CRP of this participant: the same decision for 78%
       of the 484 published pairs tested here (87% with the published t-test at tau_R and Benjamini-Yekutieli correction,
-      both options in this window).</span> The results repeat exactly from run to run (fixed random seed).</div>
+      both options in this window).</span> The results repeat exactly from run to run on the same data (fixed random
+      seed).</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_summary_1.png" alt="CRP summary" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -225,7 +229,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>: <i>Significant responses</i>, then <i>CRP explained variance</i>.
       <div class="expect"><b>Expect</b>Each row is a stimulated pair, each column a recording contact; a cell shows whether
       stimulating that pair evoked a response at that contact. Teal: a significant response; white: tested, no response;
-      grey: not tested (the stimulated contacts themselves, bad contacts). Read a row to see where a site's stimulation
+      grey: not tested (the stimulated contacts themselves, bad contacts, sites with too few trials). Read a row to see where a site's stimulation
       reaches, a column to see which sites reach a contact. The second view colours the responding pairs by CRP explained
       variance, how much of each trial the response shape explains (0 to 1).
       <span class="t">3 sites by 14 contacts.</span><span class="f">57 sites by 198 contacts.</span></div>

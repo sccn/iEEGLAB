@@ -74,7 +74,7 @@ function [crp_parms, crp_projs] = run_CRP(V, t_win, opts)
 %       proj_tpts = 10:t_step:T        (default t_step = 5 samples)
 %     You can tune t_step inside this file for smoother profiles vs. speed.
 %   • Linear "kernel-trick" PCA (kt_pca) is used to obtain the canonical shape.
-%   • If Statistics Toolbox is missing, p-values are computed via tcdf fallback.
+%   • p-values use base MATLAB only (no Statistics Toolbox).
 %
 %     Original method & implementation: Kai J. Miller, M.D., Ph.D. (2022; revised 2023)
 %
@@ -304,16 +304,15 @@ function t = tstat_safe(x)
     if n < 2 || sx == 0, t = NaN; else, t = mean(x,'omitnan')/(sx/sqrt(n)); end
 
 function p = pval_safe(x)
+    % Right tail of a one-sample t-test, from the incomplete beta function
     x = x(:);
     x = x(isfinite(x));
     if numel(x) < 2, p = NaN; return; end
-    if exist('ttest','file') == 2
-        try, [~,p] = ttest(x,0,'tail','right'); catch, p = NaN; end
-    else
-        t = tstat_safe(x);
-        df = max(numel(x)-1,1);
-        if isfinite(t), p = 1 - tcdf(t, df); else, p = NaN; end
-    end
+    t = tstat_safe(x);
+    if ~isfinite(t), p = NaN; return; end
+    df = numel(x) - 1;
+    tail = 0.5 * betainc(df / (df + t^2), df/2, 0.5);      % P(T >= |t|)
+    if t > 0, p = tail; else, p = 1 - tail; end
 
 function [parms, projs] = crp_empty_outputs(tw, Tloc, Kloc)
     if isempty(tw), tw = nan(Tloc,1); end

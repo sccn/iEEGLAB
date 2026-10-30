@@ -268,6 +268,20 @@ for s = 1:2
 end
 end
 
+function test_unused_contact_changes_nothing(tc)
+% A NaN in a contact no channel uses must not reach the new channels, and
+% results from the old channels must go
+xyz = [(1:4)' zeros(4, 2)] * 3.5;
+EEG = local_eeg({'A1','A2','A3','A4'}, repmat({'SEEG'}, 1, 4), xyz, 100, 3);
+EEG.chanlocs(4).status = 'bad';
+EEG.data(4, 5:9, :) = NaN;
+EEG.ieeglab.n1 = struct('table', table());
+E = ieeglab_apply_montage(EEG, ieeglab_montage(EEG, 'bipolar'), false);
+tc.verifyEqual({E.chanlocs.labels}, {'A1-A2', 'A2-A3'});
+tc.verifyTrue(all(isfinite(E.data), 'all'));
+tc.verifyFalse(isfield(E.ieeglab, 'n1'));
+end
+
 % ------------------------------------------------------------------ helpers
 
 function k = local_baseline_idx(times, period)

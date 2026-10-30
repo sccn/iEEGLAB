@@ -36,7 +36,6 @@ if EEG.trials < 2
         'The heatmap averages epochs: epoch the data first (iEEGLAB > Preprocess iEEG data).');
 end
 labels = {EEG.chanlocs.labels};
-D = double(EEG.data);
 tr = 1:EEG.trials;
 isCCEP = strcmp(ieeglab_detect_mode(EEG), 'ccep');
 what = 'all epochs';
@@ -50,7 +49,7 @@ if ~isempty(o.site)
     end
     what = sprintf('stimulation of %s', char(o.site));
 end
-D = D(:, :, tr);
+D = EEG.data(:, :, tr);                             % in the data's class: a full recording is many GB
 note = '';
 if isCCEP && o.exclude_stim
     [~, stimIdx] = ieeglab_epoch_sites(EEG);
@@ -61,7 +60,7 @@ if isCCEP && o.exclude_stim
     note = ', each contact''s own stimulation epochs excluded';
 end
 nTr = sum(any(isfinite(D), 2), 3);
-avg = mean(D, 3, 'omitnan');
+avg = mean(D, 3, 'double', 'omitnan');
 
 info = struct('mean', avg, 'times', double(EEG.times), 'labels', {labels}, 'n_trials', nTr(:)');
 com = sprintf('ieeglab_plot_heatmap(EEG%s);', local_args(o));

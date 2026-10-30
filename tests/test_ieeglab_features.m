@@ -360,6 +360,7 @@ tc.verifyEqual(info.n_trials(other), repmat(E.trials, 1, numel(other)));
 tc.verifySubstring(com, 'ieeglab_plot_heatmap(EEG');
 [~, info2] = ieeglab_plot_heatmap(E, 'draw', false, 'exclude_stim', false);
 tc.verifyEqual(info2.n_trials, repmat(E.trials, 1, E.nbchan));
+tc.verifyEqual(info2.mean, mean(double(E.data), 3), 'AbsTol', 1e-9, 'Averaged in double precision.');
 tc.verifyEmpty(findall(0,'Type','figure'));
 end
 

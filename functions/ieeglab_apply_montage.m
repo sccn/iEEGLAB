@@ -56,8 +56,10 @@ inUse = any(A ~= 0, 1);
 % ---------------- data: one product for all samples and epochs ----------------
 % X: (n_chan x n_time*n_epochs) -> (n_new x n_time*n_epochs); the data keep their class
 sz = size(EEG.data);
+% Only the contacts in use enter the product: 0 x NaN is NaN, so a NaN in a contact
+% no row uses would otherwise reach every new channel
 X = reshape(EEG.data, C, []);
-Y = cast(A, class(X)) * X;
+Y = cast(A(:, inUse), class(X)) * X(inUse, :);
 EEG.data = reshape(Y, [numel(newLabels) sz(2:end)]);
 
 % ---------------- channel information ----------------
@@ -110,7 +112,7 @@ for f = {'icaweights', 'icasphere', 'icawinv', 'icachansind', 'icaact'}
     if isfield(EEG, f{1}), EEG.(f{1}) = []; end
 end
 if ~isfield(EEG, 'ieeglab') || ~isstruct(EEG.ieeglab), EEG.ieeglab = struct(); end
-stale = intersect(fieldnames(EEG.ieeglab), {'stats', 'ccep_matrix', 'spectral', 'baseline_not_flat'});
+stale = intersect(fieldnames(EEG.ieeglab), {'stats', 'n1', 'ccep_matrix', 'spectral', 'baseline_not_flat'});
 if ~isempty(stale), EEG.ieeglab = rmfield(EEG.ieeglab, stale); end
 
 M.labelold = cellstr(labels(inUse));

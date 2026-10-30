@@ -24,37 +24,144 @@ end
 
 function test_n1_permutation_is_calibrated_on_noise(tc)
 % On pure noise almost nothing may be significant (the old rule took the max
-% over the window without accounting for it).
+% over the window without accounting for it). Enough pairs that a rate of 0.10
+% cannot pass: the limit is 3 standard errors above 0.05.
 E = tc.TestData.E;
-rng(1);
-E.data = single(50 * randn(size(E.data)));
-[~, E] = evalc('ieeglab_detect_n1(E, struct(''n_perm'',500,''verbose'',false))');
-T = E.ieeglab.n1.table;
-tc.assertGreaterThan(height(T), 30);
-tc.verifyLessThan(mean(T.significant), 0.05, ...
-    sprintf('%d of %d noise pairs called significant.', sum(T.significant), height(T)));
-tc.verifyLessThan(mean(T.p < 0.05), 0.10, 'Uncorrected p-values on noise must be roughly uniform.');
+p = []; sig = [];
+for seed = 1:30
+    rng(seed);
+    E.data = single(50 * randn(size(E.data)));
+    [~, A] = evalc('ieeglab_detect_n1(E, struct(''n_perm'',500,''verbose'',false,''seed'',seed))');
+    p = [p; A.ieeglab.n1.table.p]; %#ok<AGROW>
+    sig = [sig; A.ieeglab.n1.table.significant]; %#ok<AGROW>
+end
+tc.assertGreaterThan(numel(p), 900);
+tc.verifyLessThan(mean(sig), 0.05, sprintf('%d of %d noise pairs called significant.', sum(sig), numel(p)));
+tc.verifyLessThan(mean(p < 0.05), 0.05 + 3 * sqrt(0.05 * 0.95 / numel(p)), ...
+    sprintf('Uncorrected p < 0.05 on %.1f%% of noise pairs.', 100 * mean(p < 0.05)));
 end
 
 function test_crp_p_accounts_for_duration_selection(tc)
 E = tc.TestData.E;
-rng(2);
-E.data = single(50 * randn(size(E.data)));
-o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbose',false, ...
-    'n_perm',200,'crp_window',[15 200]);
-[~, E] = evalc('ieeglab_stats_subject(E, o)');
-T = E.ieeglab.stats.table;
-tc.assertGreaterThan(height(T), 30);
-tc.verifyLessThan(mean(T.p < 0.05), 0.12, ...
-    sprintf('Selection-corrected CRP p < 0.05 on %.0f%% of noise pairs.', 100*mean(T.p < 0.05)));
-tc.verifyLessThan(mean(T.significant), 0.05);
+p = []; sig = [];
+for seed = 1:30
+    rng(seed);
+    E.data = single(50 * randn(size(E.data)));
+    o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbose',false, ...
+        'n_perm',200,'crp_window',[15 200],'seed',seed);
+    [~, A] = evalc('ieeglab_stats_subject(E, o)');
+    p = [p; A.ieeglab.stats.table.p]; %#ok<AGROW>
+    sig = [sig; A.ieeglab.stats.table.significant]; %#ok<AGROW>
+end
+tc.assertGreaterThan(numel(p), 900);
+tc.verifyLessThan(mean(p < 0.05), 0.05 + 3 * sqrt(0.05 * 0.95 / numel(p)), ...
+    sprintf('Selection-corrected CRP p < 0.05 on %.1f%% of noise pairs.', 100 * mean(p < 0.05)));
+tc.verifyLessThan(mean(sig), 0.05);
 end
 
 function test_crp_detects_real_responses(tc)
 E = tc.TestData.E;
 o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbose',false,'n_perm',200);
 [~, E] = evalc('ieeglab_stats_subject(E, o)');
-tc.verifyGreaterThan(sum(E.ieeglab.stats.table.significant), 10, 'Real CCEPs must still be detected.');
+T = E.ieeglab.stats.table;
+tc.verifyGreaterThan(sum(T.significant), 10, 'Real CCEPs must still be detected.');
+tc.verifyTrue(all(T.testable), 'BH and 200 permutations leave these pairs testable.');
+end
+
+function test_too_few_trials_count_as_not_tested(tc)
+% With 5 trials a sign-flip p cannot go below 2/2^5 = 0.0625: such a pair has
+% no result, and "no response" would read as a finding.
+E = tc.TestData.E;
+sites = ieeglab_epoch_sites(E);
+keep = [];
+for s = unique(sites)
+    k = find(sites == s, 5);
+    keep = [keep k]; %#ok<AGROW>
+end
+[~, E] = evalc('pop_select(E, ''trial'', keep)');
+o = struct('run_n1',false,'run_crp',true,'run_matrix',true,'matrix_source','crp','plot',false,'verbose',false);
+A = tc.verifyWarning(@() ieeglab_stats_subject(E, o), 'ieeglab_stats_subject:untestable');
+T = A.ieeglab.stats.table; M = A.ieeglab.ccep_matrix;
+tc.verifyEqual(unique(T.p_min), 0.0625);
+tc.verifyFalse(any(T.testable));
+tc.verifyFalse(any(T.significant));
+tc.verifyEqual(M.n_tested, 0);
+tc.verifyEqual(M.n_untestable, height(T));
+tc.verifyTrue(all(isnan(M.response(:))), 'Not tested, not "no response".');
+% N1 is one-sided: 1/2^5 = 0.031 can pass; both signs cannot
+n = struct('polarity','abs','verbose',false);
+[~, A] = evalc('ieeglab_detect_n1(E, n)');
+tc.verifyEqual(unique(A.ieeglab.n1.table.p_min), 0.0625);
+tc.verifyFalse(any(A.ieeglab.n1.table.testable));
+n.polarity = 'negative';
+[~, A] = evalc('ieeglab_detect_n1(E, n)');
+tc.verifyEqual(unique(A.ieeglab.n1.table.p_min), 0.03125);
+tc.verifyTrue(all(A.ieeglab.n1.table.testable));
+end
+
+function test_bonferroni_needs_enough_permutations(tc)
+% 1/(n_perm + 1) x number of tests must stay below alpha. More permutations do
+% not help a site whose sign patterns are all used: 2/2^10 x 36 tests > 0.05.
+E = tc.TestData.E;
+o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbose',false, ...
+    'n_perm',200,'correct','bonferroni','crp_window',[15 200]);
+A = tc.verifyWarning(@() ieeglab_stats_subject(E, o), 'ieeglab_stats_subject:untestable');
+T = A.ieeglab.stats.table;
+tc.verifyGreaterThan(1 / 201 * height(T), 0.05, 'Test data: more tests than 200 permutations can correct.');
+tc.verifyFalse(any(T.testable));
+o.n_perm = 2000;
+[~, A] = evalc('ieeglab_stats_subject(E, o)');
+T = A.ieeglab.stats.table;
+tc.assertTrue(any(2.^T.n_trials <= 2001), 'Test data: a site with all sign patterns used.');
+tc.verifyEqual(T.testable, 2.^T.n_trials > 2001);
+end
+
+function test_no_statistics_toolbox_needed(tc)
+% Every function of the toolbox the analyses could reach fails when called
+d = tempname; mkdir(d);
+tc.addTeardown(@rmdir, d, 's');
+for f = {'ttest','tcdf','prctile','quantile','corr','datasample'}
+    fid = fopen(fullfile(d, [f{1} '.m']), 'w');
+    fprintf(fid, 'function varargout = %s(varargin)\nerror(''test:toolbox'', ''needs the toolbox'');\nend\n', f{1});
+    fclose(fid);
+end
+addpath(d);
+tc.addTeardown(@rmpath, d);
+E = tc.TestData.E;
+o = struct('run_n1',false,'run_crp',true,'run_matrix',false,'plot',false,'verbose',false,'n_perm',200);
+for t = {'permutation','ttest'}
+    o.crp_test = t{1};
+    A = tc.verifyWarningFree(@() ieeglab_stats_subject(E, o));
+    tc.verifyTrue(all(isfinite(A.ieeglab.stats.table.p)));
+end
+for m = {'carla','varsubset'}
+    [~, ~, out] = evalc('ieeglab_car(E, struct(''car_method'', m{1}, ''car_nboot'', 10, ''verbose'', false))');
+    tc.verifyNotEmpty(out);
+end
+end
+
+function test_crp_t_test_p_matches_ttest(tc)
+tc.assumeNotEmpty(which('ttest'), 'Statistics Toolbox not installed.');
+rng(5);
+t = (1:200) / 512;
+V = randn(200, 12) + 0.3 * sin(2 * pi * 4 * t(:));
+[~, c] = run_CRP(V, t, struct('verbose', false));
+[~, p] = ttest(c.S_all(c.stat_indices, c.tR_index), 0, 'tail', 'right');
+tc.verifyEqual(c.p_value_tR, p, 'RelTol', 1e-9);
+[~, p] = ttest(-c.S_all(c.stat_indices, c.tR_index), 0, 'tail', 'right');   % negative t
+tc.verifyEqual(1 - c.p_value_tR, p, 'RelTol', 1e-6);
+end
+
+function test_quantile_matches_matlab(tc)
+rng(6);
+for n = [1 2 3 101]
+    x = randn(1, n);
+    for q = [0 0.05 0.2 0.5 0.95 1]
+        tc.verifyEqual(ieeglab_quantile(x, q), quantile(x, q), 'AbsTol', 1e-12);
+        tc.verifyEqual(ieeglab_quantile(x, q), prctile(x, 100 * q), 'AbsTol', 1e-12);
+    end
+end
+tc.verifyEqual(ieeglab_quantile([1 NaN 3], 0.5), 2, 'NaN values are ignored.');
 end
 
 % ---------------------------------------------------------------- preprocessing

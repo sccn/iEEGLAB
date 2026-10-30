@@ -48,8 +48,8 @@ function [EEG, info] = ieeglab_line_noise(EEG, opt)
 % remove the spatial components that carry the line noise, estimated over the
 % whole recording, pulses included. On CCEP data the pulses take part in those
 % components: they changed the tutorials' trial average 10 to 50 ms after the
-% pulse by 9 to 19 uV (ZapLine) and 9 to 400 uV (ZapLine-plus), left 18 to
-% 21 uV of error after the pulse on synthetic data with line noise from two
+% pulse by 9 to 19 uV (ZapLine) and 9 to 400 uV (ZapLine-plus), left 19 to
+% 20 uV of error after the pulse on synthetic data with line noise from two
 % shared sources, and on the tutorial sEEG left most of the 60 Hz (36 and 14
 % times the neighbouring frequencies, median over contacts; the fit 1.3).
 %

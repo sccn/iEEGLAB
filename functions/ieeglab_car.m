@@ -376,7 +376,7 @@ for b = 1:ceil(C/64)
     if isempty(pool), continue; end
     Xi = reshape(X(pool, tmask, :), numel(pool), []);
     v  = local_nanvar(Xi);
-    th = quantile(v, frac);
+    th = ieeglab_quantile(v, frac);
     sel = pool(v <= th);
     if isempty(sel), sel = pool; end
     carCh = [carCh; sel(:)]; %#ok<AGROW>

@@ -18,6 +18,12 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 % The result keeps the channel representation; its rank drops by the number of
 % broad components.
 %
+% The projection mixes all contacts, so on CCEP epochs the stimulated contacts
+% would carry their artifact into every other contact. In the epochs of each
+% site they are left out: for the projection only, the mixing matrix predicts
+% them from the other contacts. They keep their own signal, minus what the
+% projection takes out of that prediction.
+%
 % Options (fields of opt):
 %   .rank        number of components. Default [] = the effective rank of the
 %                data used for the fit, estimated from the eigenvalues of its
@@ -91,7 +97,12 @@ if ~isempty(opt.bad_channels)
     if isnumeric(opt.bad_channels), bad(opt.bad_channels) = true;
     else, bad(ismember(lower(labels), lower(cellstr(opt.bad_channels)))) = true; end
 end
-bad = bad | reshape(any(any(~isfinite(EEG.data), 2), 3), 1, []);
+% A sample blanked with NaN on every contact costs no contact; any other
+% non-finite sample does, as the projection would spread it to all of them
+notFinite = ~isfinite(EEG.data);
+notFinite = notFinite(~bad, :, :);
+blanked = all(notFinite, 1);
+bad(~bad) = reshape(any(any(notFinite & ~blanked, 2), 3), 1, []);
 good = find(~bad);
 nGood = numel(good);
 if nGood < 3
@@ -99,7 +110,7 @@ if nGood < 3
 end
 
 % ---- samples used to estimate the unmixing
-t = double(EEG.times);
+t = double(EEG.times(:))';
 if isempty(opt.fit_window)
     if strcmp(ieeglab_detect_mode(EEG), 'ccep')
         opt.fit_window = [t(1) -50];
@@ -107,7 +118,7 @@ if isempty(opt.fit_window)
         opt.fit_window = [t(1) t(end)];
     end
 end
-fitIdx = t >= opt.fit_window(1) & t <= opt.fit_window(2);
+fitIdx = t >= opt.fit_window(1) & t <= opt.fit_window(2) & ~any(blanked, 3);
 if nnz(fitIdx) < 10
     error('ieeglab_icaref:fitWindow', 'The fit window [%g %g] ms holds fewer than 10 samples.', opt.fit_window);
 end
@@ -180,8 +191,12 @@ if ~keepAll
             EEG.data(good, k) = cast(P * double(EEG.data(good, k)), 'like', EEG.data);
         end
     else
-        Y = reshape(X(good, :, :), nGood, []);
-        X(good, :, :) = reshape(P * Y, nGood, EEG.pnts, EEG.trials);
+        [epochs, left] = local_site_epochs(EEG, good);
+        for g = 1:numel(epochs)
+            tr = epochs{g};
+            Y = local_project(reshape(X(good, :, tr), nGood, []), P, A, left{g});
+            X(good, :, tr) = reshape(Y, nGood, EEG.pnts, numel(tr));
+        end
         EEG.data = cast(X, 'like', EEG.data);
     end
 end
@@ -196,6 +211,31 @@ if opt.verbose
     fprintf(['[ICA ref] %d good contacts, rank %d (estimated %d); %d of %d components broad ' ...
         '(p > %g) removed; fit on %g to %g ms.\n'], nGood, r, estRank, nnz(broad), r, opt.p_broad, opt.fit_window);
 end
+end
+
+function [epochs, left] = local_site_epochs(EEG, good)
+% The epochs of each stimulation site and which of the good contacts it stimulates.
+% Data without stimulation: one group, every epoch, no contact left out.
+epochs = {1:EEG.trials};
+left = {false(numel(good), 1)};
+if ~strcmp(ieeglab_detect_mode(EEG), 'ccep'), return; end
+[sites, stimIdx] = ieeglab_epoch_sites(EEG);
+[~, ~, grp] = unique(sites);
+epochs = accumarray(grp(:), (1:EEG.trials)', [], @(x) {x'});
+left = cell(size(epochs));
+for g = 1:numel(epochs)
+    left{g} = ismember(good(:), vertcat(stimIdx{epochs{g}}));
+end
+end
+
+function Y = local_project(Z, P, A, left)
+% Z: (contacts x samples). Contacts in left do not enter the projection: the model
+% predicts them from the others, and they keep what is theirs alone.
+if ~any(left), Y = P * Z; return; end
+own = Z(left, :);
+Z(left, :) = A(left, :) * (pinv(A(~left, :)) * Z(~left, :));
+Y = P * Z;
+Y(left, :) = own - (Z(left, :) - Y(left, :));
 end
 
 function local_restore(prevRng, prevThreads)

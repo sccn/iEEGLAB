@@ -325,7 +325,7 @@ while ii <= nPool
     % zMinMean directly rather than the mean of zMinMean.
     [X, Y] = meshgrid(zMMTrough, zMMCurr);
     diffs = X - Y;
-    if prctile(diffs(:), 95) < 0
+    if ieeglab_quantile(diffs, 0.95) < 0
         nOptimum = ii; break
     end
     ii = nextGreater;

@@ -20,7 +20,7 @@
 function vers = eegplugin_ieeglab(fig, try_strings, catch_strings)
 
 % Plugin version
-vers = '1.2.0';
+vers = '1.3.0-dev';
 
 if nargin < 3
     error('eegplugin_ieeglab:badCall', ...

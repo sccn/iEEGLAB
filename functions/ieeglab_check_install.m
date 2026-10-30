@@ -30,13 +30,13 @@ D = { ...
   'inputgui',        'required', 'all dialogs',                               'Part of EEGLAB (functions/guifunc).';
   'readtable',       'required', 'reading BIDS .tsv electrode and event files','Base MATLAB.';
   'pop_eegfiltnew',  'feature',  'filtering',                                 'Enable the firfilt plugin from the EEGLAB plugin manager.';
-  'corr',            'feature',  'CARLA (channel correlations)',              'Statistics and Machine Learning Toolbox.';
-  'trimmean',        'feature',  'trimmed-mean averaging in plots and CAR',   'Statistics and Machine Learning Toolbox.';
+  'trimmean',        'feature',  'trimmed-mean averaging in plot_ccep',       'Statistics and Machine Learning Toolbox.';
   'designfilt',      'feature',  'CARLA''s line-noise notch before ranking',  'Signal Processing Toolbox. CARLA still runs without it, slightly less robustly.';
   'dipfitdefs',      'feature',  'template-brain fallback when no surfaces',  'Enable the dipfit plugin from the EEGLAB plugin manager.';
   'niftiread',       'optional', 'reading MRI volumes',                       'Image Processing Toolbox.';
   'read_mef_session_metadata', 'optional', 'importing MEF3 (.mefd) recordings', 'Install the MEF3 plugin from the EEGLAB plugin manager.';
   'pop_loadbv',      'optional', 'importing BrainVision (.vhdr) recordings',  'Install the bva-io plugin from the EEGLAB plugin manager.';
+  'pop_biosig',      'optional', 'importing EDF/BDF recordings',              'Install the Biosig plugin from the EEGLAB plugin manager.';
   'pop_importbids',  'optional', 'importing BIDS datasets (File > Import data)', 'Install the EEG-BIDS plugin from the EEGLAB plugin manager.';
 };
 

@@ -46,7 +46,10 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 % The default p-value, 'permutation', comes instead from a sign-flip
 % permutation null in which the SAME selection - the maximum of the profile
 % over all durations - is repeated for every permutation. Exact for up to 9
-% trials. 'ttest' uses run_CRP's one-sided t-test at tau_R (p_value_tR), the
+% trials, where p cannot fall below 2/2^K (0.0625 with 5 trials); sampled above
+% that, where it cannot fall below 1/(n_perm + 1). A pair that cannot reach
+% significance after correction is marked testable = false and counts as not
+% tested (ieeglab_testable). 'ttest' uses run_CRP's one-sided t-test at tau_R (p_value_tR), the
 % test of the published HAPwave analyses (Ojeda Valencia et al., 2023, with
 % Benjamini-Yekutieli FDR across all pairs: correct = 'by'), for replication.
 %
@@ -56,7 +59,8 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %
 % Results:
 %   EEG.ieeglab.stats.table   CRP per site x contact: tR_ms, explained_var, cod, alpha_prime,
-%                             snr, p, p_adj, significant, n_trials
+%                             snr, p, p_adj, significant, n_trials, p_min (smallest p
+%                             possible), testable (see ieeglab_testable)
 %   EEG.ieeglab.stats.crp     full run_CRP output per site x contact
 %   EEG.ieeglab.n1            N1 results (see ieeglab_detect_n1)
 %   EEG.ieeglab.ccep_matrix   connectivity matrix (see ieeglab_ccep_matrix)
@@ -299,7 +303,19 @@ else
     if strcmp(opt.correct_scope, 'subject')        % all pairs of the dataset, as the HAPwave figures
         T.p_adj = local_correct(T.p, opt.correct);
         T.significant = T.p_adj < opt.alpha;
+        family = ones(height(T), 1);
+    else
+        [~, ~, family] = unique(string(T.site));
     end
+    T.p_min = zeros(height(T), 1);                 % no floor for the t-test
+    if strcmp(opt.crp_test, 'permutation')
+        exact = 2.^T.n_trials <= opt.n_perm + 1;
+        T.p_min(:) = 1 / (opt.n_perm + 1);
+        T.p_min(exact) = 2 ./ 2.^T.n_trials(exact);  % s and -s give the same statistic
+    end
+    [testable, msg] = ieeglab_testable(T.p, T.p_min, family, @(x) local_correct(x, opt.correct), opt.alpha);
+    T.testable = testable;
+    if ~isempty(msg), warning('ieeglab_stats_subject:untestable', '%s', msg); end
     T = sortrows(T, {'site','channel'});
 end
 EEG.ieeglab.stats = struct('table', T, 'crp', crpAll, 'opt', opt);

@@ -31,11 +31,12 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 1. Install [EEGLAB](https://github.com/sccn/eeglab), which includes the
    **firfilt** and **EEG-BIDS** plugins that iEEGLAB uses. For raw BIDS data
    also install, from *File > Manage EEGLAB extensions*, **MEF3** (Mayo MEF3
-   files) or **bva-io** (BrainVision).
-2. Install iEEGLAB: download the latest
-   [release](https://github.com/sccn/iEEGLAB/releases) (`iEEGLAB1.2.0.zip`) and
-   unzip it into `eeglab/plugins/`, or clone this repository there. The EEGLAB
-   extension manager lists 1.2.0 once its list is updated.
+   files), **bva-io** (BrainVision) or **Biosig** (EDF, BDF).
+2. Install iEEGLAB: clone this repository into `eeglab/plugins/`, or
+   [download it](https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip)
+   and unzip it there. This page describes the current code. The latest
+   [release](https://github.com/sccn/iEEGLAB/releases), 1.2.0, does not have the
+   brain-surface step, bipolar and custom montages or frequency analysis yet.
 3. Start EEGLAB and run *iEEGLAB > Check installation*
    (`ieeglab_check_install`), which lists anything missing. The iEEGLAB menu is
    right of *Help*:
@@ -46,8 +47,8 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    opens this page, the menu-by-menu walkthrough shipped with the plugin, the
    tutorial script, and the help of each menu's function.
 
-CARLA needs MATLAB's Statistics and Machine Learning Toolbox; the Signal
-Processing Toolbox is recommended.
+The menus and the tutorial need no MATLAB toolbox. With the Signal Processing
+Toolbox, CARLA also removes the line noise before ranking the channels.
 
 ## Tutorial
 
@@ -125,7 +126,7 @@ The line-noise removal was compared with a notch filter, ZapLine (de Cheveigné,
 2020) and ZapLine-plus (Klug & Kloosterman, 2022), on synthetic stimulation
 data with a known clean signal and on both tutorial datasets. The fitted sines
 left the least error 5 to 50 ms after the pulse (0.1 uV, against 0.5 uV for
-the notch and 18 to 20 uV for ZapLine, whose spatial components take in the
+the notch and 19 to 20 uV for ZapLine, whose spatial components take in the
 pulses); details in the help of `ieeglab_line_noise`.
 
 ```matlab

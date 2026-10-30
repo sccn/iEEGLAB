@@ -43,6 +43,36 @@
 
 ### Changed
 
+- **ICA re-referencing leaves the stimulated contacts out on CCEP epochs**, as
+  the other methods do. The projection used every contact, so their artifact
+  reached the others: about 3.5 mV in the trial average 10 to 50 ms after the
+  pulse on the tutorial sEEG, for responses of about 65 uV. In the epochs of
+  each site the mixing matrix now predicts them from the other contacts for the
+  projection. Blanking by NaN no longer stops ICA. ICA results on CCEP data from
+  earlier versions should not be used; no result of the tutorials relied on them.
+- **Pairs that cannot reach significance count as not tested.** A sign-flip test
+  has a smallest possible p: 2/2^K with K trials when all sign patterns are used
+  (0.0625 with 5 trials; N1, one-sided, 1/2^K), 1/(n_perm + 1) when they are
+  sampled, which Bonferroni cannot use beyond 50 tests at the default 1000. When
+  that p stays above what the correction accepts, the pair is marked
+  `testable = false` (new columns `p_min`, `testable` in the CRP and N1 tables,
+  `ieeglab_testable`), with a warning, and is left out of the matrix, degrees
+  and density (`n_untestable`) instead of showing as "no response".
+- **The menus and the tutorial need no MATLAB toolbox.** The t-test of `run_CRP`
+  failed without the Statistics Toolbox, and with it all of CRP, whatever the
+  test chosen, with a message about trial counts. It now uses base MATLAB, as do
+  CARLA and the lowest-covariance subset (`ieeglab_quantile`). The MEF3 reader
+  stopped without the Parallel Computing Toolbox. *Check installation* lists
+  Biosig for EDF/BDF and no longer lists `corr`.
+- The version is `1.3.0-dev`, so exports no longer carry the number of a release
+  that lacks this code. The README and the walkthrough point to the repository
+  until the next release.
+- A montage multiplies only the contacts it uses, so a NaN in another contact
+  stays out of the new channels, and it removes N1 results as well. The heatmap
+  averages in the data's class (it copied a whole recording to double, twice).
+- Tests: CARLA equals the published code exactly under one seed, multi-trial and
+  both optima, and the false-positive rates on noise are checked on over 900
+  pairs.
 - **CARLA, CRP and the CRP permutation test are much faster, with the same
   results.** CARLA's sweep over reference sizes takes its correlations from the
   trial-by-trial covariances of the response segment, computed once per site,

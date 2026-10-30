@@ -7,19 +7,19 @@ function tests = test_carla_vs_reference
 %
 % Validation strategy
 % -------------------
-% CARLA is only partly deterministic: with more than one trial it bootstraps
-% the mean signal, so two correct implementations will not agree bit for bit.
-% The tests are therefore split by what CAN be checked exactly:
+% With more than one trial CARLA bootstraps the mean signal. ieeglab_carla makes
+% the same draws in the same order as the reference, so under one random state
+% the two must agree:
 %
-%   1. DETERMINISTIC, exact equality:
+%   1. Exact equality:
 %        - the channel ranking (stats.vars, stats.order), computed before any
 %          randomness enters
 %        - the single-trial path (nTrs == 1), where the reference skips
-%          bootstrapping entirely, so chsUsed and Vout must match exactly
-%   2. STOCHASTIC, distributional:
-%        - the multi-trial path, compared over repeated runs. The chosen CAR
-%          size must agree closely, and the re-referenced data must agree to
-%          within the spread that bootstrapping alone produces.
+%          bootstrapping entirely
+%        - the multi-trial path under one seed, for both optima: channels,
+%          zMinMean and the re-referenced data
+%   2. Over repeated seeds, the chosen CAR size, and neither implementation
+%      taking a responsive channel into the reference.
 %
 % ieeglab_carla is configured to match the reference exactly for these tests:
 % the reference hardcodes twin = [0.01 0.3] and notches at 60/120/180 Hz.
@@ -125,10 +125,29 @@ tc.verifyEqual(zMine(ok), zRef(ok), 'AbsTol', 1e-9, ...
     'The zMinMean anticorrelation profile differs from the reference.');
 end
 
+function test_multitrial_same_seed_is_identical(tc)
+% Same random state, same bootstrap draws: the sweep computed from covariances
+% must give the published result, for both ways of choosing the optimum.
+[V, tt, srate] = simulateCCEP(14, 4, 24, 3);
+o = tc.TestData.matchOpts;
+for sens = [false true]
+    o.sens = sens;
+    rng(11); [VoutRef, ~, sRef]   = CARLA_reference(tt, V, srate, sens, 100);
+    rng(11); [VoutMine, ~, sMine] = ieeglab_carla(tt, V, srate, o);
+    tc.verifyEqual(sMine.chsUsed(:), sRef.chsUsed(:), sprintf('sens = %d: channels differ.', sens));
+    zRef = sRef.zMinMean(:); zMine = sMine.zMinMean(:);
+    tc.verifyEqual(numel(zMine), numel(zRef));
+    ok = ~isnan(zRef) & ~isnan(zMine);
+    tc.verifyGreaterThan(nnz(ok), 100, 'Too few comparable points in zMinMean.');
+    tc.verifyEqual(zMine(ok), zRef(ok), 'AbsTol', 1e-10);
+    tc.verifyEqual(VoutMine, VoutRef, 'AbsTol', 1e-9);
+end
+end
+
 function test_multitrial_agrees_distributionally(tc)
-% Bootstrapping makes the multi-trial path stochastic. Run both repeatedly and
-% require the chosen CAR size to agree closely. A systematic algorithmic
-% difference would show up as a consistent offset, not as scatter.
+% Run both repeatedly and require the chosen CAR size to agree closely. A
+% systematic algorithmic difference would show up as a consistent offset, not as
+% scatter.
 [V, tt, srate] = simulateCCEP(14, 4, 24, 3);
 o = tc.TestData.matchOpts;
 nRuns = 8;

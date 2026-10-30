@@ -81,7 +81,8 @@ EEG = ieeglab_preprocess(EEG, struct( ...
 % it on real data, the stimulated pair, 2 contacts on each side of it and the
 % bad contacts are left out, with the sensitive cutoff. A plain common average and ICA
 % re-referencing (Michelmann et al., 2018: components spread uniformly over the
-% contacts are removed) are kept for comparison.
+% contacts are removed) are kept for comparison; for an ICA analysis, high-pass
+% at about 1 Hz first (help ieeglab_icaref).
 EEG_car = pop_ieeglab_reref(EEG, 'method', 'car');
 EEG_ica = pop_ieeglab_reref(EEG, 'method', 'ica');
 EEG     = pop_ieeglab_reref(EEG, 'method', 'carla');
