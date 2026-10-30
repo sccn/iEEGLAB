@@ -43,6 +43,28 @@
 
 ### Changed
 
+- **CARLA, CRP and the CRP permutation test are much faster, with the same
+  results.** CARLA's sweep over reference sizes takes its correlations from the
+  trial-by-trial covariances of the response segment, computed once per site,
+  with the same bootstrap draws in the same order as the published code: a site
+  of 198 contacts and 11 trials went from 734 s to 27 s, the tutorial's sites
+  54 to 99 times faster, with the same reference chosen (the tests against the
+  published CARLA pass). CRP's projection profiles come from running sums of
+  the trial products instead of being recomputed from the first sample for
+  each duration (70 times faster, same values to 5e-15), and the permutation
+  test evaluates every duration and sign pattern in one matrix product, each
+  distinct pattern once so that ties with the observed data stay exact (same
+  p-values). On the full ds004696 sub-02 recording CARLA took 21 minutes on a
+  loaded machine (6737 s idle before); CCEP statistics on 1568 of its pairs
+  went from 190-768 s to 15-17 s with identical results.
+- **Faster import and line-noise removal, same data.** BrainVision recordings
+  are read all channels at once and the iEEG channels kept afterwards:
+  `pop_loadbv` reads a channel subset one strided pass per channel (full
+  ds004080 run: 165 s to 16 s, identical data). The line-noise fit solves its
+  least squares by the normal equations (Cholesky; QR when ill-conditioned),
+  without copying each window, and the mains-frequency search demodulates all
+  harmonics in one product per 30 s (full ds004080 run: 2.2 times faster,
+  largest difference 2e-7 uV).
 - Stimulation sites resolve through the contacts of each channel
   (`ieeglab_label_contacts`): after a bipolar montage, every channel that uses
   a stimulated contact is treated as stimulated (left out of the reference,

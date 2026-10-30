@@ -345,7 +345,6 @@ nPairs = size(S_all, 1);
 K = round((1 + sqrt(1 + 4*nPairs)) / 2);
 p = NaN;
 if K < 2 || K*(K-1) ~= nPairs || any(~isfinite(S_all(:))), return; end
-M = size(S_all, 2);
 off = find(~eye(K));
 if 2^K <= nPerm + 1
     B = dec2bin(0:2^K-1, K) == '1';
@@ -355,13 +354,16 @@ else
     S = [ones(K,1), (randi(rs, 2, K, nPerm) * 2 - 3)];
     exact = false;
 end
-best = -inf(1, size(S,2));
-for j = 1:M
-    Q = zeros(K);
-    Q(off) = S_all(:, j);
-    val = sum(S .* (Q * S), 1) / nPairs;
-    best = max(best, val);
-end
+% s' * Q_j * s = sum over off-diagonal (a,b) of S_all(ab, j) s_a s_b: every
+% duration and sign pattern in one product, (M x pairs) * (pairs x patterns).
+% s and -s (and a pattern drawn twice) have the same statistic: each distinct
+% pattern is computed once and copied, so that such ties stay exact (a product
+% may round identical columns differently, and a tie with the observed data
+% counts towards p)
+[a, b] = ind2sub([K K], off);
+[Su, ~, iu] = unique((S .* S(1, :)).', 'rows', 'stable');   % one representative of s and -s
+best = max(S_all.' * (Su(:, a).' .* Su(:, b).'), [], 1) / nPairs;
+best = best(iu(:)');
 if exact
     p = mean(best >= best(1));
 else

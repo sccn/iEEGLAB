@@ -396,6 +396,33 @@ E3 = E2; E3.ieeglab.opt.surf_files = {f1};
 tc.verifyEqual(ieeglab_remembered_surfaces(E3), {f1});
 end
 
+function test_crp_permutation_p_matches_loop(tc)
+% The CRP permutation p-value, computed in one product over every duration and
+% sign pattern, equals the loop over durations of the published approach,
+% ties included: with 8 trials all 2^8 patterns are used, each with its
+% opposite, which has the same statistic.
+E = tc.TestData.E;
+sites = ieeglab_epoch_sites(E);
+tr = find(sites == "RA3-RA4", 8);
+[~, E8] = evalc('pop_select(E, ''trial'', tr)');
+[~, E8] = evalc(['ieeglab_stats_subject(E8, struct(''run_n1'',false,''run_crp'',true,''run_matrix'',false,' ...
+    '''min_trials'',5,''crp_window'',[15 400],''verbose'',false))']);
+T = E8.ieeglab.stats.table; crp = E8.ieeglab.stats.crp;
+tc.verifyGreaterThan(height(T), 5);
+for k = 1:height(T)
+    S_all = crp(strcmp({crp.channel}, T.channel{k})).projs.S_all;
+    K = round((1 + sqrt(1 + 4 * size(S_all, 1))) / 2);
+    tc.assertEqual(K, 8);
+    S = double(~(dec2bin(0:2^K-1, K) == '1')') * 2 - 1;
+    Q = zeros(K); off = find(~eye(K)); best = -inf(1, 2^K);
+    for j = 1:size(S_all, 2)
+        Q(off) = S_all(:, j);
+        best = max(best, sum(S .* (Q * S), 1) / size(S_all, 1));
+    end
+    tc.verifyEqual(T.p(k), mean(best >= best(1)), sprintf('p of %s', T.channel{k}));
+end
+end
+
 function test_choose_surfaces_once(tc)
 % Choose brain surfaces stores the brain on the dataset (surfaces, template, or
 % none), and the history line replays the choice. The user's preference is restored.

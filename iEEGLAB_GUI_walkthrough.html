@@ -128,7 +128,7 @@ ieeglab_check_install</code></pre></details></li>
   <a href="https://openneuro.org/datasets/ds004080">ds004080</a>. Keep the folder structure.</p>
   <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*run-041456*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_electrodes.*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_coordsystem.json" --include "dataset_description.json" --include "participants.tsv"</code></pre>
-  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes about 2 hours. For a quicker
+  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 10 to 20 minutes. For a quicker
   run, read only a few stimulation sites at step 1 of Part A.</div>
   </div>
 
@@ -194,17 +194,17 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults (sensitive cutoff; the stimulated pair and
       2 contacts on each side left out, as in Huang et al., 2024).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">About 2 hours for the
-      57 sites (minutes for a few sites).</span></div>
+      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">10 to 20 minutes for the
+      57 sites.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
 
     <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
-      sites are next to each other on one lead, so most contacts respond).</span><span class="f">About 10 minutes: about
-      3900 of 11172 site-contact pairs respond. Against the published CRP of this participant: the same decision for 83%
-      of the 484 published pairs tested here (89% with the published t-test at tau_R and Benjamini-Yekutieli correction,
+      sites are next to each other on one lead, so most contacts respond).</span><span class="f">A few minutes: 3937
+      of 11172 site-contact pairs respond. Against the published CRP of this participant: the same decision for 78%
+      of the 484 published pairs tested here (87% with the published t-test at tau_R and Benjamini-Yekutieli correction,
       both options in this window).</span> The results repeat exactly from run to run (fixed random seed).</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_summary_1.png" alt="CRP summary" onerror="this.closest('figure').style.display='none'"></figure>
@@ -257,7 +257,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
       1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
       frequency. Each contact's own stimulation epochs are left out of its average.
-      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.5 dB over 0 to 1000 ms (median -0.3 dB): the grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.5 dB over 0 to 1000 ms (median -0.3 dB): the grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">No contact's 70-150 Hz power differs from its baseline by more than 0.4 dB over 0 to 1000 ms (median 0.0 dB).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
@@ -269,21 +269,21 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
       pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
-      the median: the line noise was removed. <span class="t">The largest peak left is on RA3 at 180 Hz, next to the stimulated pairs.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      the median: the line noise was removed. <span class="t">The largest peak left is on RA3 at 180 Hz, next to the stimulated pairs.</span><span class="f">The largest peaks left are on LB3, at 60 Hz (20 times the neighbouring frequencies) and 180 Hz (12 times).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
       (pairs farther apart than twice their lead's spacing are not formed).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
-      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">The numbers for the full recording will be added here.</span> The CCEP results are removed: they describe the
+      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">196 contacts become 157 channels. 21 pairs are not formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have no neighbour.</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the CARLA data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
-      <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). The others stay within 0.5 dB of their baseline.</span><span class="f">The numbers for the full recording will be added here.</span></div>
+      <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). The others stay within 0.5 dB of their baseline.</span><span class="f">Every channel stays within 0.3 dB of its baseline (highest: RZ1-RZ2).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>

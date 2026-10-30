@@ -182,11 +182,13 @@ for s = 1:size(segs, 1)
             wk = hann(idx - starts(k) + 1);
         end
         X = double(EEG.data(:, idx));                         % EEG.data(:, idx) runs over epochs too
-        g = keep(idx) & all(isfinite(X), 1);
+        nonFinite = ~all(isfinite(X), 1);
+        g = keep(idx) & ~nonFinite;
         if nnz(g) < minGood, continue; end
+        if any(nonFinite), X(:, nonFinite) = 0; end           % (left out by g; 0 so that X * A stays finite)
         t = (idx - a) / fs;                                   % time from the segment start
         A = local_design(t, fk);
-        c = A(g, :) \ X(:, g)';                               % 2*nfreq x C
+        c = local_ls(A, X, g);                                % 2*nfreq x C
         % the stimulated contacts of a pulse in this window: fitted on their own,
         % without stim_mask_ms around that pulse (its artifact tail)
         for ch = find(cellfun(@(v) any(v(:, 1) <= idx(end) & v(:, 2) >= idx(1)), stimIv))'
@@ -194,7 +196,7 @@ for s = 1:size(segs, 1)
             for r = find(stimIv{ch}(:, 1) <= idx(end) & stimIv{ch}(:, 2) >= idx(1))'
                 gc(idx >= stimIv{ch}(r, 1) & idx <= stimIv{ch}(r, 2)) = false;
             end
-            if nnz(gc) >= minGood, c(:, ch) = A(gc, :) \ X(ch, gc)'; end   % else: pulses too close, mask_ms only
+            if nnz(gc) >= minGood, c(:, ch) = local_ls(A, X(ch, :), gc); end   % else: pulses too close, mask_ms only
         end
         W(end+1) = struct('idx', [idx(1) idx(end)], 'w', wk, 'f', fk, 'c', c, 't0', a); %#ok<AGROW>
     end
@@ -212,7 +214,7 @@ cls = class(EEG.data);
 for k = 1:numel(W)
     idx = W(k).idx(1):W(k).idx(2);
     r = W(k).w ./ double(ws(idx)); r(ws(idx) == 0) = 0;
-    EEG.data(:, idx) = EEG.data(:, idx) - cast((local_design((idx - W(k).t0) / fs, W(k).f) * W(k).c)' .* r, cls);
+    EEG.data(:, idx) = EEG.data(:, idx) - cast((W(k).c.' * local_design((idx - W(k).t0) / fs, W(k).f).') .* r, cls);
 end
 
 len = segs(:, 2) - segs(:, 1) + 1;
@@ -248,24 +250,54 @@ function fk = local_frequency(EEG, a, z, keep, f, fs, search)
 blk = max(1, round(0.1 * fs));
 nb = floor((z - a + 1) / blk);
 d = -search:0.001:search;
+C = size(EEG.data, 1); nq = numel(f);
+% Z(:, b, q): block sums of the data shifted by -f(q). The shift factors into a
+% part within the block and one per block, exp(-2i pi f (t_b + k/fs)) =
+% exp(-2i pi f k/fs) exp(-2i pi f t_b), so every f is one product per chunk
+% (blk samples x n_freq), the data read once, 30 s at a time
+Z = complex(zeros(C, nb, nq));
+chunk = blk * max(1, floor(30 * fs / blk));
+U = exp(-2i * pi * (0:blk-1)' * f / fs);                     % (blk x n_freq) within a block
+for c0 = 0:chunk:nb * blk - 1
+    idx = a + c0 + (0:min(chunk, nb * blk - c0) - 1);
+    nbk = numel(idx) / blk;
+    X = double(EEG.data(:, idx));
+    X(:, ~keep(idx)) = 0; X(~isfinite(X)) = 0;
+    S = U.' * reshape(X.', blk, nbk * C);                     % (n_freq x (block, channel))
+    tb0 = (idx(1) - a + blk * (0:nbk-1)) / fs;                % block starts
+    for q = 1:nq
+        Z(:, c0 / blk + (1:nbk), q) = reshape(S(q, :), nbk, C).' .* exp(-2i * pi * f(q) * tb0);
+    end
+end
+% power over channels of every offset d: |Z * exp(-2i pi d tb)|^2, all offsets in
+% one product per 20000 blocks (the exponentials stay under 70 MB)
+tb = ((0:nb-1) * blk + (blk - 1) / 2) / fs;
 fk = f;
-for q = 1:numel(f)
-    Z = complex(zeros(size(EEG.data, 1), nb));
-    chunk = blk * max(1, floor(30 * fs / blk));
-    for c0 = 0:chunk:nb * blk - 1
-        idx = a + c0 + (0:min(chunk, nb * blk - c0) - 1);
-        X = double(EEG.data(:, idx));
-        X(:, ~keep(idx)) = 0; X(~isfinite(X)) = 0;
-        Y = X .* exp(-2i * pi * f(q) * (idx - a) / fs);
-        Z(:, c0 / blk + (1:numel(idx) / blk)) = squeeze(sum(reshape(Y, size(Y, 1), blk, []), 2));
+for q = 1:nq
+    Y = complex(zeros(C, numel(d)));
+    for b0 = 1:20000:nb
+        bb = b0:min(nb, b0 + 19999);
+        Y = Y + Z(:, bb, q) * exp(-2i * pi * tb(bb)' * d);
     end
-    tb = ((0:nb-1) * blk + (blk - 1) / 2) / fs;
-    P = zeros(1, numel(d));
-    for j = 1:numel(d)                                        % one offset at a time: memory stays small
-        P(j) = sum(abs(Z * exp(-2i * pi * d(j) * tb')).^2);
-    end
-    [~, m] = max(P);
+    [~, m] = max(sum(real(Y).^2 + imag(Y).^2, 1));
     fk(q) = f(q) + d(m);
+end
+end
+
+function c = local_ls(A, X, g)
+% Least squares A(g,:) c = X(:,g)' for the sines of one window (A: samples x
+% 2*nfreq, X: channels x samples, g: samples used). A is tall and its columns
+% nearly orthogonal (sines over a few seconds), so the normal equations, by
+% Cholesky, are accurate and much cheaper than QR on every channel; QR when
+% A'A is not well conditioned. The samples left out are zeroed in A rather
+% than copied out of X.
+Ag = A .* g(:);
+AtA = Ag' * Ag;
+[R, notPD] = chol(AtA);
+if ~notPD && rcond(AtA) > 1e-10
+    c = R \ (R' \ (X * Ag)');
+else
+    c = A(g, :) \ X(:, g)';
 end
 end
 

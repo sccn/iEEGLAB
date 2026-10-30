@@ -221,7 +221,11 @@ switch ext
         for b = 1:nb
             a0 = s0 + edges(b); a1 = s0 + edges(b+1); m = a1 - a0;
             if strcmp(ext, '.vhdr')
-                [~, E] = evalc('pop_loadbv(folder, [name ext], [a0+1 a1], order(keep))');
+                % every channel in one contiguous read, then the ones kept: asked for a
+                % subset, pop_loadbv reads multiplexed files one channel at a time
+                % (a strided pass over the block per channel; 88 passes on ds004080)
+                [~, E] = evalc('pop_loadbv(folder, [name ext], [a0+1 a1])');
+                E.data = E.data(order(keep), :);
             else
                 [~, E] = evalc('pop_biosig(file, ''channels'', order(keep), ''blockrange'', [a0 a1] / srate)');
             end

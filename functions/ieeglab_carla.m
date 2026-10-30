@@ -185,40 +185,13 @@ stats.order = poolIdx(ordLocal);         % global channel indices, increasing co
 nPool = numel(stats.order);
 
 % ---------------- sweep CAR size ----------------
-if nTrs == 1
-    stats.zMin = nan(nPool, nPool);
-else
-    stats.zMin = nan(nPool, nPool, opts.nboot);
-end
-
-for ii = max(2, opts.minCARsize) : nPool
-
-    sub = stats.order(1:ii);
-    VsegReref = Vseg - mean(Vseg(sub,:,:), 1);
-
-    if nTrs == 1
-        Useg      = Vseg(sub,:)';
-        UsegReref = VsegReref(sub,:)';
-        r = corr(Useg, UsegReref);
-        r(1:(ii+1):end) = nan;               % drop self-self
-        z = atanh(r);
-        [~, kkMost] = min(mean(z, 2, 'omitnan'));
-        stats.zMin(1:ii, ii) = z(kkMost,:)';
-        continue
-    end
-
-    for jj = 1:opts.nboot
-        if isempty(opts.stream), inds = randi(nTrs, 1, nTrs);      % bootstrap resample of trials
-        else, inds = randi(opts.stream, nTrs, 1, nTrs); end
-        Useg      = mean(Vseg(sub,:,inds), 3)';
-        UsegReref = mean(VsegReref(sub,:,inds), 3)';
-        r = corr(Useg, UsegReref);
-        r(1:(ii+1):end) = nan;
-        z = atanh(r);
-        [~, kkMost] = min(mean(z, 2, 'omitnan'));
-        stats.zMin(1:ii, ii, jj) = z(kkMost,:)';
-    end
-end
+% For each size ii (channels 1..ii of the ranking in the average) and each
+% bootstrap draw, the correlations between every channel and every
+% re-referenced channel, on the trial mean of the draw (zMin: the row of the
+% most anticorrelated channel, in Fisher z). Same draws, in the same order, as
+% the published loop (a randi call per size and draw); the correlations come
+% from the trial-by-trial products of the response segment, computed once.
+stats.zMin = local_sweep(Vseg, stats.order, opts);
 
 stats.zMinMean = mean(stats.zMin, 1, 'omitnan');   % 1 x nPool x nboot
 
@@ -256,6 +229,76 @@ end
 end
 
 % ================= local helpers =================
+
+function zMin = local_sweep(Vseg, order, opts)
+% zMin: (n_pool x n_pool [x nboot]), as the published loop computes it.
+%
+% A bootstrap mean is a weighted sum of trials, M = sum_t w_t V_t (w_t: times
+% trial t is drawn / n_trials), and re-referencing to channels 1..ii subtracts
+% their mean m. With C the covariance over time of M (channels 1..ii),
+%   corr(u_i, u_j - m) = (C_ij - mean_k C_ik) / sqrt(C_ii (C_jj - 2 mean_k C_jk + mean(C)))
+% and C = sum_ts w_t w_s G_ts with G_ts = P_t P_s' / (T-1), P the centred
+% segments: G is computed once, and each size and draw costs a few products of
+% ii x ii matrices instead of a correlation over every time sample. Same values
+% to rounding (1e-13 on the tutorial; tests/test_carla_vs_reference).
+nTrs = size(Vseg, 3); Ts = size(Vseg, 2); nPool = numel(order);
+i0 = max(2, opts.minCARsize);
+P = double(Vseg(order, :, :));                         % (n_pool x T x n_trials), rank order
+P = P - mean(P, 2);                                    % centred over time, per channel and trial
+
+if nTrs == 1                                           % single trial: no bootstrap
+    zMin = nan(nPool, nPool);
+    G = (P * P') / (Ts - 1);
+    for ii = i0:nPool
+        z = local_fisher_z(G(1:ii, 1:ii));
+        [~, kk] = min(mean(z, 2, 'omitnan'));
+        zMin(1:ii, ii) = z(kk, :)';
+    end
+    return
+end
+
+% the draws of the loop, in its order (size, then draw): one call, same stream
+K = (nPool - i0 + 1) * opts.nboot;
+if isempty(opts.stream), inds = randi(nTrs, nTrs, K); else, inds = randi(opts.stream, nTrs, nTrs, K); end
+W = full(sparse(inds, repmat(1:K, nTrs, 1), 1, nTrs, K)) / nTrs;   % (n_trials x K) trial weights
+
+nb = opts.nboot;
+zMin = nan(nPool, nPool, nb);
+useGram = (nPool * nTrs)^2 * 8 / 2^20 <= 2048;         % else (many trials, pooled): means first
+if useGram
+    % G2((c,c'), (t,s)) = P_t(c,:) P_s(c',:)' / (T-1), for every pair of trials at once
+    Pm = reshape(permute(P, [1 3 2]), nPool * nTrs, Ts);      % rows (channel, trial)
+    G2 = reshape(permute(reshape((Pm * Pm') / (Ts - 1), nPool, nTrs, nPool, nTrs), [1 3 2 4]), ...
+        nPool * nPool, nTrs * nTrs);
+end
+for ii = i0:nPool
+    w = W(:, (ii - i0) * nb + (1:nb));                        % (n_trials x nboot)
+    if useGram
+        lin = reshape((1:ii)' + nPool * (0:ii-1), [], 1);     % the ii x ii block
+        ww = reshape(reshape(w, nTrs, 1, nb) .* reshape(w, 1, nTrs, nb), nTrs * nTrs, nb);
+        C = reshape(G2(lin, :) * ww, ii, ii, nb);             % covariance of each bootstrap mean
+    else
+        M = reshape(reshape(P(1:ii, :, :), ii * Ts, nTrs) * w, ii, Ts, nb);
+        C = pagemtimes(M, 'none', M, 'transpose') / (Ts - 1);
+    end
+    z = local_fisher_z(C);                                    % (ii x ii x nboot)
+    [~, kk] = min(mean(z, 2, 'omitnan'), [], 1);              % most anticorrelated channel, per draw
+    rows = reshape(kk, 1, nb) + ii * (0:ii-1)' + ii * ii * (0:nb-1);   % z(kk_b, j, b)
+    zMin(1:ii, ii, :) = reshape(z(rows), ii, 1, nb);
+end
+end
+
+function z = local_fisher_z(C)
+% atanh(corr(u_i, u_j - mean_k u_k)) for every i, j from the covariances C
+% (n x n x nb); the diagonal (a channel with itself) is NaN, as in the loop
+n = size(C, 1); nb = size(C, 3);
+dg = reshape(C, n * n, nb); dg = dg(1:n+1:end, :);         % (n x nb) variances
+cbar = mean(C, 2);                                           % (n x 1 x nb): mean_k C_ik
+vr = reshape(dg, 1, n, nb) - 2 * reshape(cbar, 1, n, nb) + mean(cbar, 1);   % var(u_j - m)
+r = (C - cbar) ./ sqrt(reshape(dg, n, 1, nb) .* vr);
+r = reshape(r, n * n, nb); r(1:n+1:end, :) = NaN;
+z = atanh(reshape(r, n, n, nb));
+end
 
 function nOptimum = local_sensitive_optimum(stats, nPool, opts)
 % Optimum at the last peak before the first STATISTICALLY significant decrease
