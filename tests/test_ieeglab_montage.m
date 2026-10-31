@@ -126,7 +126,8 @@ a = strcmp({E.chanlocs.labels}, B.ieeglab.montage.labelold{find(B.ieeglab.montag
 b = strcmp({E.chanlocs.labels}, B.ieeglab.montage.labelold{find(B.ieeglab.montage.tra(1, :) < 0)}); %#ok<FNDSB>
 D = double(E.data(a, :, :)) - double(E.data(b, :, :));
 kb = local_baseline_idx(E.times, pre.baseline_period);
-tc.verifyEqual(double(B.data(i, :, :)), D - median(D(:, kb, :), 2), 'AbsTol', 1e-3, ...
+% tolerance in units of the data's precision: Linux and Windows round single data differently
+tc.verifyEqual(double(B.data(i, :, :)), D - median(D(:, kb, :), 2), 'AbsTol', 4 * double(eps(single(max(abs(D(:)))))), ...
     'The difference of the two contacts, with the (median) baseline applied again.');
 [~, stimIdx] = ieeglab_epoch_sites(B);
 tc.verifyTrue(any(~cellfun(@isempty, stimIdx)), 'Stimulated bipolar channels must still be found.');
