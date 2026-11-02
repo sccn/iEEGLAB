@@ -97,10 +97,10 @@
     <a href="#report">5. What to report</a>
   </nav>
 
-  <div class="note">Some screenshots are still to be updated. The frequency-analysis and bipolar steps have none yet, and
-  the preprocessing window of Part A shows 60 Hz only, where the step uses 60, 120 and 180 Hz.<span class="f"> Those of the
-  full recordings come from an earlier version, so the counts in their titles differ slightly from the numbers in the
-  steps, which are current (3940 of 11172 in a title for 3937 of 10780 in step 7).</span></div>
+  <div class="note f">Screenshots of the full recordings are still to be updated. The frequency-analysis and bipolar
+  steps have none yet, the preprocessing window of Part A shows 60 Hz only, where the step uses 60, 120 and 180 Hz, and
+  the counts in their titles come from an earlier version (3940 of 11172 in a title for 3937 of 10780 in step 7). The
+  numbers in the steps are current.</div>
 
   <h2 id="install">1. Install</h2>
   <ol class="steps">
@@ -266,7 +266,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
       1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
       frequency. Each contact's own stimulation epochs are left out of its average.
-      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.5 dB over 0 to 1000 ms (median -0.3 dB): the grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">No contact's 70-150 Hz power differs from its baseline by more than 0.4 dB over 0 to 1000 ms (median 0.0 dB).</span></div>
+      <span class="t">Over 0 to 1000 ms, the 70-150 Hz power of every contact but RA14 is 0.1 to 0.5 dB below its baseline (median -0.3 dB). RA14 is 3.8 dB below: a burst of power about 350 ms before the pulse (the bright patch in its row) raises its baseline, and it also makes the stripe at that time and most of the blue below 60 Hz after the pulse in the average. The grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">Over 0 to 1000 ms, every contact's 70-150 Hz power is within 0.4 dB of its baseline (median 0.0 dB), except RA14 (1.7 dB below) and LX12 (1.4 dB below).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
@@ -292,7 +292,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
-      <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). The others stay within 0.5 dB of their baseline.</span><span class="f">Every channel stays within 0.3 dB of its baseline (highest: RZ1-RZ2).</span></div>
+      <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). RA13-RA14 is 4.3 dB below its baseline (RA14's burst again), RA1-RA2 1.0 dB and RA2-RA3 0.8 dB below; the others are between -0.5 and +0.1 dB.</span><span class="f">Every channel stays within 0.3 dB of its baseline (highest: RZ1-RZ2), except RA13-RA14 (2.2 dB below) and LX11-LX12 (0.7 dB below).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
@@ -383,7 +383,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
       1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
       frequency. Each contact's own stimulation epochs are left out of its average.
-      <span class="t">No contact's 70-150 Hz power differs from its baseline by more than 0.3 dB over 0 to 1000 ms (highest: FB55 and FB62). FB54 has no value: it is stimulated at all three sites of the extract.</span><span class="f">No contact's 70-150 Hz power differs from its baseline by more than 0.4 dB over 0 to 1000 ms (highest: FB55).</span></div>
+      <span class="t">Over 0 to 1000 ms, every contact's 70-150 Hz power is between 0.6 dB below its baseline (FB51) and 0.3 dB above (FB55 and FB62). FB63 dips, then rises, in the 300 ms after the grey band, which averages out over the second. FB54 has no value: it is stimulated at all three sites of the extract.</span><span class="f">No contact's 70-150 Hz power differs from its baseline by more than 0.4 dB over 0 to 1000 ms (highest: FB55).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB10_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
@@ -409,7 +409,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
-      <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others stay within 0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
+      <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others are between -0.6 dB (FB50-FB51) and +0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
