@@ -39,6 +39,7 @@ addpath(fullfile(plugin_path, 'functions'));
 % eeglab_new took neither branch and ALLEEG kept the un-preprocessed dataset.
 % Import returns nothing when cancelled: EEG is replaced only when a recording was read.
 cb_import     = [try_strings.no_check '[EEGTMP_, LASTCOM] = pop_ieeglab_import; if ~isempty(LASTCOM), EEG = EEGTMP_; end; clear EEGTMP_;' catch_strings.new_and_hist];
+cb_import_ft  = [try_strings.no_check '[EEGTMP_, LASTCOM] = ieeglab_import_fieldtrip; if ~isempty(LASTCOM), EEG = EEGTMP_; end; clear EEGTMP_;' catch_strings.new_and_hist];
 cb_load       = [try_strings.no_check '[EEG, LASTCOM] = ieeglab_load(EEG);'           catch_strings.new_and_hist];
 cb_vis_elec   = [try_strings.no_check 'EEG = ieeglab_vis_elec(EEG); LASTCOM = ''EEG = ieeglab_vis_elec(EEG);'';' catch_strings.new_and_hist];
 cb_surfaces   = [try_strings.no_check '[EEG, LASTCOM] = pop_ieeglab_surfaces(EEG);'    catch_strings.new_and_hist];
@@ -76,6 +77,7 @@ ondata  = 'startup:off';
 onepoch = 'startup:off;continuous:off';
 uimenu(menu_root, 'Label', 'Check installation', 'Callback', cb_check, 'userdata', 'study:on');
 uimenu(menu_root, 'Label', 'Import raw recording (MEF3, BrainVision, EDF)', 'Callback', cb_import, 'Separator', 'on', 'userdata', 'study:on');
+uimenu(menu_root, 'Label', 'Import FieldTrip epochs (.mat)', 'Callback', cb_import_ft, 'userdata', 'study:on');
 uimenu(menu_root, 'Label', 'Load electrode coordinates and events', 'Callback', cb_load, 'userdata', ondata);
 % The brain is chosen once here; every brain figure then uses it without asking
 uimenu(menu_root, 'Label', 'Choose brain surfaces', 'Callback', cb_surfaces, 'userdata', ondata);
@@ -115,7 +117,7 @@ end
 % Fail loudly at load time if a menu callback points at a function that does not
 % exist, rather than at click time. ieeglab_stats_subject was missing for months
 % because nothing checked this.
-for f = {'pop_ieeglab_import','ieeglab_load','pop_ieeglab_surfaces','ieeglab_vis_elec','ieeglab_preprocess','pop_ieeglab_reref','pop_ieeglab_spectral', ...
+for f = {'pop_ieeglab_import','ieeglab_import_fieldtrip','ieeglab_load','pop_ieeglab_surfaces','ieeglab_vis_elec','ieeglab_preprocess','pop_ieeglab_reref','pop_ieeglab_spectral', ...
          'ieeglab_stats_subject','pop_ieeglab_ccep_matrix','pop_ieeglab_topoplot','ieeglab_export','ieeglab_plot_heatmap','ieeglab_plot_crp'}
     if isempty(which(f{1}))
         warning('eegplugin_ieeglab:missingCallback', ...
@@ -138,7 +140,8 @@ uimenu(m, 'Label', 'Menu-by-menu walkthrough', 'userdata', 'study:on', ...
     'Callback', sprintf('web(''%s'', ''-browser'');', strrep(walk, '''', '''''')));
 uimenu(m, 'Label', 'Tutorial script (ieeglab_tutorial.m)', 'userdata', 'study:on', 'Callback', 'edit ieeglab_tutorial;');
 fm = uimenu(m, 'Label', 'iEEGLAB functions', 'Separator', 'on', 'userdata', 'study:on');
-fns = {'pop_ieeglab_import', 'Import raw recording'; 'ieeglab_load', 'Load electrode coordinates and events'; ...
+fns = {'pop_ieeglab_import', 'Import raw recording'; 'ieeglab_import_fieldtrip', 'Import FieldTrip epochs'; ...
+       'ieeglab_load', 'Load electrode coordinates and events'; ...
        'pop_ieeglab_surfaces', 'Choose brain surfaces'; 'ieeglab_vis_elec', 'Visualize electrodes'; ...
        'ieeglab_preprocess', 'Preprocess iEEG data'; ...
        'pop_ieeglab_reref', 'iEEG re-referencing'; 'pop_ieeglab_spectral', 'Frequency analysis'; ...

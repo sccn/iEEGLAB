@@ -8,6 +8,7 @@ function [EEG, com] = pop_ieeglab_spectral(EEG, varargin)
 %   EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum')
 %   EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'band', [70 150], 'norm', 'relchange')
 %   EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'plot', false)
+%   EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true)
 %
 % In the dialog an empty Window box keeps ieeglab_spectral's default (spectrum:
 % 1 s, shortened on CCEP epochs to the part before the pulse).
@@ -16,6 +17,13 @@ function [EEG, com] = pop_ieeglab_spectral(EEG, varargin)
 %   'plot'     draw the figures (ieeglab_plot_spectral). Default true
 %   'channel'  contact for the time-frequency map. Default: average of the
 %              good contacts
+%   'stats'    test the band power of every contact against its baseline over
+%              the band window (ieeglab_band_stats: sign-flip permutation over
+%              epochs, FDR across contacts): true, or a cell of
+%              ieeglab_band_stats options, e.g. {'tail', 'positive'}.
+%              Time-frequency only. Default false. The table goes to
+%              EEG.ieeglab.spectral.stats, the significant contacts are
+%              listed, and the brain map shows only them.
 %
 % From the menu this only draws: the dataset is left as it is. From the command
 % line the result is also returned in EEG.ieeglab.spectral (see
@@ -38,14 +46,40 @@ end
 if mod(numel(args), 2), error('pop_ieeglab_spectral:args', 'Options come in name/value pairs.'); end
 names = lower(cellfun(@char, args(1:2:end), 'UniformOutput', false));
 vals = args(2:2:end);
-doPlot = true; channel = [];
+doPlot = true; channel = []; stats = false;
 k = find(strcmp(names, 'plot')); if ~isempty(k), doPlot = logical(vals{k(end)}); end
 k = find(strcmp(names, 'channel')); if ~isempty(k), channel = vals{k(end)}; end
-keep = ~ismember(names, {'plot', 'channel'});
+k = find(strcmp(names, 'stats')); if ~isempty(k), stats = vals{k(end)}; end
+keep = ~ismember(names, {'plot', 'channel', 'stats'});
 cargs = reshape([args(1:2:end); args(2:2:end)], 1, []);
 cargs = cargs(repelem(keep, 2));
+if ~(iscell(stats) || ((islogical(stats) || isnumeric(stats)) && isscalar(stats)))
+    error('pop_ieeglab_spectral:stats', '''stats'' is true, false or a cell of ieeglab_band_stats options.');
+end
+doStats = iscell(stats) || logical(stats);
+k = find(strcmp(names, 'type'));
+if doStats && ~isempty(k) && ~strcmpi(vals{k(end)}, 'timefreq')
+    error('pop_ieeglab_spectral:statsNeedTimefreq', 'The band-power statistics need ''type'', ''timefreq''.');
+end
+sopt = {}; if iscell(stats), sopt = stats; end
+kb = find(strcmpi(sopt(1:2:end), 'band'));                % a band of its own for the test
+statsBand = []; if ~isempty(kb), statsBand = sopt{2 * kb(end)}; end
+k = find(strcmp(names, 'band'));
+if doStats && isempty(statsBand) && ~isempty(k) && isempty(vals{k(end)})
+    error('pop_ieeglab_spectral:statsNeedBand', 'The band-power statistics need a band (''band'', [low high]).');
+end
+askedTrials = any(strcmp(names, 'keeptrials'));
+if doStats && ~askedTrials                                % single-trial power of the tested band only
+    if isempty(statsBand), cargs = [cargs {'keeptrials', 'band'}]; else, cargs = [cargs {'keeptrials', true}]; end
+end
 
 S = ieeglab_spectral(EEG, cargs{:});
+if doStats
+    [S.stats, R] = ieeglab_band_stats(S, sopt{:});
+    S.stats_opt = R.opt;
+    if ~askedTrials, S = rmfield(S, intersect(fieldnames(S), {'trials', 'trials_freqs'})); end
+    local_report(S.stats);
+end
 if ~isfield(EEG, 'ieeglab') || ~isstruct(EEG.ieeglab), EEG.ieeglab = struct(); end
 EEG.ieeglab.spectral = S;
 if doPlot
@@ -77,7 +111,8 @@ band = [70 150];
 if band(2) >= fs / 2, band = [max(1, round(fs / 4)) fmax]; end
 bandWin = [0 round(double(EEG.times(end)))];
 w = [1.2 0.8];
-uigeom = {[0.6 1.4], 1, w, w, w, w, w, w, 1, w, w, 1, w, w, 1};
+uigeom = {[0.6 1.4], 1, w, w, w, w, w, w, 1, w, w, 1, 1, w, w, 1};
+onOff = {'off', 'on'};
 % defaults per analysis, shown again when the analysis changes
 def.timefreq = {sprintf('5:5:%d', 5 * floor(fmax / 5)), '0.2'};
 def.spectrum = {sprintf('1 %d', fmax), ''};      % empty: 1 s, or what fits before the pulse on CCEP epochs
@@ -99,6 +134,8 @@ uilist = { ...
     {'style' 'text' 'string' 'Band' 'fontweight' 'bold'}, ...
     {'style' 'text' 'string' 'Band, Hz (default: high-frequency activity)'}, {'style' 'edit' 'string' sprintf('%g %g', band) 'tag' 'band'}, ...
     {'style' 'text' 'string' 'Window for the brain map, ms'}, {'style' 'edit' 'string' sprintf('%g %g', bandWin) 'tag' 'bandwin'}, ...
+    {'style' 'checkbox' 'string' 'Test each contact''s band power in this window against its baseline (permutation over epochs, FDR)' ...
+        'value' 0 'tag' 'stats' 'enable' onOff{1 + strcmp(types{1}, 'timefreq')}}, ...
     {'style' 'text' 'string' 'Epochs' 'fontweight' 'bold'}, ...
     {'style' 'text' 'string' 'Condition (event at time 0, or stimulation site)'}, {'style' 'popupmenu' 'string' conds 'tag' 'cond'}, ...
     {'style' 'checkbox' 'string' 'Plot' 'value' 1 'tag' 'plot'}, {'style' 'text' 'string' ''}, ...
@@ -120,6 +157,7 @@ if strcmp(type, 'timefreq')
     if ~isempty(cyc), args = [args {'cycles', cyc}]; end
     args = [args {'timestep', str2double(out.timestep), 'baseline', sscanf(out.baseline, '%f')', ...
         'norm', norms{out.norm}, 'band_window', sscanf(out.bandwin, '%f')'}];
+    if out.stats, args = [args {'stats', true}]; end
 end
 bd = sscanf(out.band, '%f')';
 if numel(bd) == 2, args = [args {'band', bd}]; end
@@ -130,9 +168,24 @@ end
 function local_type_changed(h, types, def)
 % Show the frequencies and window that suit the chosen analysis
 fig = ancestor(h, 'figure');
-d = def.(types{get(h, 'value')});
+t = types{get(h, 'value')};
+d = def.(t);
 set(findobj(fig, 'tag', 'freqs'), 'string', d{1});
 set(findobj(fig, 'tag', 'window'), 'string', d{2});
+st = findobj(fig, 'tag', 'stats');
+if strcmp(t, 'timefreq'), set(st, 'enable', 'on'); else, set(st, 'enable', 'off', 'value', 0); end
+end
+
+function local_report(T)
+% The significant contacts, largest change first
+s = T(T.significant, :);
+if isempty(s), return; end
+[~, o] = sort(abs(s.band_db), 'descend');
+s = s(o, :);
+n = min(height(s), 20);
+more = '';
+if height(s) > n, more = sprintf(' (and %d more)', height(s) - n); end
+fprintf('[band stats] Significant: %s%s\n', strjoin(compose('%s %+.2f dB', string(s.channel(1:n)), s.band_db(1:n)), ', '), more);
 end
 
 function x = local_number(s, what)
@@ -147,7 +200,9 @@ end
 end
 
 function s = local_literal(v)
-if ischar(v) || isstring(v)
+if iscell(v)
+    s = ['{' strjoin(cellfun(@local_literal, v, 'UniformOutput', false), ', ') '}'];
+elseif ischar(v) || isstring(v)
     s = ['''' strrep(char(v), '''', '''''') ''''];
 elseif islogical(v) && isscalar(v)
     s = mat2str(v);

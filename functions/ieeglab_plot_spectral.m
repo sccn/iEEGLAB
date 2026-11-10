@@ -11,7 +11,9 @@ function ieeglab_plot_spectral(EEG, S, varargin)
 % Time-frequency: the normalized time-frequency map (one contact, or the
 % average of the good contacts) and the band power of every contact over time;
 % then, when the contacts have coordinates, the band value of each contact on
-% the brain (ieeglab_topoplot).
+% the brain (ieeglab_topoplot). With band-power statistics in S.stats
+% (pop_ieeglab_spectral 'stats'), significant contacts are starred and the
+% brain shows only them.
 %
 % Options:
 %   'channel'  contact label or index for the time-frequency map. Default: the
@@ -32,6 +34,10 @@ cond = '';
 if ~isempty(S.condition), cond = sprintf(' - %s', S.condition); end
 bandTxt = '';
 if ~isempty(S.band), bandTxt = sprintf('%g-%g Hz', S.band(1), S.band(2)); end
+% band-power statistics (pop_ieeglab_spectral 'stats'): significant contacts
+hasStats = isfield(S, 'stats') && istable(S.stats) && height(S.stats) == numel(S.labels);
+sig = false(numel(S.labels), 1);
+if hasStats, sig = S.stats.significant; end
 
 if strcmp(S.type, 'spectrum')
     ieeglab_figure('Name', 'iEEG power spectra', 'Position', [80 80 820 520]);
@@ -96,10 +102,16 @@ else
     m = max(abs(B(:)), [], 'omitnan');
     if ~strcmp(S.norm, 'none') && ~strcmp(S.norm, 'ratio') && isfinite(m) && m > 0, caxis(ax2, [-m m]); end %#ok<CAXIS>
     local_zero_line(ax2);
-    if size(B, 1) <= 60, set(ax2, 'YTick', 1:size(B, 1), 'YTickLabel', S.labels, 'FontSize', 7); end
+    lab = S.labels;
+    if hasStats, lab(sig) = strcat(lab(sig), ' *'); end
+    if size(B, 1) <= 60, set(ax2, 'YTick', 1:size(B, 1), 'YTickLabel', lab, 'FontSize', 7); end
     cb = colorbar(ax2); cb.Label.String = unit;
     xlabel(ax2, 'Time (ms)', 'FontWeight', 'bold'); ylabel(ax2, 'Channel', 'FontWeight', 'bold');
-    title(ax2, sprintf('Band %s, every channel', bandTxt), 'FontWeight', 'normal');
+    t2 = sprintf('Band %s, every channel', bandTxt);
+    if hasStats
+        t2 = sprintf('%s (* %g-%g Hz differs from baseline, %g-%g ms)', t2, S.stats_opt.band, S.stats_opt.window);
+    end
+    title(ax2, t2, 'FontWeight', 'normal');
     try, colormap(ax1, parula); colormap(ax2, parula); catch, end
     what = sprintf('%s, %g to %g ms', unit, S.band_window(1), S.band_window(2));
 end
@@ -109,6 +121,20 @@ if o.brain && any(isfinite(S.band_value)) && isfield(EEG.chanlocs, 'X') && EEG.n
         && any(arrayfun(@(c) ~isempty(c.X), EEG.chanlocs))
     v = S.band_value;
     if strcmp(S.type, 'spectrum'), v = log10(v); what = 'log10 band power (\muV^2)'; end
+    if hasStats && ismember('band_db', S.stats.Properties.VariableNames)
+        % the tested change (mean over epochs of window minus baseline, dB): the
+        % colour then agrees with the test, which the band average need not
+        v = S.stats.band_db;
+        bandTxt = sprintf('%g-%g Hz', S.stats_opt.band(1), S.stats_opt.band(2));
+        what = sprintf('change from baseline (dB), %g to %g ms', S.stats_opt.window(1), S.stats_opt.window(2));
+        nTested = nnz(~isnan(S.stats.p));
+        if any(sig)                                  % the others grey, as untested ones
+            v(~sig) = NaN;
+            what = sprintf('%s; the %d of %d contacts that differ from baseline', what, nnz(sig), nTested);
+        else
+            what = sprintf('%s; none of %d contacts differs from baseline', what, nTested);
+        end
+    end
     ieeglab_topoplot(EEG, v, 'title', sprintf('Band %s: %s%s', bandTxt, what, cond));
 end
 end

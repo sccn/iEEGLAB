@@ -37,6 +37,9 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %   .require_peak  the maximum must be a local extremum inside the window, not
 %                  its first or last sample (a slope running out of the window
 %                  is not an N1). Default true.
+%   .peak_from     'median' (default) measures the peak from the median of the
+%                  average over the baseline; 'zero' takes the average as it is
+%                  (each trial's own baseline already removed), as erdetect.
 %   .polarity      'negative' (default) counts only negative-going peaks, the
 %                  convention of erdetect and the N1 literature; 'abs' counts the
 %                  largest deflection of either sign; 'positive' only
@@ -49,8 +52,13 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 %                  Set 0 to disable.
 %
 % erdetect-equivalent settings:
-%   opt = struct('method','sd', 'threshold',3.4, 'min_baseline_sd',50, ...
+%   opt = struct('method','sd', 'threshold',3.4, 'min_baseline_sd',50, 'peak_from','zero', ...
 %                'polarity','negative', 'n1_window',[9 90], 'baseline',[-1000 -100]);
+%   erdetect also finds peaks with a 20 uV selectivity over 0 to 500 ms, keeps
+%   a pair only if the largest peak in the window is negative, and rejects
+%   peaks above 3000 uV; iEEGLAB takes the largest local extremum in the window
+%   and warns above 3000 uV. On ds004080 (one run, 672 pairs) the two differ
+%   for 1 pair (validation/validate_erdetect_ds004080.m).
 %   A baseline that does not fit the epoch is clamped to the available
 %   pre-stimulus period with a warning, rather than silently returning no
 %   detections.
@@ -61,7 +69,8 @@ function [EEG, T, com] = ieeglab_detect_n1(EEG, opt)
 % smallest p possible: 1/2^K exact, 2/2^K with 'abs', 1/(n_perm + 1) sampled),
 % testable (false when it cannot reach significance; see ieeglab_testable).
 %
-% Amplitude is measured from the baseline median, with its sign.
+% Amplitude is measured from the baseline median (from zero with 'peak_from',
+% 'zero'), with its sign.
 %
 % Recomputing N1 invalidates a connectivity matrix built from N1.
 %
@@ -81,7 +90,7 @@ if nargin < 2 || isempty(opt), opt = struct(); end
 def = struct('n1_window',[10 100], 'baseline',[-500 -10], 'method','permutation', ...
              'n_perm',1000, 'threshold',3.4, 'alpha',0.05, 'correct','fdr', ...
              'min_trials',5, 'exclude_stim',true, 'require_peak',true, ...
-             'polarity','negative', 'min_baseline_sd',50, 'verbose',true, 'seed',0);
+             'polarity','negative', 'min_baseline_sd',50, 'peak_from','median', 'verbose',true, 'seed',0);
 fn = fieldnames(def);
 for i = 1:numel(fn)
     if ~isfield(opt,fn{i}) || isempty(opt.(fn{i})), opt.(fn{i}) = def.(fn{i}); end
@@ -95,6 +104,10 @@ opt.polarity = lower(char(opt.polarity));
 if ~any(strcmp(opt.polarity, {'abs','negative','positive'}))
     error('ieeglab_detect_n1:badPolarity', ...
         'polarity must be ''abs'', ''negative'' or ''positive''; got ''%s''.', opt.polarity);
+end
+opt.peak_from = lower(char(opt.peak_from));
+if ~any(strcmp(opt.peak_from, {'median','zero'}))
+    error('ieeglab_detect_n1:badPeakFrom', 'peak_from must be ''median'' or ''zero''; got ''%s''.', opt.peak_from);
 end
 if ~isnumeric(opt.min_baseline_sd) || ~isscalar(opt.min_baseline_sd) || opt.min_baseline_sd < 0
     error('ieeglab_detect_n1:badMinSd', 'min_baseline_sd must be a non-negative scalar (uV).');
@@ -180,7 +193,7 @@ for g = 1:numel(uSites)
             S = ones(K, 1); exact = false;
         end
         [stat, amp, lat, sd] = local_stat(X * S / K, iBu, iNu, tN, opt.require_peak, ...
-                                          opt.polarity, opt.min_baseline_sd);
+                                          opt.polarity, opt.min_baseline_sd, opt.peak_from);
 
         switch opt.method
             case 'permutation'
@@ -285,7 +298,7 @@ end
 
 % ===================== local helpers =====================
 
-function [stat, amp, lat, sd] = local_stat(A, iB, iN, tN, requirePeak, polarity, minSd)
+function [stat, amp, lat, sd] = local_stat(A, iB, iN, tN, requirePeak, polarity, minSd, peakFrom)
 % A: samples x patterns (column 1 is the observed average). Statistic per
 % column: largest deflection in the window, from the baseline median, in units
 % of baseline SD. polarity selects which deflections count ('abs', 'negative'
@@ -293,7 +306,8 @@ function [stat, amp, lat, sd] = local_stat(A, iB, iN, tN, requirePeak, polarity,
 % cannot fall below threshold x minSd on a quiet contact (erdetect's rule).
 if nargin < 6 || isempty(polarity), polarity = 'abs'; end
 if nargin < 7 || isempty(minSd),    minSd    = 0;     end
-A = A - median(A(iB,:), 1, 'omitnan');
+if nargin < 8 || isempty(peakFrom), peakFrom = 'median'; end
+if strcmp(peakFrom, 'median'), A = A - median(A(iB,:), 1, 'omitnan'); end
 sdAll = std(A(iB,:), 0, 1, 'omitnan');
 sdAll = max(sdAll, minSd);
 seg = A(iN,:);

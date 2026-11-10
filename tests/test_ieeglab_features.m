@@ -139,6 +139,28 @@ tc.verifyEqual(numel(E2.event), numel(E1.event));
 tc.verifyEqual({E2.chanlocs.labels}, {E1.chanlocs.labels});
 end
 
+function test_load_latency_on_the_named_sample(tc)
+% Onsets written to the microsecond (as many BIDS writers do) land just below
+% the sample they name; EEGLAB's epoching takes floor(), so those epochs
+% started one sample early.
+src = fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_task-ccep_run-01_events.tsv');
+T = readtable(src, 'FileType','text', 'Delimiter','\t');
+EEG = pop_loadset('filename', tc.TestData.set, 'filepath', tc.TestData.seegDir);
+s = round(T.onset * EEG.srate) + (1:height(T))';     % samples whose times are not exact in decimal
+T.onset = round(s / EEG.srate * 1e6) / 1e6;
+f = fullfile(tc.TestData.tmp, 'events_microseconds.tsv');
+writetable(T, f, 'FileType','text', 'Delimiter','\t');
+R = readtable(f, 'FileType','text', 'Delimiter','\t');
+tc.assertGreaterThan(nnz(floor(R.onset * EEG.srate + 1) < s + 1), 0, 'Some onsets must fall below their sample.');
+[~, E] = evalc('ieeglab_load(EEG, struct(''events_tsv'', f))');
+row = [E.event.tsv_row]';
+tc.verifyEqual([E.event.latency]', s(row) + 1);
+[~, X] = evalc('pop_epoch(E, {}, [-0.01 0.01])');
+tc.assertEqual(X.trials, numel(row));
+tc.verifyEqual(double(squeeze(X.data(1, X.times == 0, :))), double(E.data(1, s(row) + 1))', ...
+    'Time 0 of each epoch must be the sample its onset names.');
+end
+
 function test_load_drops_events_marked_bad(tc)
 src = fullfile(tc.TestData.seegDir, 'sub-02_ses-ieeg01_task-ccep_run-01_events.tsv');
 T = readtable(src, 'FileType','text', 'Delimiter','\t');

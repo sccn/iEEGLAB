@@ -16,12 +16,13 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 |---|---|---|
 | Read a raw recording of a BIDS dataset (MEF3, BrainVision, EDF, .set): brain channels by default (ECG, EMG and other types on request, for example for BrainBeats), optionally only some stimulation sites, in single precision | Import raw recording | `pop_ieeglab_import`, `ieeglab_import` |
 | Or import a whole BIDS dataset with EEGLAB (every channel, double precision: fine for short recordings) | File > Import data > From BIDS folder structure | `pop_importbids` (EEG-BIDS) |
+| Or FieldTrip epochs (`ft_preprocessing` output) with their electrode positions | Import FieldTrip epochs (.mat) | `ieeglab_import_fieldtrip` |
 | Electrode coordinates, events and clinician channel labels from the BIDS files | Load electrode coordinates and events | `ieeglab_load` |
 | The brain every brain figure is drawn on, chosen once (else the one matching the coordinates) | Choose brain surfaces | `pop_ieeglab_surfaces` |
 | Electrodes on the brain | Visualize electrodes | `ieeglab_vis_elec` |
 | Stimulation-artifact blanking, filtering, epoching, trial and channel rejection, baseline | Preprocess iEEG data | `ieeglab_preprocess` |
 | Re-referencing: CARLA (CCEP), common average, ICA-based, bipolar, custom montages (e.g. a local average) | iEEG re-referencing | `pop_ieeglab_reref`, `ieeglab_montage` |
-| Power spectrum of each contact; time-frequency power and band power (high-frequency activity by default), on the brain | Frequency analysis | `pop_ieeglab_spectral`, `ieeglab_spectral` |
+| Power spectrum of each contact; time-frequency power and band power (high-frequency activity by default), on the brain, with a permutation test of each contact's band power against its baseline | Frequency analysis | `pop_ieeglab_spectral`, `ieeglab_spectral`, `ieeglab_band_stats` |
 | CRP (sEEG) and N1 (ECoG) with permutation statistics; connectivity matrix | CCEP analysis (N1, CRP, connectivity) | `ieeglab_stats_subject` |
 | One site-contact pair (CRP), the connectivity matrix, values on the brain | Plot CRP of one site and contact; Plot connectivity matrix; Plot electrode values on brain | `ieeglab_plot_crp`, `ieeglab_plot_ccep_matrix`, `ieeglab_topoplot` |
 | Export (TSV, JSON, MAT) | Export results | `ieeglab_export` |
@@ -261,13 +262,21 @@ are left out of its average, windows that contain the pulse are left out (grey),
 and the spectrum uses only stretches away from the pulses (on epochs, the part
 before the pulse). Windows that touch a NaN sample are left out.
 From the menu it only draws figures: the dataset is not changed.
+The box under the band tests each contact's band power in the band window
+against its baseline (`ieeglab_band_stats`): per epoch and frequency, 10 log10
+power averaged over the window minus over the baseline, then the mean over the
+band's frequencies; a sign-flip permutation test over epochs (exact with few
+epochs), FDR across contacts. The significant contacts are listed, starred, and
+alone on the brain, coloured by the tested change.
 
 On the tutorial (steps A10-A11 and B10 of `ieeglab_tutorial.m`, and the
 step-by-step page): the sEEG's 14 contacts give 13 bipolar channels; the ECoG's
 17 give 14, as the ends of two grid rows are not paired. With the default 0.2 s
-windows, the times from -100 to 110 ms are grey, and no contact's 70-150 Hz
-power moves by more than 0.5 dB over the second after the pulse; the spectra
-show no line-noise peak in their median.
+windows, the times from -100 to 110 ms are grey. Over the second after the
+pulse, the 70-150 Hz power of every sEEG contact but RA14 is 0.1 to 0.5 dB below
+its baseline; RA14 is 3.8 dB below, because a burst of power about 350 ms before
+the pulse raises its baseline. The ECoG contacts range from -0.6 dB (FB51) to
++0.3 dB. The spectra show no line-noise peak in their median.
 
 ```matlab
 EEG_bip = pop_ieeglab_reref(EEG, 'method', 'bipolar');
@@ -276,6 +285,8 @@ EEG     = pop_ieeglab_spectral(EEG, 'type', 'spectrum');
 EEG     = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'band', [70 150], ...
               'baseline', [-500 -100], 'norm', 'relchange');
 ieeglab_plot_spectral(EEG, EEG.ieeglab.spectral, 'channel', 'RA10');
+EEG     = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'band_window', [100 500], 'stats', true);
+EEG.ieeglab.spectral.stats                     % one row per contact: band_db, t, p, p_adj, significant
 ```
 
 ### Part B: ECoG
@@ -335,6 +346,18 @@ results = runtests('tests');   % no figures or dialogs
 CARLA and CRP are checked against the published implementations
 (`tests/test_carla_vs_reference.m`, `tests/test_crp_vs_python.m`).
 
+The scripts in `validation/` compare iEEGLAB with other tools and with the
+authors' code on public data, some from the raw recording and some on the same
+input. Each one's help says which, and what to download.
+
+| Script | Against | Data |
+|---|---|---|
+| `validate_fieldtrip_uci29` | FieldTrip's intracranial tutorial (Stolk et al., 2018): re-referencing, time-frequency power, high-frequency activity | SubjectUCI29 |
+| `validate_crp_scripts` | The CRP authors' code (Miller et al., 2023) | their sample data (OSF) |
+| `validate_erdetect_ds004080` | ER-detect (van den Boom et al., 2025), N1 | ds004080, one run (sub-ccepAgeUMCU02) |
+| `validate_icaref_michelmann` | The ICA re-referencing authors' script (Michelmann et al., 2018) | SubjectUCI29 depth leads, and simulated data |
+| `validate_car_huang_ds004977` | The CARLA authors' common average (Huang et al., 2024) | ds004977 sub-1 run-02 (public samples: site RMO8-RMO9 only) |
+
 ## Citing
 
 Please cite iEEGLAB ([CITATION.cff](CITATION.cff)) and the methods you use;
@@ -351,6 +374,7 @@ comes from Dora Hermes and the Multimodal Neuroimaging Lab
 - Stolk, A., Griffin, S., van der Meij, R., Dewar, C., Saez, I., Lin, J. J., Piantoni, G., Schoffelen, J.-M., Knight, R. T., & Oostenveld, R. (2018). Integrated analysis of anatomical and electrophysiological human intracranial data. *Nature Protocols, 13*(7), 1699-1723.
 - van Blooijs, D., Leijten, F. S. S., van Rijen, P. C., Meijer, H. G. E., & Huiskamp, G. J. M. (2018). Evoked directional network characteristics of epileptogenic tissue derived from single pulse electrical stimulation. *Human Brain Mapping, 39*(11), 4611-4622.
 - van Blooijs, D., van den Boom, M. A., van der Aar, J. F., Huiskamp, G. M., Castegnaro, G., Demuru, M., Zweiphenning, W. J. E. M., van Eijsden, P., Miller, K. J., Leijten, F. S. S., & Hermes, D. (2023). Developmental trajectory of transmission speed in the human brain. *Nature Neuroscience, 26*(4), 537-541.
+- van den Boom, M. A., Gregg, N. M., Ojeda Valencia, G., Lundstrom, B. N., Miller, K. J., van Blooijs, D., Huiskamp, G. J. M., Leijten, F. S. S., Worrell, G. A., & Hermes, D. (2025). ER-detect: A pipeline for robust detection of early evoked responses in BIDS-iEEG electrical stimulation data. *Journal of Neuroscience Methods, 418*, 110389.
 
 Changes: [CHANGELOG.md](CHANGELOG.md).
 

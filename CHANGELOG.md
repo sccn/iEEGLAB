@@ -40,8 +40,43 @@
 - **Documentation in EEGLAB's Help menu** (*Help > iEEGLAB documentation*, also
   at the bottom of the iEEGLAB menu): the README, the menu-by-menu walkthrough,
   the tutorial script, and the help of each menu's function.
+- **Band-power statistics** (`ieeglab_band_stats`; *Frequency analysis*, box
+  "Test each contact's band power ... against its baseline";
+  `pop_ieeglab_spectral(..., 'stats', true)`). For each contact, epoch and
+  frequency of the band, 10 log10 power averaged over a window minus over the
+  baseline of the same epoch, then the mean over frequencies (so windows that
+  grow at low frequencies cannot shift it); tested over epochs with a sign-flip
+  permutation test (all sign patterns of a contact's epochs when they are few),
+  corrected across contacts (FDR by default), optionally at every time of the
+  window. On CCEP data each contact's own stimulation epochs are left out.
+  Significant contacts are listed, starred in the band panel, and alone on the
+  brain map, coloured by the tested change.
+  `ieeglab_spectral(..., 'keeptrials', 'band')` keeps single-trial power of the
+  band's frequencies only, which is what the test needs.
+- **FieldTrip import** (*iEEGLAB > Import FieldTrip epochs (.mat)*,
+  `ieeglab_import_fieldtrip`): epochs from `ft_preprocessing` and an electrode
+  structure, positions matched by label and converted to mm, channel types from
+  label patterns, one event per epoch at time 0 carrying its `trialinfo` row.
+  The coordinate system (`elec.coordsys`) chooses the brain surfaces.
+- **Validation scripts** (`validation/`): against FieldTrip's intracranial
+  tutorial (re-referencing, time-frequency and high-frequency activity), the
+  authors' CRP code on their sample data, ER-detect on one ds004080 run, the
+  authors' ICA re-referencing script, and Huang et al.'s common average on
+  ds004977.
+- **N1: `'peak_from', 'zero'`** measures the peak from zero (the average as it
+  is, each trial's baseline already removed), as ER-detect, instead of from the
+  baseline median of the average (the default). The ER-detect-equivalent
+  settings in the help now include it.
 
 ### Changed
+
+- **ICA re-referencing: the broadness test has one degree of freedom fewer than
+  contacts**, as the authors' code (the expected weight is the column's own
+  mean). With few contacts slightly fewer components count as broad.
+  `'weights', 'fieldtrip'` scales the mixing matrix as the authors' code does
+  through FieldTrip (runica's sphering matrix divided by its norm), which makes
+  their statistic independent of the data's units. `info.unmixing` and
+  `info.sphere_norm` are now returned.
 
 - **ICA re-referencing leaves the stimulated contacts out on CCEP epochs**, as
   the other methods do. The projection used every contact, so their artifact
@@ -148,6 +183,18 @@
   the artifact remains. ZapLine and ZapLine-plus, whose spatial components
   include the pulses, changed it by 9 to 400 uV and left most of the 60 Hz on
   the sEEG.
+
+### Fixed
+
+- **Epochs could start one sample early.** An event's latency was its onset
+  times the sampling rate, plus 1; for onsets written in decimal seconds this
+  often lands just below the sample it names, and EEGLAB's epoching rounds
+  down. Latencies within 1% of a sample of a sample time are now put on it.
+  Affected: about a third of ds004977 sub-1 run-02's events (4800 Hz) and 41 to
+  48% of ds004696 sub-01, sub-06 and sub-08's; not ds004696 sub-02, ds004080
+  or the tutorial data. Re-run analyses of affected recordings: on ds004977
+  the shift changed the trial-mean common average by up to 170 uV near the
+  pulse (31 uV elsewhere).
 
 ## 1.2.0 (2026-10-25)
 

@@ -11,7 +11,9 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %   1. ICA (EEGLAB's runica) on the good contacts;
 %   2. for every column of the absolute mixing matrix (the component's weights
 %      on the contacts), a chi-square statistic of its departure from a uniform
-%      distribution, with as many degrees of freedom as contacts;
+%      distribution, with one degree of freedom fewer than contacts (the
+%      expected weight is the column's own mean), as the authors' code
+%      (exampleICAreref.m);
 %   3. components whose weights are uniform (p > opt.p_broad, default 0.2) are
 %      "broad": the reference and other shared signals. They are discarded;
 %   4. the local components are projected back to the contacts.
@@ -31,14 +33,20 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %                explicitly when it is known.
 %   .p_broad     chi-square p-value above which a component counts as broad.
 %                Default 0.2, as in the paper.
-%   .weights     'normalized' (default) or 'raw'. The paper computes the
-%                chi-square on the absolute mixing weights but does not say how
-%                they are scaled, and on raw weights the statistic grows with the
-%                data's units: on microvolt iEEG every component tests as local
-%                (0 of 15 broad on the sEEG tutorial data). 'normalized' divides
-%                each column by its mean first, so the test measures how unevenly
-%                the component is spread over the contacts (chi2 = n x CV^2 of the
-%                weights), whatever the units.
+%   .weights     how the absolute mixing weights are scaled before the
+%                chi-square. 'fieldtrip': as the authors' code, which takes the
+%                mixing matrix from FieldTrip's ft_componentanalysis; FieldTrip
+%                divides runica's sphering matrix by its norm (normalisesphere
+%                'yes', its default), which multiplies the mixing matrix by that
+%                norm (2 / sqrt of the smallest eigenvalue of the data
+%                covariance), so the statistic does not depend on the data's
+%                units. 'raw': the mixing matrix as runica gives it (units of the
+%                data: on microvolt iEEG nearly every component tests as local).
+%                'normalized' (default): each column divided by its mean, so the
+%                test measures how unevenly the component is spread over the
+%                contacts (chi2 = n x CV^2 of the weights); this flags many more
+%                components as broad than 'fieldtrip' (FieldTrip's UCI29 depth
+%                leads, 56 contacts: 46 against 0).
 %   .fit_window  [start end] ms of each epoch used to estimate the unmixing.
 %                Default for CCEP data: the pre-stimulus part, from the epoch
 %                start to -50 ms, so the stimulation artifact cannot drive the
@@ -60,7 +68,8 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %   .verbose     default true
 %
 % Output info: rank, n_components, broad (logical per component), chi2, p,
-% channels (the contacts used), fit_window_ms.
+% mixing (contacts x components) and unmixing, channels (the contacts used),
+% fit_window_ms.
 %
 % Reference:
 %   Michelmann, S., Treder, M. S., Griffiths, B., Kerren, C., Roux, F.,
@@ -161,16 +170,17 @@ if r < nGood, args = [args {'pca', r}]; end
 U = w * s;                          % r x nGood unmixing
 A = pinv(U);                        % nGood x r mixing: column k = component k on the contacts
 
-% ---- broadness: chi-square of |mixing weights| against their mean, df = contacts
+% ---- broadness: chi-square of |mixing weights| against their mean, df = contacts - 1
 aw = abs(A);
 switch lower(char(opt.weights))
     case 'normalized', aw = aw ./ mean(aw, 1);           % mean 1 per column: unit-free
+    case 'fieldtrip',  aw = aw * norm(s);                % FieldTrip's unit-norm sphere (eye after PCA: 1)
     case 'raw'                                           % as the weights come (units of the data)
-    otherwise, error('ieeglab_icaref:weights', 'weights must be ''normalized'' or ''raw''.');
+    otherwise, error('ieeglab_icaref:weights', 'weights must be ''normalized'', ''fieldtrip'' or ''raw''.');
 end
 e = mean(aw, 1);
 chi2 = sum((aw - e).^2, 1) ./ e;
-p = 1 - gammainc(chi2 / 2, nGood / 2);
+p = gammainc(chi2 / 2, (nGood - 1) / 2, 'upper');   % chi-square upper tail, df nGood - 1
 broad = p > opt.p_broad;
 if all(broad)
     warning('ieeglab_icaref:allBroad', 'All %d components are broad (p > %g); the data are left unchanged.', r, opt.p_broad);
@@ -203,7 +213,7 @@ end
 EEG.ref = 'ICA re-referencing (Michelmann et al., 2018)';
 info = struct('method', 'ica', 'rank', r, 'estimated_rank', estRank, 'n_components', r, ...
     'broad', broad, 'chi2', chi2, 'p', p, 'p_broad', opt.p_broad, 'weights', char(opt.weights), ...
-    'mixing', A, 'channels', {labels(good)}, ...
+    'mixing', A, 'unmixing', U, 'sphere_norm', norm(s), 'channels', {labels(good)}, ...
     'fit_window_ms', opt.fit_window, 'reproducible', opt.reproducible);
 if ~isfield(EEG, 'ieeglab'), EEG.ieeglab = struct(); end
 EEG.ieeglab.car = info;

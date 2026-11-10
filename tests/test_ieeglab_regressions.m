@@ -99,6 +99,24 @@ tc.verifyEqual(unique(A.ieeglab.n1.table.p_min), 0.03125);
 tc.verifyTrue(all(A.ieeglab.n1.table.testable));
 end
 
+function test_n1_peak_from(tc)
+% 'peak_from', 'median' measures the peak from the baseline median of the
+% average, so a constant offset changes nothing; 'zero' (erdetect) takes the
+% average as it is, so the same peaks move by the offset.
+E = tc.TestData.E;
+E2 = E; E2.data = E.data + 30;
+o = struct('method','sd', 'min_trials',2, 'verbose',false);
+[~, A1] = evalc('ieeglab_detect_n1(E, o)'); [~, A2] = evalc('ieeglab_detect_n1(E2, o)');
+tc.verifyEqual(A2.ieeglab.n1.table.n1_amplitude_uv, A1.ieeglab.n1.table.n1_amplitude_uv, 'AbsTol', 1e-3);
+o.peak_from = 'zero';
+[~, Z1] = evalc('ieeglab_detect_n1(E, o)'); [~, Z2] = evalc('ieeglab_detect_n1(E2, o)');
+T1 = Z1.ieeglab.n1.table; T2 = Z2.ieeglab.n1.table;
+same = isfinite(T1.n1_latency_ms) & T1.n1_latency_ms == T2.n1_latency_ms;
+tc.assertGreaterThan(nnz(same), 0);
+tc.verifyEqual(T2.n1_amplitude_uv(same) - T1.n1_amplitude_uv(same), repmat(30, nnz(same), 1), 'AbsTol', 1e-3);
+tc.verifyError(@() ieeglab_detect_n1(E, struct('peak_from','raw','verbose',false)), 'ieeglab_detect_n1:badPeakFrom');
+end
+
 function test_bonferroni_needs_enough_permutations(tc)
 % 1/(n_perm + 1) x number of tests must stay below alpha. More permutations do
 % not help a site whose sign patterns are all used: 2/2^10 x 36 tests > 0.05.

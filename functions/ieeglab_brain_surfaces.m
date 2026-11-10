@@ -7,7 +7,9 @@ function [files, info] = ieeglab_brain_surfaces(EEG, varargin)
 %   [files, info] = ieeglab_brain_surfaces(EEG, 'check_fit', false)
 %
 % The space comes from the BIDS *_coordsystem.json next to the recording
-% (iEEGCoordinateSystem). Then:
+% (iEEGCoordinateSystem), or for FieldTrip data from EEG.ieeglab.coordsys
+% (elec.coordsys), read as the BIDS names: mni and spm as MNI, tal as Talairach,
+% unknown as not given. Then:
 %   participant space (ACPC, ScanRAS, Other, individual, T1w, ... or not given)
 %       the participant's own pial surfaces: GIfTI *pial*.gii next to the data,
 %       or in derivatives/freesurfer/sub-<label> (GIfTI, or FreeSurfer
@@ -27,8 +29,9 @@ function [files, info] = ieeglab_brain_surfaces(EEG, varargin)
 % when most contacts lie outside them, info.fit_ok is false and info.message
 % says so.
 %
-% info fields: space (as in coordsystem.json, '' if not given), kind
-% ('participant', 'fsaverage', 'fsaverage_approx' or 'none'), how (short
+% info fields: space (as in coordsystem.json, a FieldTrip name as its BIDS name,
+% '' if not given), kind ('participant', 'fsaverage', 'fsaverage_approx' or
+% 'none'), how (short
 % description for a dialog), message (one or two sentences for the user: what
 % was chosen and why, or what to do), folder, template_ok (the coordinates are
 % in a template space, so a template brain is a fair approximation), fit_ok, fit
@@ -165,6 +168,10 @@ if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'opt') && isfield(EEG.ieeglab.o
     cs = local_read_cs(regexprep(EEG.ieeglab.opt.elec_tsv, '_electrodes\.tsv$', '_coordsystem.json'));
     if ~isempty(cs), return; end
 end
+if isfield(EEG,'ieeglab') && isfield(EEG.ieeglab,'coordsys') && ~isempty(EEG.ieeglab.coordsys)
+    cs = local_ft_cs(char(EEG.ieeglab.coordsys));   % given with the data (FieldTrip elec.coordsys)
+    if ~isempty(cs), return; end
+end
 sub = local_subject(EEG);
 folders = {local_data_folder(EEG)};
 if isfield(EEG,'BIDS') && isstruct(EEG.BIDS) && isfield(EEG.BIDS,'sourcefile') && ~isempty(EEG.BIDS.sourcefile)
@@ -185,6 +192,22 @@ for k = 1:numel(folders)
         end
         p = fileparts(p);
     end
+end
+end
+
+function cs = local_ft_cs(cs)
+% FieldTrip's coordsys names (ft_headcoordinates, fixcoordsys) as the BIDS names
+% classified above: mni and spm (the same space for FieldTrip) as MNI, tal as
+% Talairach, fsaverage_sym as fsaverageSym; 'unknown' is not given. The others
+% (acpc, scanras, ctf, ...) are the participant's spaces and stay as they are.
+cs = strtrim(cs);
+switch lower(cs)
+    case {'mni', 'spm'},          cs = 'MNI';
+    case 'mni152',                cs = 'MNI152';
+    case 'mni305',                cs = 'MNI305';
+    case {'tal', 'talairach'},    cs = 'Talairach';
+    case {'fsaverage_sym', 'fsaveragesym'}, cs = 'fsaverageSym';
+    case 'unknown',               cs = '';
 end
 end
 

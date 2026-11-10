@@ -395,7 +395,14 @@ if isfield(EEG,'event') && ~isempty(EEG.event) && isfield(EEG.event,'type')
     end
 end
 
-ev = struct('type', cellstr(ty)', 'latency', num2cell(T.onset' * EEG.srate + 1), ...
+% Onsets are decimal seconds: onset * srate often lands a hair below the sample
+% it names (1.6e-9 below on ds004977), and EEGLAB's epoching takes floor(), so
+% those epochs would start one sample early. Latencies within 1% of a sample of
+% a sample time are put on it.
+lat = T.onset' * EEG.srate + 1;
+near = abs(lat - round(lat)) < 0.01;
+lat(near) = round(lat(near));
+ev = struct('type', cellstr(ty)', 'latency', num2cell(lat), ...
             'tsv_row', num2cell(T.tsv_row'));
 if hasDur
     for k = 1:numel(ev)

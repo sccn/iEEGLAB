@@ -50,7 +50,7 @@ for i = 1:numel(f)
 end
 src = lower(char(string(opt.source)));
 n1Names  = {'n1_window','baseline','method','n_perm','threshold','alpha','correct','min_trials','exclude_stim','require_peak', ...
-            'polarity','min_baseline_sd','seed'};
+            'polarity','min_baseline_sd','peak_from','seed'};
 crpNames = {'crp_window','alpha','correct','min_trials','exclude_stim','n_perm','crp_test','correct_scope','seed'};
 
 switch src

@@ -50,7 +50,10 @@ function S = ieeglab_spectral(EEG, varargin)
 %                 pulse; times whose window overlaps it are NaN (grey), since a
 %                 window that contains the artifact shows power at every
 %                 frequency. Default [-5 15]; [] keeps them.
-%   'keeptrials'  time-frequency: also return single-trial power. Default false.
+%   'keeptrials'  time-frequency: also return single-trial power: true (every
+%                 frequency) or 'band' (the band's frequencies only, what
+%                 ieeglab_band_stats needs, in a fraction of the memory).
+%                 Default false.
 %   'max_mb'      memory per block of epochs, MB. Default 512.
 %   'verbose'     default true
 %
@@ -71,8 +74,9 @@ function S = ieeglab_spectral(EEG, varargin)
 % contact), and for time-frequency also times (ms), tf (normalized power),
 % norm, baseline, band_tc (normalized band power, contacts x times),
 % band_window, window_s (per frequency) and, with keeptrials, trials
-% (contacts x freqs x times x epochs, single, every epoch) and use (contacts x
-% epochs, the epochs each contact averages).
+% (contacts x trials_freqs x times x epochs, single, every epoch),
+% trials_freqs (the frequencies kept) and use (contacts x epochs, the epochs
+% each contact averages).
 %
 % Cedric Cannard, iEEGLAB, 2026
 
@@ -330,7 +334,18 @@ perEpoch = (3 + 2 * anyNaN) * 16 * nfft * C;
 nB = max(1, floor(o.max_mb * 2^20 / perEpoch));
 Psum = zeros(C, F, Nt);
 Cnt = zeros(C, F, Nt);                                       % epochs averaged per window
-if o.keeptrials, Ptr = nan(C, F, Nt, N, 'single'); end
+kt = o.keeptrials;
+isBandKt = (ischar(kt) || isstring(kt)) && strcmpi(kt, 'band') && ~isempty(o.band);
+if ~isBandKt && ~((islogical(kt) || isnumeric(kt)) && isscalar(kt))
+    error('ieeglab_spectral:keeptrials', 'keeptrials is true, false or ''band'' (with a band).');
+end
+keepTr = isBandKt || logical(kt);
+if keepTr
+    kf = 1:F;                                                % frequencies kept per trial
+    if isBandKt, kf = find(freqs >= o.band(1) & freqs <= o.band(2)); end
+    slot = zeros(1, F); slot(kf) = 1:numel(kf);
+    Ptr = nan(C, numel(kf), Nt, N, 'single');
+end
 for b0 = 1:nB:N
     tr = b0:min(N, b0 + nB - 1);
     n = numel(tr);
@@ -355,9 +370,9 @@ for b0 = 1:nB:N
             clean = nNaN(sIdx(v) + hL(k), :) < 0.5;
             pw(~clean) = 0;
         end
-        if o.keeptrials
+        if keepTr && slot(k) > 0
             pk = pw; pk(~clean) = NaN;
-            Ptr(:, k, v, tr) = single(permute(reshape(pk, numel(v), C, n), [2 4 1 3]));
+            Ptr(:, slot(k), v, tr) = single(permute(reshape(pk, numel(v), C, n), [2 4 1 3]));
         end
         Psum(:, k, v) = Psum(:, k, v) + reshape(sum(reshape(pw .* U, numel(v), C, n), 3)', C, 1, numel(v));
         Cnt(:, k, v) = Cnt(:, k, v) + reshape(sum(reshape(clean .* U, numel(v), C, n), 3)', C, 1, numel(v));
@@ -374,7 +389,9 @@ end
 P = Psum ./ Cnt;                                            % (n_chan x n_freq x n_times)
 P(Cnt == 0) = NaN;
 P(repmat(reshape(~valid, 1, F, Nt), C, 1, 1)) = NaN;
-if o.keeptrials, Ptr(repmat(reshape(~valid, 1, F, Nt), C, 1, 1, N)) = NaN; end
+if keepTr
+    for k = kf, Ptr(:, slot(k), ~valid(k, :), :) = NaN; end
+end
 
 % ---------------- baseline normalization ----------------
 if isempty(o.baseline), o.baseline = [times(1) 0]; end
@@ -404,8 +421,9 @@ S.units = 'uV^2';
 S.norm = o.norm;
 S.baseline = o.baseline;
 S.window_s = Lw / fs;
-if o.keeptrials
+if keepTr
     S.trials = Ptr;          % every epoch, including those a contact does not average
+    S.trials_freqs = freqs(kf);
     S.use = use;             % (contacts x epochs): the epochs each contact averages
 end
 
