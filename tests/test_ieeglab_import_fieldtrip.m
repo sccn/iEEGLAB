@@ -226,6 +226,9 @@ function [EEG, txt] = local_import(varargin)
 % The import, with what it prints (warnings included)
 EEG = [];
 txt = evalc('EEG = ieeglab_import_fieldtrip(varargin{:});');
+% one line, single spaces: MATLAB on Linux wraps long warnings at 80 columns and
+% brackets them with backspaces
+txt = regexprep(strrep(txt, char(8), ''), '\s+', ' ');
 end
 
 function EEG = local_rerun(com, el) %#ok<INUSD>
