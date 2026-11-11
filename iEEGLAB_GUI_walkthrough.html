@@ -273,7 +273,14 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details>
+      <p>Then, optionally, the same again with <i>Test each contact's band power in this window against its baseline</i>
+      ticked (the box is not in the screenshot yet).</p>
+      <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
+      the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
+      second panel stars the contacts that differ, and the brain shows only them, or every contact's tested change when
+      none differs. <span class="t">No contact differs (smallest corrected p 0.20). The test averages each epoch's change in dB: for RA14 it is -0.2 dB, where the average power, which the burst in its baseline dominates, gives -3.8 dB. RA3, with 9 epochs, cannot reach significance after the correction and is marked not testable.</span><span class="f">No contact differs (smallest corrected p 0.06).</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
@@ -291,7 +298,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
-      <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
+      <div class="expect"><b>Expect</b>As in the first time-frequency step, one row per bipolar channel.
       <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). RA13-RA14 is 4.3 dB below its baseline (RA14's burst again), RA1-RA2 1.0 dB and RA2-RA3 0.8 dB below; the others are between -0.5 and +0.1 dB.</span><span class="f">Every channel stays within 0.3 dB of its baseline (highest: RZ1-RZ2), except RA13-RA14 (2.2 dB below) and LX11-LX12 (0.7 dB below).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A15_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
@@ -390,7 +397,14 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B10_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B10_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B10_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
-      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details>
+      <p>Then, optionally, the same again with <i>Test each contact's band power in this window against its baseline</i>
+      ticked (the box is not in the screenshot yet).</p>
+      <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
+      the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
+      second panel stars the contacts that differ, and the brain shows only them, or every contact's tested change when
+      none differs. <span class="t">No contact differs (smallest corrected p 0.34). FB54, stimulated in every epoch, is not tested.</span><span class="f">No contact differs (smallest corrected p 0.11).</span></div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
@@ -408,7 +422,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
     <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
-      <div class="expect"><b>Expect</b>As two steps before, one row per bipolar channel.
+      <div class="expect"><b>Expect</b>As in the first time-frequency step, one row per bipolar channel.
       <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others are between -0.6 dB (FB50-FB51) and +0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
