@@ -67,6 +67,9 @@
   each with the published CRP (the paper's decision: the t-test at the response
   duration with the Benjamini-Yekutieli correction over its pairs), with an
   effect size and its 95% confidence interval for every pair.
+  `split_half_effects_ds004696` compares the schemes' effect sizes without
+  favouring the paper's reference: pairs are selected with it on half of each
+  site's trials and every scheme's effect size is measured on the other half.
 - **ICA re-referencing: `'decomposition'`** reuses the mixing and unmixing of an
   earlier run on the same data, so another weight scaling or `p_broad` can be
   tried without fitting ICA again.
