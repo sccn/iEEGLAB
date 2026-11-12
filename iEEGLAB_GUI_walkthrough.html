@@ -71,22 +71,58 @@
                    border: 1px solid var(--accent); background: var(--panel); color: var(--accent); }
   .switch button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
   body[data-data="tutorial"] .f, body[data-data="full"] .t { display: none; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 14px; }
+  .tabs button { font: inherit; font-size: 0.95rem; padding: 8px 14px; margin-bottom: -1px; cursor: pointer;
+                 border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; background: none; color: var(--muted); }
+  .tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); border-color: var(--line); font-weight: 600; }
+  .intro { margin: 0 0 16px; }
+  .progress .where { color: var(--accent); margin-left: 4px; }
+  ol.steps > li, h2 { scroll-margin-top: 90px; }
+  #outline { display: none; }
+  #outline .head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 4px 10px; }
+  #outline a { display: block; text-decoration: none; }
+  #outline a.tabname { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 12px 0 2px; padding: 0 10px; }
+  #outline a.tabname.cur { color: var(--accent); font-weight: 600; }
+  #outline a.sec { font-weight: 600; color: var(--ink); margin: 10px 0 3px; padding: 0 10px; }
+  #outline a.sec.cur { color: var(--accent); }
+  #outline a.st { display: flex; gap: 8px; padding: 2px 8px; border-left: 2px solid var(--line); color: var(--muted); line-height: 1.35; margin-left: 10px; }
+  #outline a.st .n { min-width: 1.3em; text-align: right; font-variant-numeric: tabular-nums; }
+  #outline a.st.ok { opacity: 0.55; }
+  #outline a.st.ok .n::before { content: "\2713\00a0"; color: var(--accent); }
+  #outline a.st.cur { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); opacity: 1; }
+  #outline a:hover { color: var(--accent); }
+  @media (min-width: 1200px) {
+    body { display: grid; grid-template-columns: 240px minmax(0, 860px); justify-content: center; column-gap: 24px; }
+    main { margin: 0; }
+    #outline { display: block; position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto;
+               padding: 36px 0 24px; font-size: 0.85rem; }
+  }
+  @media print { #outline, .tabs { display: none; } section.tab[hidden] { display: block; } }
 </style>
 </head>
-<body data-data="tutorial">
+<body data-data="tutorial" data-tab="ccep">
+<aside id="outline" aria-label="Where you are"></aside>
 <main>
   <h1>iEEGLAB step by step</h1>
-  <p class="sub">CCEP analysis through the EEGLAB menus. Each step: what to do, what you should get, and the window or
-  figure that opens. Part A is stereo-EEG, Part B is ECoG.</p>
+  <p class="sub">Analyses through the EEGLAB menus. Each step: what to do, what you should get, and the window or
+  figure that opens.</p>
 
-  <div class="switch" role="group" aria-label="Data">
-    <button type="button" data-set="tutorial" aria-pressed="true">Tutorial extracts (shipped, a few minutes)</button>
-    <button type="button" data-set="full" aria-pressed="false">Full recordings from OpenNeuro (hours)</button>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="ccep" aria-selected="true">CCEP: sEEG and ECoG</button>
+    <button type="button" role="tab" data-tab="fieldtrip" aria-selected="false">FieldTrip tutorial data</button>
+    <button type="button" role="tab" data-tab="refs" aria-selected="false">Re-referencing compared</button>
   </div>
 
   <div class="progress" role="status" aria-live="polite">
-    <div class="label"><span id="progtext">0 of 0 steps done</span><button type="button" id="progreset">Reset</button></div>
+    <div class="label"><span><span id="progtext">0 of 0 steps done</span><span class="where" id="where"></span></span><button type="button" id="progreset">Reset</button></div>
     <div class="bar"><div class="fill" id="progfill"></div></div>
+  </div>
+
+  <section class="tab" data-tab="ccep" data-key="ieeglab-walkthrough3-">
+  <p class="intro">Cortico-cortical evoked potentials: Part A is stereo-EEG, Part B is ECoG.</p>
+  <div class="switch" role="group" aria-label="Data">
+    <button type="button" data-set="tutorial" aria-pressed="true">Tutorial extracts (shipped, a few minutes)</button>
+    <button type="button" data-set="full" aria-pressed="false">Full recordings from OpenNeuro (hours)</button>
   </div>
 
   <nav>
@@ -104,7 +140,7 @@
 
   <h2 id="install">1. Install</h2>
   <ol class="steps">
-    <li>Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Clone
+    <li data-o="Install">Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Clone
       <a href="https://github.com/sccn/iEEGLAB">iEEGLAB</a> into <code>eeglab/plugins/</code>, or
       <a href="https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip">download it</a> and unzip it there: release
       1.2.0 does not have all the steps below yet.<span class="f"> From
@@ -113,7 +149,7 @@
       <code>import mne; mne.datasets.fetch_fsaverage()</code>.
       <div class="note f">Mac with Apple Silicon: compile the MEF3 reader
       (<a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">instructions</a>).</div></li>
-    <li>Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
+    <li data-o="Check installation">Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
       <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.
       <span class="menu">Help &gt; iEEGLAB documentation</span> (also at the bottom of the iEEGLAB menu) opens this page,
       the README, the tutorial script, and the help of each menu.</div>
@@ -141,7 +177,7 @@ aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*"
 
   <h2 id="seeg">3. Part A: sEEG (ds004696, sub-02)</h2>
   <ol class="steps">
-    <li><span class="t"><span class="menu">File &gt; Load existing dataset</span>: in the iEEGLAB folder,
+    <li data-o="Load the data"><span class="t"><span class="menu">File &gt; Load existing dataset</span>: in the iEEGLAB folder,
       <code>tutorial/seeg/sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set</code>.</span>
       <span class="f"><span class="menu">iEEGLAB &gt; Import raw recording</span>: select the <code>ds004696</code> folder,
       then sub-02's recording. Keep the defaults.</span>
@@ -155,7 +191,7 @@ aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*"
 EEG = pop_loadset('filename', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set', 'filepath', tut);</code></pre><pre class="f"><code>rec = fullfile('ds004696', 'sub-02', 'ses-ieeg01', 'ieeg', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.mefd');
 EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-RA4'})</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok in both windows.
+    <li data-o="Coordinates and events"><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok in both windows.
       <div class="expect"><b>Expect</b><span class="t">14 of 17 contacts with coordinates, 3 bad (RA15, RB14, RB15, from
       <code>channels.tsv</code>), 34 stimulations at 3 sites.</span><span class="f">211 contacts with coordinates, 39 bad
       (from <code>channels.tsv</code>), 695 stimulations.</span></div>
@@ -165,7 +201,7 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       <figure class="shot f"><img src="tutorial/images/walkthrough/A2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i> (sub-02's pial surfaces), then
+    <li data-o="Brain surfaces"><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i> (sub-02's pial surfaces), then
       <span class="menu">iEEGLAB &gt; Visualize electrodes</span>. Chosen once, the surfaces are used by every brain figure.
       <div class="expect"><b>Expect</b>The contacts inside the brain, seen from the front and slightly above; drag to
       rotate.<span class="t"> One lead here (RA), in the right hemisphere.</span></div>
@@ -176,7 +212,7 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', ieeglab_brain_surfaces(EEG));
 EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest
+    <li data-o="Preprocess"><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest
       (artifact blanking, line noise at 60, 120 and 180 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
       than 5 pulses, bad contacts and contacts without coordinates removed).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 14 contacts, 32 epochs. The command window names RA14
@@ -192,14 +228,14 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
+    <li data-o="Average heatmap"><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
       <div class="expect"><b>Expect</b>One row per contact, the average of all epochs in colour: flat before 0 ms,
       responses after it.<span class="t"> RA14 is the row that is not flat before 0 ms.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_plot_heatmap(EEG);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults (sensitive cutoff; the stimulated pair and
+    <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults (sensitive cutoff; the stimulated pair and
       2 contacts on each side left out, as in Huang et al., 2024).
       <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">10 to 20 minutes for the
       57 sites.</span></div>
@@ -207,7 +243,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
+    <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
       sites are next to each other on one lead, so most contacts respond).</span><span class="f">A few minutes: 3937
       of 10780 site-contact pairs respond. A warning says that 392 more cannot reach significance, at sites with too
@@ -221,7 +257,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A7_summary_1.png" alt="CRP summary" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot CRP of one site and contact</span>: <span class="t">RA3-RA4, then RA10.</span><span class="f">RX4-RX5, then RF2.</span>
+    <li data-o="CRP plots"><span class="menu">iEEGLAB &gt; Plot CRP of one site and contact</span>: <span class="t">RA3-RA4, then RA10.</span><span class="f">RX4-RX5, then RF2.</span>
       <div class="expect"><b>Expect</b><span class="t">Response duration 203 ms; the shape explains on average 63% of each
       trial's variance.</span><span class="f">Response duration 232 ms (published: 234 ms); the shape explains on average
       98% of each trial's variance.</span></div>
@@ -231,7 +267,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A8_crp_pair.png" alt="CRP of one pair" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre class="t"><code>ieeglab_plot_crp(EEG, 'RA3-RA4', 'RA10');</code></pre><pre class="f"><code>ieeglab_plot_crp(EEG, 'RX4-RX5', 'RF2');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>: <i>Significant responses</i>, then <i>CRP explained variance</i>.
+    <li data-o="Connectivity matrix"><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>: <i>Significant responses</i>, then <i>CRP explained variance</i>.
       <div class="expect"><b>Expect</b>Each row is a stimulated pair, each column a recording contact; a cell shows whether
       stimulating that pair evoked a response at that contact. Teal: a significant response; white: tested, no response;
       grey: not tested (the stimulated contacts themselves, bad contacts, sites with too few trials). Read a row to see where a site's stimulation
@@ -247,7 +283,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>pop_ieeglab_ccep_matrix(EEG, 'response');
 pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot electrode values on brain</span>: <i>In-degree</i>.
+    <li data-o="In-degree on the brain"><span class="menu">iEEGLAB &gt; Plot electrode values on brain</span>: <i>In-degree</i>.
       <div class="expect"><b>Expect</b>Each contact coloured by the number of sites that evoke a response there.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA10_brain_dialog.png" alt="Values on brain window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA10_brain.png" alt="In-degree on the brain" onerror="this.closest('figure').style.display='none'"></figure>
@@ -255,11 +291,11 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A10_brain.png" alt="In-degree on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>pop_ieeglab_topoplot(EEG, 'in_degree');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Export results</span>: choose a folder.
+    <li data-o="Export"><span class="menu">iEEGLAB &gt; Export results</span>: choose a folder.
       <div class="expect"><b>Expect</b>TSV tables, a JSON record of the options, a MAT file.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_export(EEG, 'results_seeg');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
+    <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
       the defaults (5 to 200 Hz, Hann windows of 0.2 s, dB against the baseline, high-frequency activity 70-150 Hz). It only
       draws figures: the dataset is not changed.
       <div class="expect"><b>Expect</b>Two figures. The first shows the power of the average of the contacts over time and
@@ -278,10 +314,10 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       ticked (the box is not in the screenshot yet).</p>
       <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
       the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
-      second panel stars the contacts that differ, and the brain shows only them, or every contact's tested change when
-      none differs. <span class="t">No contact differs (smallest corrected p 0.20). The test averages each epoch's change in dB: for RA14 it is -0.2 dB, where the average power, which the burst in its baseline dominates, gives -3.8 dB. RA3, with 9 epochs, cannot reach significance after the correction and is marked not testable.</span><span class="f">No contact differs (smallest corrected p 0.06).</span></div>
+      second panel stars the contacts that differ<span class="f"> (when it names each contact: 60 or fewer)</span>, and the
+      brain shows only them, or every contact's tested change when none differs. <span class="f">About 3.5 minutes; the single-epoch band power takes about 1.7 GB of memory.</span><span class="t">No contact differs (smallest corrected p 0.20). The test averages each epoch's change in dB: for RA14 it is -0.2 dB, where the average power, which the burst in its baseline dominates, gives -3.8 dB. RA3, with 9 epochs, cannot reach significance after the correction and is marked not testable.</span><span class="f">No contact differs (smallest corrected p 0.06).</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
+    <li data-o="Power spectrum"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
       pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
@@ -289,14 +325,14 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
+    <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
       (pairs farther apart than twice their lead's spacing are not formed).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
       <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">196 contacts become 157 channels. 21 pairs are not formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have no neighbour.</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the CARLA data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
+    <li data-o="Time-frequency, bipolar"><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As in the first time-frequency step, one row per bipolar channel.
       <span class="t">RA3-RA4 has no value: RA3 or RA4 is stimulated in every epoch (sites RA2-RA3, RA3-RA4 and RA4-RA5). RA13-RA14 is 4.3 dB below its baseline (RA14's burst again), RA1-RA2 1.0 dB and RA2-RA3 0.8 dB below; the others are between -0.5 and +0.1 dB.</span><span class="f">Every channel stays within 0.3 dB of its baseline (highest: RZ1-RZ2), except RA13-RA14 (2.2 dB below) and LX11-LX12 (0.7 dB below).</span></div>
@@ -307,7 +343,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
 
   <h2 id="ecog">4. Part B: ECoG (ds004080, sub-ccepAgeUMCU02)</h2>
   <ol class="steps">
-    <li><span class="t"><span class="menu">File &gt; Load existing dataset</span>: in the iEEGLAB folder,
+    <li data-o="Load the data"><span class="t"><span class="menu">File &gt; Load existing dataset</span>: in the iEEGLAB folder,
       <code>tutorial/ecog/sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set</code>.</span>
       <span class="f"><span class="menu">iEEGLAB &gt; Import raw recording</span>: select the <code>ds004080</code> folder (with
       several runs downloaded, choose run-041456). Keep the defaults.</span>
@@ -319,14 +355,14 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
 EEG = pop_loadset('filename', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set', 'filepath', tut);</code></pre><pre class="f"><code>rec = fullfile('ds004080', 'sub-ccepAgeUMCU02', 'ses-1', 'ieeg', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.vhdr');
 EEG = ieeglab_import(rec);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok in both windows.
+    <li data-o="Coordinates and events"><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok in both windows.
       <div class="expect"><b>Expect</b><span class="t">20 contacts with coordinates, 2 bad (F07, F08); 30 stimulations at 3
       sites.</span><span class="f">88 contacts with coordinates, 2 bad; 160 stimulations at 8 sites.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i>, then
+    <li data-o="Brain surfaces"><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i>, then
       <span class="menu">iEEGLAB &gt; Visualize electrodes</span>. This dataset shares no MRI; its
       coordinates are on fsaverage, so fsaverage's pial surfaces are offered.
       <div class="expect"><b>Expect</b>The grid and strip contacts on the left frontal cortex of fsaverage, seen face-on.
@@ -339,7 +375,7 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', ieeglab_brain_surfaces(EEG));
 EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50, 100 and 150 Hz here).
+    <li data-o="Preprocess"><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50, 100 and 150 Hz here).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 15 s:
       86 contacts, 160 epochs.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -349,24 +385,24 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
     'remove_rare_cond', true, 'min_trials', 5, 'remove_no_coords', true, ...
     'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50]));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
+    <li data-o="Average heatmap"><span class="menu">iEEGLAB &gt; Plot average of epochs, every channel (heatmap)</span>.
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B5_heatmap.png" alt="Average heatmap" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>ieeglab_plot_heatmap(EEG);</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Common average</i> in <i>Method</i> (the window opens on CARLA).
+    <li data-o="Common average"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Common average</i> in <i>Method</i> (the window opens on CARLA).
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
+    <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 10 of 48 pairs respond, N1 latency median 21 ms (14 to
       99 ms).</span><span class="f">About a minute: 299 of 672 pairs respond, N1 latency median 47 ms (11 to 99 ms).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, 'run_matrix', true, 'matrix_source', 'n1'));</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>: <i>Significant responses</i>, then <i>N1 latency</i>.
+    <li data-o="Connectivity matrix"><span class="menu">iEEGLAB &gt; Plot connectivity matrix</span>: <i>Significant responses</i>, then <i>N1 latency</i>.
       <div class="expect"><b>Expect</b>As in Part A: rows are stimulated pairs, columns recording contacts, teal for a
       significant N1, white for none, grey for not tested. The second view colours the responding pairs by N1 latency, in ms
       after the pulse.</div>
@@ -377,13 +413,13 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>pop_ieeglab_ccep_matrix(EEG, 'response');
 pop_ieeglab_ccep_matrix(EEG, 'latency_ms');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Plot electrode values on brain</span>: <i>N1 amplitude</i>, site FB54-FB62.
+    <li data-o="N1 on the brain"><span class="menu">iEEGLAB &gt; Plot electrode values on brain</span>: <i>N1 amplitude</i>, site FB54-FB62.
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB9_brain.png" alt="N1 amplitude on the grid" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B9_brain.png" alt="N1 amplitude on the grid" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>pop_ieeglab_topoplot(EEG, 'n1_amplitude', 'site', 'FB54-FB62');
 ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
 
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
+    <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and band power</i>, keep
       the defaults (5 to 200 Hz, Hann windows of 0.2 s, dB against the baseline, high-frequency activity 70-150 Hz). It only
       draws figures: the dataset is not changed.
       <div class="expect"><b>Expect</b>Two figures. The first shows the power of the average of the contacts over time and
@@ -402,10 +438,10 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       ticked (the box is not in the screenshot yet).</p>
       <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
       the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
-      second panel stars the contacts that differ, and the brain shows only them, or every contact's tested change when
-      none differs. <span class="t">No contact differs (smallest corrected p 0.34). FB54, stimulated in every epoch, is not tested.</span><span class="f">No contact differs (smallest corrected p 0.11).</span></div>
+      second panel stars the contacts that differ<span class="f"> (when it names each contact: 60 or fewer)</span>, and the
+      brain shows only them, or every contact's tested change when none differs. <span class="t">No contact differs (smallest corrected p 0.34). FB54, stimulated in every epoch, is not tested.</span><span class="f">No contact differs (smallest corrected p 0.11).</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
+    <li data-o="Power spectrum"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
       pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
@@ -413,14 +449,14 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
+    <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
       (pairs farther apart than twice their lead's spacing are not formed).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
       <span class="t">17 contacts become 14 channels. FB56-FB57 (79 mm apart) and FB63-FB64 (29 mm) are not formed, as the lead's contacts are 13.4 mm apart: the grid's numbering runs on from one row to the next.</span><span class="f">85 contacts become 71 channels. Ten pairs are not formed, their contacts being more than twice their lead's spacing apart: the ends of grid rows (FC08-FC09, FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41, FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64, vT3-vT4, vT6-vT7).</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the common average data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
-    <li><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
+    <li data-o="Time-frequency, bipolar"><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As in the first time-frequency step, one row per bipolar channel.
       <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others are between -0.6 dB (FB50-FB51) and +0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
@@ -436,11 +472,201 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
     <li>Anything unclear in a window.</li>
     <li>MATLAB and EEGLAB versions, and operating system.</li>
   </ul>
+  </section>
 
-  <footer>iEEGLAB, Cedric Cannard. Tick each step as you go (saved in this browser only).</footer>
+  <section class="tab" data-tab="fieldtrip" data-key="ieeglab-ft1-" hidden>
+  <p class="intro">FieldTrip's intracranial tutorial data (SubjectUCI29; Stolk et al., 2018): 26 epochs with two ECoG
+  grids and seven depth leads. The same analysis as the
+  <a href="https://www.fieldtriptoolbox.org/tutorial/intracranial/human_ecog/">FieldTrip tutorial</a>, through the
+  iEEGLAB menus: common average of the grids, bipolar depth leads, time-frequency power and high-frequency activity,
+  plus a test of each contact against its baseline. Screenshots to come.</p>
+
+  <h2 id="ft-data">1. Data</h2>
+  <p>Four files from FieldTrip's download server, about 205 MB, kept in this folder structure:</p>
+  <ul class="tight">
+    <li><a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/SubjectUCI29_data.mat">SubjectUCI29_data.mat</a> (the epochs, 197 MB)</li>
+    <li><a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/SubjectUCI29_elec_acpc_f.mat">SubjectUCI29_elec_acpc_f.mat</a> (contact positions)</li>
+    <li><code>freesurfer/surf/</code>: <a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/freesurfer/surf/lh.pial">lh.pial</a>
+      and <a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/freesurfer/surf/rh.pial">rh.pial</a> (the participant's brain)</li>
+  </ul>
+
+  <h2 id="ft-import">2. Import</h2>
+  <ol class="steps">
+    <li data-o="Import"><span class="menu">iEEGLAB &gt; Import FieldTrip epochs (.mat)</span>: select
+      <code>SubjectUCI29_data.mat</code>. In the next window, <i>Electrode positions</i>:
+      <code>SubjectUCI29_elec_acpc_f.mat</code>; <i>Channel types</i>: <code>LPG* ECOG; LTG* ECOG; * SEEG</code>; keep
+      the event type.
+      <div class="expect"><b>Expect</b>A few seconds: 152 channels at 5000 Hz, 96 ECoG (grids LPG and LTG) and 56 sEEG,
+      26 epochs from -400 to 900 ms, every contact with a position (ACPC space). A warning: the positions file gives the
+      unit as volts, but the values are microvolts; they are kept as they are.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_import_fieldtrip('SubjectUCI29_data.mat', 'elec', 'SubjectUCI29_elec_acpc_f.mat', ...
+    'types', {'LPG*', 'ECOG'; 'LTG*', 'ECOG'; '*', 'SEEG'});</code></pre></details></li>
+
+    <li data-o="Brain surfaces"><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Select pial files</i>,
+      then <code>lh.pial</code> and <code>rh.pial</code> together, in <code>freesurfer/surf</code>. Then
+      <span class="menu">iEEGLAB &gt; Visualize electrodes</span>.
+      <div class="expect"><b>Expect</b>The command window: every brain figure of this dataset is drawn on lh.pial and
+      rh.pial. The two grids over the left hemisphere, and depth leads in both: LAM, LHH and LTH on the left, RAM, RHH,
+      ROC and RTH on the right. A template brain would not line up: the positions are in this participant's space.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', {fullfile('freesurfer', 'surf', 'lh.pial'), ...
+    fullfile('freesurfer', 'surf', 'rh.pial')});
+EEG = ieeglab_vis_elec(EEG);
+EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></li>
+  </ol>
+
+  <h2 id="ft-grids">3. Grids: common average</h2>
+  <ol class="steps">
+    <li data-o="Select the grids"><span class="menu">Edit &gt; Select data</span>: <i>Channel type(s)</i>
+      <code>ECOG</code>, Ok, and keep the result as a new dataset.
+      <div class="expect"><b>Expect</b>96 channels, 26 epochs.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_select(EEGall, 'chantype', {'ECOG'});</code></pre></details></li>
+
+    <li data-o="Common average"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Common average</i>
+      in <i>Method</i>.
+      <div class="expect"><b>Expect</b>As in the FieldTrip tutorial: the average of the 96 grid contacts is taken out of
+      each of them.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
+
+    <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and
+      band power</i>. <i>Baseline</i> <code>-400 -10</code> and <i>Window for the brain map</i> <code>0 800</code>, as
+      in the FieldTrip tutorial; tick <i>Test each contact's band power in this window against its baseline</i>; keep the
+      rest (5 to 200 Hz, Hann windows of 0.2 s, dB, 70-150 Hz).
+      <div class="expect"><b>Expect</b>Two figures, as in the CCEP tab. The times from -400 to -310 ms and from 810 to
+      900 ms are grey: a 0.2 s window centred there would run past the epoch. 11 of 96 contacts increase their 70-150 Hz
+      power from baseline, all on LPG: most LPG31 (+3.3 dB), LPG47 (+2.4 dB) and LPG32 (+1.8 dB), then LPG39, LPG23,
+      LPG40, LPG24, LPG30, LPG12, LPG48 and LPG22 (+0.9 to +1.3 dB). None decreases; the smallest corrected p among the
+      others is 0.065. The average of the contacts rises most at 145 Hz, 390 ms (+2.3 dB).</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);</code></pre></details></li>
+  </ol>
+
+  <h2 id="ft-depth">4. Depth leads: bipolar</h2>
+  <ol class="steps">
+    <li data-o="Select the depth leads">In the <span class="menu">Datasets</span> menu, go back to the dataset with all
+      152 channels, the one made by <i>Choose brain surfaces</i>. Then <span class="menu">Edit &gt; Select data</span>:
+      <i>Channel type(s)</i> <code>SEEG</code>, Ok, and keep the result as a new dataset.
+      <div class="expect"><b>Expect</b>56 channels, 26 epochs.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_select(EEGall, 'chantype', {'SEEG'});</code></pre></details></li>
+
+    <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in
+      <i>Method</i>, keep the default.
+      <div class="expect"><b>Expect</b>Each contact minus the next one on its lead: 56 contacts become 49 channels
+      (seven leads of eight contacts), none left out.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
+
+    <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: the same as for the grids
+      (baseline <code>-400 -10</code>, brain map <code>0 800</code>, test ticked).
+      <div class="expect"><b>Expect</b>No channel differs from its baseline (smallest corrected p 0.86). The 70-150 Hz
+      power over 0 to 800 ms goes from -4.7 dB (RTH4-RTH5) to +0.8 dB (ROC7-ROC8): a large value with no difference
+      comes from a few epochs, as the map shows the change of the mean power and the test each epoch's change. The
+      average of the channels rises most at 60 Hz, 300 ms (+1.6 dB).</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);</code></pre></details></li>
+  </ol>
+
+  <h2 id="ft-check">5. Against FieldTrip</h2>
+  <p>The same steps in FieldTrip (common average of the grids and bipolar depth leads with
+  <code>ft_preprocessing</code>, then <code>ft_freqanalysis</code> with Hann windows of 0.2 s at 5 to 200 Hz every
+  10 ms, as the tutorial) give the same 145 channels and the same power: time-frequency r = 0.99999 (largest
+  difference 0.03 in relative change), 70-150 Hz activity r = 1.0000, and the same ten strongest channels. The
+  tutorial has no statistics; the test above is iEEGLAB's. Script: <code>validation/validate_fieldtrip_uci29.m</code>.</p>
+  <p class="ref">Stolk, A., Griffin, S., van der Meij, R., Dewar, C., Saez, I., Lin, J. J., Piantoni, G., Schoffelen,
+  J.-M., Knight, R. T., &amp; Oostenveld, R. (2018). Integrated analysis of anatomical and electrophysiological human
+  intracranial data. <i>Nature Protocols, 13</i>(7), 1699-1723.</p>
+  <p>Report anything that differs as in the CCEP tab (<a href="#report">What to report</a>).</p>
+  </section>
+
+
+
+
+
+
+  <section class="tab" data-tab="refs" data-key="ieeglab-refs1-" hidden>
+  <p class="intro">The analysis of Ojeda Valencia et al. (2023) on ds004696 sub-02, CRP of every stimulation site and
+  recording contact and the connectivity matrix, run once with each re-referencing scheme of iEEGLAB and compared with
+  the published result. The paper's own reference is a common average of the 20% of contacts with the lowest variance
+  from 15 to 500 ms in each block of 64 recording channels (the <i>published reference</i> below). Full recording only. About 4.0 hours of computing in all, most of it ICA.</p>
+
+  <h2 id="refs-data">1. Data</h2>
+  <p>sub-02 of <a href="https://openneuro.org/datasets/ds004696">ds004696</a>, as in the CCEP tab, and the published CRP
+  of this participant (<code>derivatives/stats/sub-02</code>):</p>
+  <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "derivatives/stats/sub-02/*" --include "dataset_description.json" --include "participants.tsv"</code></pre>
+
+  <h2 id="refs-prep">2. Preprocess once</h2>
+  <ol class="steps">
+    <li data-o="Import and preprocess">Steps 1, 2 and 4 of Part A in the CCEP tab, with the full recording:
+      <span class="menu">iEEGLAB &gt; Import raw recording</span>, <span class="menu">Load electrode coordinates and
+      events</span>, <span class="menu">Preprocess iEEG data</span>. Every scheme below starts from this dataset: go
+      back to it in the <span class="menu">Datasets</span> menu before each one.
+      <div class="expect"><b>Expect</b>198 contacts, 627 epochs, 57 stimulation sites.</div></li>
+  </ol>
+
+  <h2 id="refs-schemes">3. Each scheme, then the CCEP analysis</h2>
+  <p>For each: back to the preprocessed dataset, <span class="menu">iEEGLAB &gt; iEEG re-referencing</span> with the
+  method below, then <span class="menu">iEEGLAB &gt; CCEP analysis</span> with its defaults (CRP from 15 ms to 1 s,
+  permutation test, false discovery rate over all 11172 pairs; Part A of the CCEP tab counts 392 of them, at two
+  sites with 5 and 6 trials, as not tested, as they cannot reach significance there). <i>Expect</i> gives the pairs that respond and how
+  many of the 484 pairs of the published CRP get the same decision (315 respond there with the paper's test:
+  the t-test at the response duration, Benjamini-Yekutieli correction over its pairs). The effect size <i>d</i> says
+  how strong a response is: each trial projected onto the average of the other trials from 15 ms to 1 s, mean over
+  standard deviation, so it rises when the response grows or its trial-to-trial variability falls. Its mean over the
+  paper's responding pairs is given with a 95% confidence interval over the 20 stimulation sites.</p>
+  <ol class="steps">
+    <li data-o="Recording reference">No re-referencing: <span class="menu">iEEGLAB &gt; CCEP analysis</span> on the preprocessed dataset itself.
+      <div class="expect"><b>Expect</b>About 1 minute. 3495 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 79%: 218 respond in both, 5 in iEEGLAB only, 97 in the paper only. Effect size on the pairs that respond in the paper: d = 2.37 [1.82, 2.91].</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li data-o="Common average"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>Common average (all good channels)</i>.
+      <div class="expect"><b>Expect</b>Re-referencing 24 s. 5913 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 86%: 265 respond in both, 20 in iEEGLAB only, 50 in the paper only. Effect size on the pairs that respond in the paper: d = 3.15 [2.47, 3.83]. What it removes: a median of 27 µV RMS over 10 to 300 ms.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li data-o="Published reference"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>Lowest-variance subset (Ojeda Valencia et al., 2023)</i>, keep the share at 0.2: the paper's own reference, the average of the 20% of contacts with the lowest variance from 15 to 500 ms in each block of 64 channels of the recording.
+      <div class="expect"><b>Expect</b>Re-referencing 33 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.2);
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>CARLA, per stimulation site (Huang et al., 2024)</i>, the window's default.
+      <div class="expect"><b>Expect</b>Re-referencing about 12 minutes. The same responses as Part A of the CCEP tab. 3937 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 242 respond in both, 7 in iEEGLAB only, 73 in the paper only. Effect size on the pairs that respond in the paper: d = 3.08 [2.41, 3.74]. What it removes: a median of 14 µV RMS over 10 to 300 ms.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li data-o="ICA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>ICA, local components only (Michelmann et al., 2018)</i>, keep the defaults.
+      <div class="expect"><b>Expect</b>Re-referencing took about 3.5 hours here (one ICA of 198 contacts on a shared machine; plan for a long run); 70 components spread evenly over the contacts are removed. 7165 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 70%: 278 respond in both, 110 in iEEGLAB only, 37 in the paper only. Effect size on the pairs that respond in the paper: d = 2.82 [2.18, 3.45]. What it removes: a median of 28 µV RMS over 10 to 300 ms.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>[EEG, info] = ieeglab_icaref(EEG);   % keep info to try the other scaling without refitting
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+    <li data-o="ICA, FieldTrip scaling">Command line only: the same decomposition, with the weights scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here). Start from the preprocessed dataset again and pass the <code>info</code> of the previous step, so ICA is not fitted a second time.
+      <div class="expect"><b>Expect</b>Re-referencing 9 s with the earlier decomposition; 6 components removed. 4813 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 85%: 260 respond in both, 20 in iEEGLAB only, 55 in the paper only. Effect size on the pairs that respond in the paper: d = 2.68 [2.13, 3.22]. What it removes: a median of 13 µV RMS over 10 to 300 ms.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_icaref(EEG, struct('weights', 'fieldtrip', 'decomposition', info));
+EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
+  </ol>
+
+  <h2 id="refs-compare">4. Compared</h2>
+  <p>At each main step: what re-referencing changes in the signal, which pairs respond, and the connectivity matrix,
+  against the published result.</p>
+  <figure class="shot"><img src="tutorial/images/refcompare/ref1_example.png" alt="One pair with each scheme" onerror="this.closest('figure').style.display='none'">
+    <figcaption>The signal. One pair (RB2-RB3 to RZ1), trial average with each scheme (blue) against the
+    recording's own reference (grey), with the pair's decision and effect size; the pulse artifact is clipped. Last panel: what
+    each scheme removes, median over all pairs.</figcaption></figure>
+  <figure class="shot"><img src="tutorial/images/refcompare/ref2_pairs.png" alt="Responding pairs and agreement" onerror="this.closest('figure').style.display='none'">
+    <figcaption>The CCEP analysis. (a) Pairs that respond. (b) The 484 published pairs: response in both, in iEEGLAB
+    only, in the paper only, or in neither. (c) Median difference in response duration from the paper, where both find
+    a response.</figcaption></figure>
+  <figure class="shot"><img src="tutorial/images/refcompare/ref3_matrices.png" alt="Connectivity matrices" onerror="this.closest('figure').style.display='none'">
+    <figcaption>The connectivity matrix of the published pairs, in the paper and with each scheme. White: stimulated
+    contact, not tested.</figcaption></figure>
+  <p>The scheme changes how many pairs respond, from 3495 with the recording's reference to 7165 with ICA with iEEGLAB's scaling. Against the paper, the decisions agree on 70% (ICA with iEEGLAB's scaling) to 86% (the common average) of its pairs; 83% with the paper's own reference. iEEGLAB finds 2 to 110 responses the paper does not, and misses 37 to 97 of its 315: the preprocessing and the test differ (permutation and false discovery rate over all 11172 pairs, against the paper's t-test corrected over its own pairs). Where both find a response, the response duration is closest with the published reference (median difference 2 ms).</p>
+  <figure class="shot"><img src="tutorial/images/refcompare/ref4_effects.png" alt="Effect sizes per scheme" onerror="this.closest('figure').style.display='none'">
+    <figcaption>The strength of the responses. Mean effect size <i>d</i> with its 95% confidence interval over the
+    stimulation sites, (a) on the
+    pairs that respond in the paper, (b) on those that do not, (c) the difference from the published reference
+    (orange) on the pairs of a.</figcaption></figure>
+  <p>Effect sizes say how strong the responses are, not only whether they pass the test. On the 315 pairs that respond in the paper, the mean d is 2.95 with the published reference and largest with the common average (3.15). On the 169 that do not, it is highest with ICA with iEEGLAB's scaling (1.13, against -0.05). Against the published reference, with 95% confidence intervals: the recording's reference -0.59 [-0.93, -0.24] on the responding pairs and +0.04 [-0.10, +0.18] on the others; the common average +0.20 [+0.08, +0.32] on the responding pairs and +0.16 [+0.07, +0.25] on the others; CARLA +0.12 [+0.01, +0.23] on the responding pairs and +0.04 [-0.04, +0.12] on the others; ICA with iEEGLAB's scaling -0.14 [-0.42, +0.14] on the responding pairs and +1.17 [+0.86, +1.49] on the others; ICA with FieldTrip's scaling -0.28 [-0.52, -0.04] on the responding pairs and +0.29 [+0.20, +0.39] on the others. A scheme that raises <i>d</i> where the paper finds no response either spreads a signal across contacts or reveals responses the paper's reference hides; one that raises it only where the paper finds a response makes the responses stand out (with CARLA and the common average, mostly by lowering the trial-to-trial variability). The pairs without a response were chosen with the paper's reference, which favours it there.</p>
+  <details class="cmd"><summary>Command line</summary><pre><code>S = compare_references_ds004696('ds004696', 'ref_compare');   % all six, with the tables per pair</code></pre></details>
+  <p class="ref">Ojeda Valencia, G., Gregg, N. M., Huang, H., Lundstrom, B. N., Brinkmann, B. H., Pal Attia, T., Van Gompel,
+  J. J., Bernstein, M. A., In, M.-H., Huston, J., III, Worrell, G. A., Miller, K. J., &amp; Hermes, D. (2023). Signatures
+  of electrical stimulation driven network interactions in the human limbic system. <i>Journal of Neuroscience,
+  43</i>(39), 6697-6711.</p>
+  </section>
+
+  <footer>iEEGLAB, Cedric Cannard. Tick each step as you go (saved in this browser only, per tab).</footer>
 </main>
 <script>
-  // Which data the page describes: the shipped tutorial extracts or the full recordings.
+  // Which data the CCEP tab describes: the shipped tutorial extracts or the full recordings.
   (function () {
     var btns = document.querySelectorAll('.switch button');
     function set(v) {
@@ -455,30 +681,138 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
     if (location.hash === '#tutorial') v = 'tutorial';
     set(v);
   })();
-  // Per-step "done" boxes, remembered in this browser only, with a progress bar.
-  var steps = document.querySelectorAll('ol.steps > li'), boxes = [];
-  function progress() {
-    var n = boxes.filter(function (b) { return b.checked; }).length;
-    document.getElementById('progtext').textContent = n + ' of ' + boxes.length + ' steps done' + (n === boxes.length ? ': all done' : '');
-    document.getElementById('progfill').style.width = (100 * n / boxes.length) + '%';
-  }
-  steps.forEach(function (li, i) {
-    var key = 'ieeglab-walkthrough3-' + i, box = document.createElement('input'), lab = document.createElement('label');
-    box.type = 'checkbox'; lab.className = 'done'; lab.append(box, ' done');
-    try { box.checked = localStorage.getItem(key) === '1'; } catch (e) {}
-    li.classList.toggle('checked', box.checked);
-    box.addEventListener('change', function () {
-      li.classList.toggle('checked', box.checked);
-      try { localStorage.setItem(key, box.checked ? '1' : '0'); } catch (e) {}
-      progress();
+
+  // Tabs, per-step "done" boxes (remembered in this browser only, per tab), progress, and the outline.
+  (function () {
+    var sections = [].slice.call(document.querySelectorAll('section.tab'));
+    var tabBtns = [].slice.call(document.querySelectorAll('.tabs button'));
+    var outline = document.getElementById('outline');
+    var tabs = {}, current = null;
+
+    function clean(t) { return t.replace(/^\s*\d+\.\s*/, '').replace(/\s*\(.*\)\s*$/, '').trim(); }
+
+    sections.forEach(function (sec) {
+      var name = sec.getAttribute('data-tab'), prefix = sec.getAttribute('data-key'), T = { sec: sec, boxes: [], steps: [], groups: [] };
+      // groups: each h2 of the tab, with the steps that follow it
+      sec.querySelectorAll('h2').forEach(function (h) {
+        var g = { h: h, label: clean(h.textContent), steps: [] }, el = h.nextElementSibling;
+        while (el && el.tagName !== 'H2') {
+          if (el.matches('ol.steps')) [].forEach.call(el.children, function (li, k) { g.steps.push({ li: li, n: k + 1 }); });
+          el = el.nextElementSibling;
+        }
+        T.groups.push(g);
+      });
+      sec.querySelectorAll('ol.steps > li').forEach(function (li, i) {
+        var key = prefix + i, box = document.createElement('input'), lab = document.createElement('label');
+        if (!li.id) li.id = name + '-step' + (i + 1);
+        box.type = 'checkbox'; lab.className = 'done'; lab.append(box, ' done');
+        try { box.checked = localStorage.getItem(key) === '1'; } catch (e) {}
+        li.classList.toggle('checked', box.checked);
+        box.addEventListener('change', function () {
+          li.classList.toggle('checked', box.checked);
+          try { localStorage.setItem(key, box.checked ? '1' : '0'); } catch (e) {}
+          progress(); ticks();
+        });
+        li.prepend(lab);
+        T.boxes.push(box); T.steps.push(li);
+      });
+      tabs[name] = T;
     });
-    li.prepend(lab);
-    boxes.push(box);
-  });
-  document.getElementById('progreset').addEventListener('click', function () {
-    boxes.forEach(function (b) { if (b.checked) { b.checked = false; b.dispatchEvent(new Event('change')); } });
-  });
-  progress();
+
+    function progress() {
+      var b = tabs[current].boxes, n = b.filter(function (x) { return x.checked; }).length;
+      document.getElementById('progtext').textContent = n + ' of ' + b.length + ' steps done' + (n === b.length && n ? ': all done' : '');
+      document.getElementById('progfill').style.width = (b.length ? 100 * n / b.length : 0) + '%';
+    }
+
+    function link(cls, href, html) {
+      var a = document.createElement('a'); a.className = cls; a.href = href; a.innerHTML = html; return a;
+    }
+    function build() {
+      outline.innerHTML = '';
+      var head = document.createElement('p'); head.className = 'head'; head.textContent = 'On this page'; outline.append(head);
+      tabBtns.forEach(function (b) {
+        var name = b.getAttribute('data-tab'), T = tabs[name];
+        var top = link('grp tabname' + (name === current ? ' cur' : ''), '#' + name, b.textContent);
+        top.addEventListener('click', function (e) { e.preventDefault(); show(name); window.scrollTo(0, 0); history.replaceState(null, '', '#' + name); });
+        outline.append(top);
+        if (name !== current) return;
+        T.groups.forEach(function (g) {
+          var a = link('sec', '#' + g.h.id, g.label); g.a = a; outline.append(a);
+          g.steps.forEach(function (s) {
+            var lab = s.li.getAttribute('data-o') || '';
+            s.a = link('st', '#' + s.li.id, '<span class="n">' + s.n + '</span><span>' + lab + '</span>'); outline.append(s.a);
+          });
+        });
+      });
+      outline.querySelectorAll('a.sec, a.st').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var el = document.getElementById(a.getAttribute('href').slice(1)); if (!el) return;
+          e.preventDefault(); el.scrollIntoView(); history.replaceState(null, '', a.getAttribute('href'));
+        });
+      });
+      ticks();
+    }
+    function ticks() {
+      tabs[current].groups.forEach(function (g) {
+        g.steps.forEach(function (s) { if (s.a) s.a.classList.toggle('ok', s.li.classList.contains('checked')); });
+      });
+    }
+
+    // where the reader is: the last step (or heading) whose top has passed under the progress bar
+    var queued = false;
+    function spy() {
+      queued = false;
+      var T = tabs[current], line = 110, here = null, grp = null;
+      T.groups.forEach(function (g) {
+        if (g.h.getBoundingClientRect().top <= line) { grp = g; here = null; }
+        g.steps.forEach(function (s) { if (s.li.getBoundingClientRect().top <= line) { grp = g; here = s; } });
+      });
+      outline.querySelectorAll('a.cur').forEach(function (a) { if (!a.classList.contains('tabname')) a.classList.remove('cur'); });
+      var a = here ? here.a : grp ? grp.a : null, where = '';
+      if (grp && grp.a) grp.a.classList.add('cur');
+      if (a) {
+        a.classList.add('cur');
+        if (outline.offsetParent !== null) {
+          var t = a.offsetTop, h = outline.clientHeight;
+          if (t < outline.scrollTop + 40 || t > outline.scrollTop + h - 60) outline.scrollTop = t - h / 2;
+        }
+      }
+      if (grp) where = '· ' + grp.label + (here ? ', step ' + here.n + (here.li.getAttribute('data-o') ? ': ' + here.li.getAttribute('data-o') : '') : '');
+      document.getElementById('where').textContent = where;
+    }
+    window.addEventListener('scroll', function () { if (!queued) { queued = true; requestAnimationFrame(spy); } }, { passive: true });
+    window.addEventListener('resize', function () { if (!queued) { queued = true; requestAnimationFrame(spy); } });
+
+    function show(name) {
+      if (!tabs[name]) name = 'ccep';
+      current = name;
+      sections.forEach(function (sec) { sec.hidden = sec.getAttribute('data-tab') !== name; });
+      tabBtns.forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === name ? 'true' : 'false'); });
+      document.body.setAttribute('data-tab', name);
+      try { localStorage.setItem('ieeglab-walkthrough-tab', name); } catch (e) {}
+      build(); progress(); spy();
+    }
+    tabBtns.forEach(function (b) {
+      b.addEventListener('click', function () { show(b.getAttribute('data-tab')); history.replaceState(null, '', '#' + b.getAttribute('data-tab')); });
+    });
+    document.getElementById('progreset').addEventListener('click', function () {
+      tabs[current].boxes.forEach(function (b) { if (b.checked) { b.checked = false; b.dispatchEvent(new Event('change')); } });
+    });
+
+    // the hash picks the tab: a tab's name, or anything inside a tab (#seeg, #ft-depth, #full)
+    function fromHash(scroll) {
+      var h = location.hash.slice(1), name = null, el = null;
+      if (tabs[h]) name = h;
+      else if (h === 'full' || h === 'tutorial') name = 'ccep';
+      else if (h && (el = document.getElementById(h))) { var sec = el.closest('section.tab'); if (sec) name = sec.getAttribute('data-tab'); }
+      if (!name) { try { name = localStorage.getItem('ieeglab-walkthrough-tab'); } catch (e) {} }
+      show(name || 'ccep');
+      if (el && scroll) el.scrollIntoView();
+    }
+    window.addEventListener('hashchange', function () { fromHash(true); });
+    fromHash(true);
+  })();
 </script>
 </body>
 </html>

@@ -107,6 +107,12 @@ fprintf(['2. Simulation, %d contacts, one source on all of them: broad iEEGLAB %
     'simulated reference: component %d), same components %d; re-referenced data %.1e.\n'], nC, ...
     mat2str(out.sim_broad_ieeglab), mat2str(out.sim_broad_authors), kBroad, out.sim_same_components, ...
     out.sim_data_max_rel_diff);
+for w = {'normalized', 'raw'}                               % the other scalings of the same decomposition
+    [~, iw] = ieeglab_icaref(Sim, struct('weights', w{1}, 'decomposition', i3, 'verbose', false));
+    out.(['sim_broad_' w{1}]) = find(iw.broad);
+end
+fprintf('   Same decomposition, other scalings: broad with normalized %s, raw %s.\n', ...
+    mat2str(out.sim_broad_normalized), mat2str(out.sim_broad_raw));
 out.seconds = toc(t0);
 fprintf('Done in %.0f s.\n', out.seconds);
 end

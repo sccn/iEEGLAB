@@ -89,6 +89,10 @@ out.hfa_max_abs_diff = max(abs(hA - hB));
 out.hfa_top10_iEEGLAB = labels(find(inFt)) ; out.hfa_top10_iEEGLAB = out.hfa_top10_iEEGLAB(ia(1:10));
 fl = ft.label(loc(inFt)); out.hfa_top10_FieldTrip = fl(ib(1:10))';
 out.hfa_same_top10 = isequal(out.hfa_top10_iEEGLAB, out.hfa_top10_FieldTrip);
+out.hfa_labels = labels(inFt);                               % per channel, for figures
+out.hfa_ieeglab = hA(:)'; out.hfa_fieldtrip = hB(:)';
+out.tf_freqs = ft.freq(:)'; out.tf_times_ms = tFt(:)' * 1000; % average over channels (freq x time)
+out.tf_mean_ieeglab = squeeze(mean(A, 1, 'omitnan')); out.tf_mean_fieldtrip = squeeze(mean(B, 1, 'omitnan'));
 fprintf('HFA %.2f-%.2f Hz per channel: r = %.6f, max |diff| %.3g (relative change); same 10 strongest in the same order %d. Top 5 iEEGLAB: %s; FieldTrip: %s\n', ...
     band, out.hfa_r, out.hfa_max_abs_diff, out.hfa_same_top10, strjoin(out.hfa_top10_iEEGLAB(1:5), ' '), ...
     strjoin(out.hfa_top10_FieldTrip(1:5), ' '));

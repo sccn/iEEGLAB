@@ -232,7 +232,7 @@ ieeglab_export(EEG, 'results_seeg');
 Both work on any iEEG dataset, with or without stimulation. *iEEG
 re-referencing* offers what the data allow: on continuous data the common
 average, ICA, bipolar and custom montages; after segmentation also CARLA and
-the lowest-covariance subset. On stimulation data the common average and ICA
+the lowest-variance subset. On stimulation data the common average and ICA
 wait for the epochs, where each pulse's stimulated pair is known and left out.
 Re-referencing from this menu after *Preprocess iEEG data* gives the same
 result as choosing it inside preprocessing. A bipolar montage also gives the

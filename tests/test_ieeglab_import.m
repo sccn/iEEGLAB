@@ -81,6 +81,8 @@ writetable(ct, f, 'FileType','text', 'Delimiter','\t');
 setf = fullfile(d, 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set');
 [~, E] = evalc('ieeglab_import(setf, ''time_range'', [0 2])');
 tc.verifyEqual({E.chanlocs.labels}, ct.name(setdiff(1:height(ct), [2 5]))');
+tc.verifyEqual(E.etc.ieeglab_import.recording_channels, ct.name', ...
+    'Every channel of the recording, in channels.tsv order (the blocks of varsubset).');
 [~, E] = evalc('ieeglab_import(setf, ''time_range'', [0 2], ''types'', ''all'')');
 tc.verifyEqual(E.nbchan, height(ct));
 [~, E] = evalc('ieeglab_import(setf, ''time_range'', [0 2], ''types'', {''EEG'',''ECG''})');

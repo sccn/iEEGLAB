@@ -11,9 +11,14 @@ function [EEG, out] = ieeglab_car(EEG, opt)
 %   .car_method   'carla'     - CAR by Least Anticorrelation (Huang et al. 2024). DEFAULT.
 %                               Adaptive: the number of reference channels is chosen
 %                               from the data.
-%                 'varsubset' - fixed-percentile lowest-covariance subset within
+%                 'varsubset' - fixed-percentile lowest-variance subset within
 %                               64-channel blocks (Valencia et al. 2023 / HAPwave).
 %                               Non-adaptive; kept for backwards compatibility.
+%                               The blocks are those of the recording (its
+%                               channel order, removed channels included, as the
+%                               authors' code), read from the channel list
+%                               ieeglab_import records, else from chanlocs.urchan,
+%                               else the dataset's current channel order.
 %                 'car'       - plain common average over all good channels.
 %                 'none'      - no re-referencing.
 %   .car_timewin  [1x2] response window in MILLISECONDS used for ranking.
@@ -204,6 +209,14 @@ if ~persite && nResolved > 0 && opt.verbose
     fprintf('[CAR] Pooled reference (car_persite=false): each trial''s stimulated contacts are left out of that trial''s average.\n');
 end
 
+% ---------------- varsubset: each channel's place in the recording ----------------
+if strcmpi(opt.car_method, 'varsubset')
+    [recIdx, blockOrder] = local_recording_index(EEG, labels);
+    if opt.verbose
+        fprintf('[CAR] Blocks of 64 channels from %s.\n', blockOrder);
+    end
+end
+
 % ---------------- diagnostics before ----------------
 r_before = local_rank_proxy(X);
 
@@ -240,7 +253,8 @@ for g = 1:nGrp
             blocks = {struct('rows', 1:C, 'sel', carCh')};
 
         case 'varsubset'
-            [carCh, stg] = local_varsubset(X(:,:,tr), tt_s, win_s, excl, C, opt.car_fraction);
+            [carCh, stg] = local_varsubset(X(:,:,tr), tt_s, win_s, excl, recIdx, opt.car_fraction);
+            stg.block_order = blockOrder;
             blocks = cellfun(@(b) struct('rows', b.block, 'sel', b.selected), stg.blocks, 'UniformOutput', false);
 
         case 'car'
@@ -361,17 +375,20 @@ end
 idx = unique(idx(idx > 0));
 end
 
-function [carCh, st] = local_varsubset(X, tt_s, win_s, excl, C, frac)
+function [carCh, st] = local_varsubset(X, tt_s, win_s, excl, recIdx, frac)
 % Legacy behaviour: within each block of 64 channels, take the channels below
-% the frac-th percentile of cross-trial covariance. Kept so previously analysed
+% the frac-th percentile of variance over the window and trials. Kept so previously analysed
 % datasets can be reproduced. Adapted from apply_ieeg_car / ccep_CAR64blocks_percent
-% (Multimodal Neuroimaging Lab, Mayo Clinic).
+% (Multimodal Neuroimaging Lab, Mayo Clinic). recIdx is each channel's place in
+% the recording: the authors' code keeps every recorded channel (bad ones only
+% flagged), so its blocks are channels 1-64, 65-128, ... of the recording.
 tmask = tt_s > win_s(1) & tt_s < win_s(2);      % open interval, as apply_ieeg_car
 if ~any(tmask), tmask = true(1, size(X,2)); end
 carCh = [];
 st = struct('blocks', {{}});
-for b = 1:ceil(C/64)
-    blk = ((b-1)*64+1) : min(b*64, C);
+blkOf = ceil(recIdx(:) / 64);
+for b = unique(blkOf)'
+    blk = find(blkOf == b)';                    % this dataset's channels in recording block b
     pool = setdiff(blk(:), excl);
     if isempty(pool), continue; end
     Xi = reshape(X(pool, tmask, :), numel(pool), []);
@@ -380,9 +397,33 @@ for b = 1:ceil(C/64)
     sel = pool(v <= th);
     if isempty(sel), sel = pool; end
     carCh = [carCh; sel(:)]; %#ok<AGROW>
-    st.blocks{end+1} = struct('block', blk, 'selected', sel(:)', 'threshold', th);
+    st.blocks{end+1} = struct('block', blk, 'recording_block', b, 'selected', sel(:)', 'threshold', th);
 end
 carCh = unique(carCh);
+end
+
+function [recIdx, how] = local_recording_index(EEG, labels)
+% Each channel's place in the recording, for the blocks of 'varsubset': from the
+% channel list ieeglab_import records, else chanlocs.urchan, else the current order.
+C = numel(labels);
+recIdx = (1:C)';
+how = 'the dataset''s current channel order (the recording''s order is not known)';
+rc = {};
+if isfield(EEG, 'etc') && isfield(EEG.etc, 'ieeglab_import') && isfield(EEG.etc.ieeglab_import, 'recording_channels')
+    rc = cellstr(string(EEG.etc.ieeglab_import.recording_channels));
+end
+[tf, loc] = ismember(upper(strtrim(cellstr(labels))), upper(strtrim(rc)));
+if C > 0 && all(tf)
+    recIdx = loc(:);
+    how = sprintf('the recording''s channel order (%d channels, %d here)', numel(rc), C);
+elseif isfield(EEG.chanlocs, 'urchan') && all(arrayfun(@(c) isnumeric(c.urchan) && isscalar(c.urchan), EEG.chanlocs))
+    recIdx = [EEG.chanlocs.urchan]';
+    how = 'the channels'' original numbers (chanlocs.urchan)';
+end
+if numel(unique(recIdx)) < C               % duplicates: the order cannot be trusted
+    recIdx = (1:C)';
+    how = 'the dataset''s current channel order (the recording''s order is ambiguous)';
+end
 end
 
 function stimExcl = local_add_neighbors(stimExcl, siteName, labels, n)

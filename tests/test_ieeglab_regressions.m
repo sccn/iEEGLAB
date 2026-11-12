@@ -347,6 +347,38 @@ tc.verifyEqual(double(A.data), ref, 'AbsTol', 1e-6);
 tc.verifyEqual(A.ieeglab.car.n_groups, 1, 'Non-CCEP data must form a single reference group.');
 end
 
+function test_varsubset_blocks_follow_recording(tc)
+% The authors' code keeps every recorded channel (bad ones only flagged) and
+% blocks channels 1-64, 65-128, ... of the recording. iEEGLAB removes bad
+% channels, so 'varsubset' must form its blocks from the recording's order.
+root = tc.TestData.root;
+addpath(fullfile(root, 'tests', 'reference'));
+c = onCleanup(@() rmpath(fullfile(root, 'tests', 'reference')));
+rs = RandStream('mt19937ar', 'Seed', 5);
+nC = 80; T = 300; N = 6;
+E = eeg_emptyset();
+E.data = single(randn(rs, nC, T, N) .* (1 + 4 * rand(rs, nC, 1)) + randn(rs, 1, T, N));
+E.nbchan = nC; E.pnts = T; E.trials = N; E.srate = 1000;
+E.xmin = -0.1; E.xmax = E.xmin + (T - 1) / E.srate; E.times = (E.xmin + (0:T-1) / E.srate) * 1000;
+E.chanlocs = struct('labels', compose('C%d', 1:nC), 'type', 'SEEG', 'status', 'good');
+E.event = struct('type', 'stim', 'latency', num2cell((0:N-1) * T + 101), 'epoch', num2cell(1:N));
+E = eeg_checkset(E, 'eventconsistency');
+E.etc.ieeglab_import = struct('recording_channels', {{E.chanlocs.labels}});
+bad = [3 10 20 30 40 50 60 70]; keep = setdiff(1:nC, bad);
+frac = 0.2; win = [15 190];
+[~, ref] = evalc('apply_ieeg_car(double(E.data), double(E.times)/1000, keep, frac, win/1000, false)');
+ref = ref(keep, :, :);
+R = pop_select(E, 'nochannel', bad);
+o = struct('car_method', 'varsubset', 'car_fraction', frac, 'car_timewin', win, 'verbose', false);
+[~, A] = evalc('ieeglab_car(R, o)');
+tc.verifyEqual(double(A.data), ref, 'AbsTol', 1e-6, 'Blocks must be those of the recording.');
+tc.verifyEqual(numel(A.ieeglab.car.groups(1).stats.blocks), 2);
+% without the recording's channel list the blocks are the remaining channels' (64 + 8)
+R.etc = rmfield(R.etc, 'ieeglab_import');
+[~, B] = evalc('ieeglab_car(R, o)');
+tc.verifyGreaterThan(max(abs(double(B.data(:)) - ref(:))), 1e-3, 'The test does not tell the two block orders apart.');
+end
+
 function test_carla_ignores_all_nan_sample(tc)
 E = tc.TestData.E;
 sites = ieeglab_epoch_sites(E);

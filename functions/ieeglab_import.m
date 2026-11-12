@@ -269,7 +269,8 @@ if ~isempty(tok), EEG.subject = tok{1}; end
 if isempty(evTsv) && ~isempty(event), EEG.event = event; end   % markers of the file, when no events.tsv
 EEG.BIDS.sourcefile = file;                % where ieeglab_load looks for the sidecar files
 EEG.etc.ieeglab_import = struct('source', file, 'first_sample', s0, 'last_sample', s1 - 1, ...
-    'onset_shift_s', s0 / srate, 'channels_in_file', numel(labels), 'pnts_in_file', pnts);
+    'onset_shift_s', s0 / srate, 'channels_in_file', numel(labels), 'pnts_in_file', pnts, ...
+    'recording_channels', {labels});           % every channel, in channels.tsv order (varsubset's blocks)
 EEG = eeg_checkset(EEG);
 if o.verbose
     fprintf('[import] Done in %.0f s. Next: iEEGLAB > Load electrode coordinates and events.\n', toc(t0));

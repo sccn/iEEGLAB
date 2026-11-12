@@ -65,11 +65,15 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %                lets runica seed from the clock, as by default in EEGLAB.
 %   .bad_channels  indices or labels to leave out (untouched). Channels with
 %                chanlocs.status 'bad' are always left out.
+%   .decomposition  the info output of an earlier run on the same data: its
+%                mixing and unmixing are used instead of running ICA again, so
+%                another .weights or .p_broad can be tried without refitting.
+%                Its channels must be the good contacts of EEG.
 %   .verbose     default true
 %
 % Output info: rank, n_components, broad (logical per component), chi2, p,
-% mixing (contacts x components) and unmixing, channels (the contacts used),
-% fit_window_ms.
+% mixing (contacts x components) and unmixing, sphere_norm, channels (the
+% contacts used), fit_window_ms.
 %
 % Reference:
 %   Michelmann, S., Treder, M. S., Griffiths, B., Kerren, C., Roux, F.,
@@ -82,7 +86,7 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 
 if nargin < 2 || isempty(opt), opt = struct(); end
 def = struct('rank', [], 'p_broad', 0.2, 'weights', 'normalized', 'fit_window', [], 'extended', 1, 'reproducible', true, ...
-    'bad_channels', [], 'verbose', true, 'max_fit_samples', []);
+    'bad_channels', [], 'verbose', true, 'max_fit_samples', [], 'decomposition', []);
 for f = fieldnames(def)'
     if ~isfield(opt, f{1}), opt.(f{1}) = def.(f{1}); end
 end
@@ -118,63 +122,77 @@ if nGood < 3
     error('ieeglab_icaref:tooFewChannels', 'ICA re-referencing needs at least 3 good contacts (%d here).', nGood);
 end
 
-% ---- samples used to estimate the unmixing
-t = double(EEG.times(:))';
-if isempty(opt.fit_window)
-    if strcmp(ieeglab_detect_mode(EEG), 'ccep')
-        opt.fit_window = [t(1) -50];
-    else
-        opt.fit_window = [t(1) t(end)];
+if ~isempty(opt.decomposition)
+    % ---- an earlier decomposition of the same data
+    D = opt.decomposition;
+    if ~isequal(cellstr(D.channels(:))', labels(good))
+        error('ieeglab_icaref:decomposition', ...
+            'The decomposition was fitted on other contacts than the good contacts of this dataset.');
     end
-end
-fitIdx = t >= opt.fit_window(1) & t <= opt.fit_window(2) & ~any(blanked, 3);
-if nnz(fitIdx) < 10
-    error('ieeglab_icaref:fitWindow', 'The fit window [%g %g] ms holds fewer than 10 samples.', opt.fit_window);
-end
-if continuous
-    % evenly spaced samples, without copying the whole recording to double
-    if isempty(opt.max_fit_samples), opt.max_fit_samples = max(1e5, 20 * nGood^2); end
-    idx = find(fitIdx);
-    idx = idx(1:ceil(numel(idx) / opt.max_fit_samples):end);
-    Xfit = double(EEG.data(good, idx));
+    U = D.unmixing; A = D.mixing; sNorm = D.sphere_norm;
+    r = size(U, 1); estRank = D.estimated_rank; opt.fit_window = D.fit_window_ms;
+    if ~continuous, X = double(EEG.data); end
+    prevThreads = maxNumCompThreads;
 else
-    X = double(EEG.data);
-    Xfit = reshape(X(good, fitIdx, :), nGood, []);
-end
+    % ---- samples used to estimate the unmixing
+    t = double(EEG.times(:))';
+    if isempty(opt.fit_window)
+        if strcmp(ieeglab_detect_mode(EEG), 'ccep')
+            opt.fit_window = [t(1) -50];
+        else
+            opt.fit_window = [t(1) t(end)];
+        end
+    end
+    fitIdx = t >= opt.fit_window(1) & t <= opt.fit_window(2) & ~any(blanked, 3);
+    if nnz(fitIdx) < 10
+        error('ieeglab_icaref:fitWindow', 'The fit window [%g %g] ms holds fewer than 10 samples.', opt.fit_window);
+    end
+    if continuous
+        % evenly spaced samples, without copying the whole recording to double
+        if isempty(opt.max_fit_samples), opt.max_fit_samples = max(1e5, 20 * nGood^2); end
+        idx = find(fitIdx);
+        idx = idx(1:ceil(numel(idx) / opt.max_fit_samples):end);
+        Xfit = double(EEG.data(good, idx));
+    else
+        X = double(EEG.data);
+        Xfit = reshape(X(good, fitIdx, :), nGood, []);
+    end
 
-% ---- effective rank of the data used for the fit
-ev = sort(eig(cov(Xfit')), 'descend');
-estRank = nnz(ev > ev(1) * 1e-7);
-r = opt.rank;
-if isempty(r), r = estRank; end
-r = min(r, nGood);
-if r > estRank
-    warning('ieeglab_icaref:rankAboveEstimate', ...
-        'Requested %d components but the data have an estimated rank of %d; ICA may be unstable.', r, estRank);
-end
-nSamp = size(Xfit, 2);
-if nSamp < 20 * r^2 && opt.verbose
-    fprintf('[ICA ref] %d samples for %d components (fewer than the 20 x rank^2 often recommended).\n', nSamp, r);
-end
+    % ---- effective rank of the data used for the fit
+    ev = sort(eig(cov(Xfit')), 'descend');
+    estRank = nnz(ev > ev(1) * 1e-7);
+    r = opt.rank;
+    if isempty(r), r = estRank; end
+    r = min(r, nGood);
+    if r > estRank
+        warning('ieeglab_icaref:rankAboveEstimate', ...
+            'Requested %d components but the data have an estimated rank of %d; ICA may be unstable.', r, estRank);
+    end
+    nSamp = size(Xfit, 2);
+    if nSamp < 20 * r^2 && opt.verbose
+        fprintf('[ICA ref] %d samples for %d components (fewer than the 20 x rank^2 often recommended).\n', nSamp, r);
+    end
 
-% ---- ICA
-% runica works on small matrices, where multithreaded BLAS is much slower than
-% one thread (about 100 times on a busy 16-thread machine); restore afterwards.
-% runica switches the global generator to its own legacy state: restore it too.
-prevRng = rng;
-prevThreads = maxNumCompThreads(1);
-cleanup = onCleanup(@() local_restore(prevRng, prevThreads));
-args = {'extended', opt.extended, 'verbose', 'off', 'rndreset', iff(opt.reproducible, 'no', 'yes')};
-if r < nGood, args = [args {'pca', r}]; end
-[~, w, s] = evalc('runica(Xfit, args{:})');
-U = w * s;                          % r x nGood unmixing
-A = pinv(U);                        % nGood x r mixing: column k = component k on the contacts
+    % ---- ICA
+    % runica works on small matrices, where multithreaded BLAS is much slower than
+    % one thread (about 100 times on a busy 16-thread machine); restore afterwards.
+    % runica switches the global generator to its own legacy state: restore it too.
+    prevRng = rng;
+    prevThreads = maxNumCompThreads(1);
+    cleanup = onCleanup(@() local_restore(prevRng, prevThreads));
+    args = {'extended', opt.extended, 'verbose', 'off', 'rndreset', iff(opt.reproducible, 'no', 'yes')};
+    if r < nGood, args = [args {'pca', r}]; end
+    [~, w, s] = evalc('runica(Xfit, args{:})');
+    U = w * s;                          % r x nGood unmixing
+    A = pinv(U);                        % nGood x r mixing: column k = component k on the contacts
+    sNorm = norm(s);
+end
 
 % ---- broadness: chi-square of |mixing weights| against their mean, df = contacts - 1
 aw = abs(A);
 switch lower(char(opt.weights))
     case 'normalized', aw = aw ./ mean(aw, 1);           % mean 1 per column: unit-free
-    case 'fieldtrip',  aw = aw * norm(s);                % FieldTrip's unit-norm sphere (eye after PCA: 1)
+    case 'fieldtrip',  aw = aw * sNorm;                  % FieldTrip's unit-norm sphere (eye after PCA: 1)
     case 'raw'                                           % as the weights come (units of the data)
     otherwise, error('ieeglab_icaref:weights', 'weights must be ''normalized'', ''fieldtrip'' or ''raw''.');
 end
@@ -213,7 +231,7 @@ end
 EEG.ref = 'ICA re-referencing (Michelmann et al., 2018)';
 info = struct('method', 'ica', 'rank', r, 'estimated_rank', estRank, 'n_components', r, ...
     'broad', broad, 'chi2', chi2, 'p', p, 'p_broad', opt.p_broad, 'weights', char(opt.weights), ...
-    'mixing', A, 'unmixing', U, 'sphere_norm', norm(s), 'channels', {labels(good)}, ...
+    'mixing', A, 'unmixing', U, 'sphere_norm', sNorm, 'channels', {labels(good)}, ...
     'fit_window_ms', opt.fit_window, 'reproducible', opt.reproducible);
 if ~isfield(EEG, 'ieeglab'), EEG.ieeglab = struct(); end
 EEG.ieeglab.car = info;

@@ -48,6 +48,20 @@ E.data = E.data * 1e-6;
 tc.verifyEqual(b.broad, a.broad);
 end
 
+function test_an_earlier_decomposition_is_reused(tc)
+% Another scaling on an earlier decomposition gives what a new fit with that
+% scaling gives (the fit is reproducible), and contacts that differ are refused.
+[E, ~, ~] = local_sim(8, 0);
+[~, ~, a] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
+[~, B, b] = evalc('ieeglab_icaref(E, struct(''weights'', ''fieldtrip'', ''verbose'', false))');
+[~, C, c] = evalc('ieeglab_icaref(E, struct(''weights'', ''fieldtrip'', ''decomposition'', a, ''verbose'', false))');
+tc.verifyEqual(c.broad, b.broad);
+tc.verifyEqual(c.unmixing, a.unmixing);
+tc.verifyEqual(double(C.data), double(B.data), 'AbsTol', 1e-4);
+E.chanlocs(2).status = 'bad';
+tc.verifyError(@() ieeglab_icaref(E, struct('decomposition', a, 'verbose', false)), 'ieeglab_icaref:decomposition');
+end
+
 function test_bad_channels_are_left_out(tc)
 [E, ~, ~] = local_sim(8, 0);
 E.chanlocs(3).status = 'bad';

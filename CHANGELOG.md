@@ -62,7 +62,19 @@
   tutorial (re-referencing, time-frequency and high-frequency activity), the
   authors' CRP code on their sample data, ER-detect on one ds004080 run, the
   authors' ICA re-referencing script, and Huang et al.'s common average on
-  ds004977.
+  ds004977. `compare_references_ds004696` runs the analysis of Ojeda Valencia
+  et al. (2023) on ds004696 sub-02 with each re-referencing scheme and compares
+  each with the published CRP (the paper's decision: the t-test at the response
+  duration with the Benjamini-Yekutieli correction over its pairs), with an
+  effect size and its 95% confidence interval for every pair.
+- **ICA re-referencing: `'decomposition'`** reuses the mixing and unmixing of an
+  earlier run on the same data, so another weight scaling or `p_broad` can be
+  tried without fitting ICA again.
+- **Step-by-step page: tabs and an outline.** `iEEGLAB_GUI_walkthrough.html`
+  has a tab for the CCEP steps (unchanged, ticks kept), one for FieldTrip's
+  intracranial tutorial data, and one comparing the re-referencing schemes on
+  ds004696 sub-02 against the published result. On wide screens an outline on
+  the side follows where you are.
 - **N1: `'peak_from', 'zero'`** measures the peak from zero (the average as it
   is, each trial's baseline already removed), as ER-detect, instead of from the
   baseline median of the average (the default). The ER-detect-equivalent
@@ -70,6 +82,10 @@
 
 ### Changed
 
+- **"Lowest-variance subset"**, the re-referencing of Ojeda Valencia et al.
+  (2023), was called a lowest-covariance subset in the menu and the help. It
+  ranks the contacts by their variance in the response window, as the authors'
+  code; only the name changed.
 - **ICA re-referencing: the broadness test has one degree of freedom fewer than
   contacts**, as the authors' code (the expected weight is the column's own
   mean). With few contacts slightly fewer components count as broad.
@@ -190,11 +206,24 @@
   times the sampling rate, plus 1; for onsets written in decimal seconds this
   often lands just below the sample it names, and EEGLAB's epoching rounds
   down. Latencies within 1% of a sample of a sample time are now put on it.
-  Affected: about a third of ds004977 sub-1 run-02's events (4800 Hz) and 41 to
-  48% of ds004696 sub-01, sub-06 and sub-08's; not ds004696 sub-02, ds004080
-  or the tutorial data. Re-run analyses of affected recordings: on ds004977
+  Affected: about a third of ds004977 sub-1 run-02's events (4800 Hz) and 43 to
+  48% of the stimulation events of ds004696 sub-01, sub-06 and sub-08; not
+  ds004696 sub-02, ds004080 or the tutorial data. Re-run analyses of affected
+  recordings from loading the events onward: on ds004977
   the shift changed the trial-mean common average by up to 170 uV near the
   pulse (31 uV elsewhere).
+- **Lowest-variance subset (`'varsubset'`): blocks of 64 channels as the
+  recording's.** The blocks were formed on the channels left after bad and
+  non-iEEG channels were removed; the authors' code (Ojeda Valencia et al.,
+  2023) keeps every recorded channel, bad ones only flagged, so its blocks are
+  channels 1-64, 65-128, ... of the recording. `ieeglab_import` now records the
+  recording's channels (`EEG.etc.ieeglab_import.recording_channels`, in
+  channels.tsv order) and the blocks follow them (else `chanlocs.urchan`, else
+  the dataset's order, as before). On ds004696 sub-02 (256 channels, 198 kept)
+  the last block had held 6 contacts, so its reference was a single contact,
+  which became zero. Re-run varsubset analyses of datasets with removed
+  channels; datasets imported before this version keep the old blocks unless
+  re-imported.
 
 ## 1.2.0 (2026-10-25)
 
