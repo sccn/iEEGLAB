@@ -89,6 +89,13 @@
   is, each trial's baseline already removed), as ER-detect, instead of from the
   baseline median of the average (the default). The ER-detect-equivalent
   settings in the help now include it.
+- **Tutorial pages in Markdown** (`docs/`): the step-by-step page as four pages
+  (sEEG and ECoG CCEP, FieldTrip's tutorial data, re-referencing compared),
+  each step with its menu, what to expect, the screenshot and the command line,
+  for the tutorial extracts and the full recordings. A workflow copies them to
+  the repository's wiki at each change, for the EEGLAB website. The README
+  follows the layout of the other EEGLAB plugin pages, with links to them, a
+  quick start and images that also show outside GitHub.
 
 ### Changed
 
