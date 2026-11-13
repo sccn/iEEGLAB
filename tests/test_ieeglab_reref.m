@@ -36,6 +36,30 @@ for m = {'carla', 'car'}
 end
 end
 
+function test_varsubset_after_baseline_warns(tc)
+% 'varsubset' ranks contacts by their variance over all trials, offsets
+% included, so after a baseline it is not the same as before it: a warning
+% says so. The route the warning gives (no baseline, re-reference, then the
+% baseline alone) equals re-referencing inside preprocessing, without a warning.
+b = tc.TestData.pre; b.apply_car = false;
+[~, B] = evalc('ieeglab_preprocess(tc.TestData.EEG, b)');
+tc.verifyWarning(@() pop_ieeglab_reref(B, 'method', 'varsubset'), 'pop_ieeglab_reref:varsubsetAfterBaseline');
+a = tc.TestData.pre; a.apply_car = true; a.car_method = 'varsubset';
+[~, A] = evalc('ieeglab_preprocess(tc.TestData.EEG, a)');
+c = tc.TestData.pre; c.apply_car = false; c.apply_baseline = false;
+[~, C] = evalc('ieeglab_preprocess(tc.TestData.EEG, c)');
+lastwarn('');
+[~, C] = evalc('pop_ieeglab_reref(C, ''method'', ''varsubset'')');
+[~, id] = lastwarn;
+tc.verifyNotEqual(id, 'pop_ieeglab_reref:varsubsetAfterBaseline', 'No warning before the baseline.');
+[~, C] = evalc(['ieeglab_preprocess(C, struct(''apply_baseline'', true, ''baseline_period'', [-500 -50], ' ...
+    '''plot'', false, ''verbose'', false))']);
+tol = 8 * double(eps(single(max(abs(A.data(:))))));
+tc.verifyEqual(double(C.data), double(A.data), 'AbsTol', tol, ...
+    'Re-referencing before a separate baseline step differs from re-referencing inside preprocessing.');
+tc.verifyEqual(C.ref, A.ref);
+end
+
 function test_needs_epochs(tc)
 tc.verifyError(@() pop_ieeglab_reref(tc.TestData.EEG, 'method', 'car'), 'pop_ieeglab_reref:notEpoched');
 end

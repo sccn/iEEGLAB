@@ -68,7 +68,12 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 % again after re-referencing, which gives exactly the result of re-referencing
 % before it, the order ieeglab_preprocess uses: a per-epoch constant changes
 % neither the reference channels (CARLA ranks by covariance and correlation)
-% nor the re-referenced signal once its baseline is removed.
+% nor the re-referenced signal once its baseline is removed. Except for
+% 'varsubset': it ranks contacts by their variance over all trials pooled, so
+% each trial's offset counts, and after a baseline it can choose other
+% contacts than before it (on ds004696 sub-02, 26 of the paper's 484 decisions
+% changed). A warning says so; to reproduce the paper, preprocess without the
+% baseline, re-reference, then apply the baseline.
 %
 % The baseline is applied again after a montage too: a montage is linear, but
 % the default baseline is a median, and the median of a difference is not the
@@ -217,6 +222,16 @@ if ~isMontage && isfield(EEG, 'ieeglab') && isfield(EEG.ieeglab, 'car') && ~isem
     warning('pop_ieeglab_reref:alreadyReferenced', ...
         ['These data were already re-referenced (%s). Re-referencing again stacks the two; to compare ' ...
          'methods, start each from the same preprocessed dataset.'], char(string(EEG.ref)));
+end
+if strcmp(g.method, 'varsubset') && hadBaseline
+    % its ranking pools the trials, so each trial's offset counts: unlike CARLA
+    % and the common average, re-referencing after the baseline is not the same
+    warning('pop_ieeglab_reref:varsubsetAfterBaseline', ...
+        ['These epochs are baseline-corrected. The lowest-variance subset ranks contacts by their variance over ' ...
+         'all trials, which includes each trial''s offset, and Ojeda Valencia et al. (2023) rank them before the ' ...
+         'baseline, so the contacts chosen here can differ from theirs. To reproduce the paper, re-reference ' ...
+         'before the baseline: preprocess without it, re-reference, then run Preprocess iEEG data again with ' ...
+         'only the baseline (or ieeglab_preprocess with apply_car = true and car_method = ''varsubset'').']);
 end
 
 if isMontage

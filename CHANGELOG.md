@@ -70,6 +70,10 @@
   `split_half_effects_ds004696` compares the schemes' effect sizes without
   favouring the paper's reference: pairs are selected with it on half of each
   site's trials and every scheme's effect size is measured on the other half.
+  `matched_pipeline_ds004696` runs the same analysis with the paper's settings
+  (no filtering, blanking or trial rejection, its reference before the
+  baseline, its t-test and correction), which reproduces the published
+  decisions on every pair, then changes one setting at a time to iEEGLAB's.
 - **ICA re-referencing: `'decomposition'`** reuses the mixing and unmixing of an
   earlier run on the same data, so another weight scaling or `p_broad` can be
   tried without fitting ICA again.
@@ -89,6 +93,13 @@
   (2023), was called a lowest-covariance subset in the menu and the help. It
   ranks the contacts by their variance in the response window, as the authors'
   code; only the name changed.
+- **"Lowest-variance subset" after a baseline now warns.** It ranks contacts by
+  their variance over all trials pooled, so each trial's offset counts, and the
+  authors rank them before the baseline. Re-referencing baseline-corrected
+  epochs (the re-referencing step after Preprocess) can choose other contacts:
+  on ds004696 sub-02, 26 of the paper's 484 decisions changed. The warning
+  gives the order that reproduces the paper (preprocess without the baseline,
+  re-reference, then the baseline). CARLA and the common average are unaffected.
 - **ICA re-referencing: the broadness test has one degree of freedom fewer than
   contacts**, as the authors' code (the expected weight is the column's own
   mean). With few contacts slightly fewer components count as broad.
