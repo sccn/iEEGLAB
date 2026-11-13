@@ -146,9 +146,13 @@
       1.2.0 does not have all the steps below yet.<span class="f"> From
       <span class="menu">File &gt; Manage EEGLAB extensions</span>, install <b>MEF3</b> (Part A) and <b>bva-io</b> (Part B).</span>
       Part B draws the ECoG contacts on fsaverage: FreeSurfer has it, or get it once from Python with
-      <code>import mne; mne.datasets.fetch_fsaverage()</code>.
-      <div class="note f">Mac with Apple Silicon: compile the MEF3 reader
-      (<a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">instructions</a>).</div></li>
+      <code>import mne; mne.datasets.fetch_fsaverage()</code> (if MNE says its download folder does not exist, create
+      it first; iEEGLAB uses only <code>surf/lh.pial</code> and <code>surf/rh.pial</code>).
+      <div class="note f">Mac with Apple Silicon: compile the MEF3 reader. Its C files are in the MEF3 plugin folder: in
+      MATLAB, go to <code>eeglab/plugins/MEF3v1.2.2</code> and run the five <code>mex</code> lines under
+      <a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">Building from source</a>.
+      With MATLAB R2025b, Apple's Command Line Tools were enough (the README's steps for the full Xcode were not
+      needed).</div></li>
     <li data-o="Check installation">Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
       <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.
       <span class="menu">Help &gt; iEEGLAB documentation</span> (also at the bottom of the iEEGLAB menu) opens this page,
@@ -170,9 +174,10 @@ ieeglab_check_install</code></pre></details></li>
   <a href="https://openneuro.org/datasets/ds004080">ds004080</a>. Keep the folder structure.</p>
   <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*run-041456*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_electrodes.*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_coordsystem.json" --include "dataset_description.json" --include "participants.tsv"</code></pre>
-  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 10 to 20 minutes. For a quicker
+  <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 6 to 7 minutes. For a quicker
   run, read only a few stimulation sites at step 1 of Part A; the numbers then differ a little, also for the sites you
-  keep, as CARLA and the permutations draw from one random stream.</div>
+  keep, as CARLA and the permutations draw from one random stream. The times on this page come from a Windows laptop
+  with 8 cores; a recent Mac (Apple M5 Pro) was as fast or up to 3.5 times faster.</div>
   </div>
 
   <h2 id="seeg">3. Part A: sEEG (ds004696, sub-02)</h2>
@@ -181,7 +186,7 @@ aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*"
       <code>tutorial/seeg/sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set</code>.</span>
       <span class="f"><span class="menu">iEEGLAB &gt; Import raw recording</span>: select the <code>ds004696</code> folder,
       then sub-02's recording. Keep the defaults.</span>
-      <div class="expect"><b>Expect</b><span class="t">17 channels at 2048 Hz, 3.2 minutes.</span><span class="f">About 2
+      <div class="expect"><b>Expect</b><span class="t">17 channels at 2048 Hz, 3.2 minutes.</span><span class="f">About 1.5
       minutes, with the progress in the command window and a progress bar: 237 channels at 2048 Hz.</span></div>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A1_import_recordings.png" alt="Recordings found" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A1_import_options.png" alt="Import options" onerror="this.closest('figure').style.display='none'"></figure>
@@ -193,7 +198,8 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 
     <li data-o="Coordinates and events"><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok in both windows.
       <div class="expect"><b>Expect</b><span class="t">14 of 17 contacts with coordinates, 3 bad (RA15, RB14, RB15, from
-      <code>channels.tsv</code>), 34 stimulations at 3 sites.</span><span class="f">211 contacts with coordinates, 39 bad
+      <code>channels.tsv</code>), 34 stimulations at 3 sites. A warning says that the same three have no position in the
+      electrodes file.</span><span class="f">211 contacts with coordinates, 39 bad
       (from <code>channels.tsv</code>), 695 stimulations.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
@@ -216,7 +222,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       (artifact blanking, line noise at 60, 120 and 180 Hz removed by fitted sines, no filter, epochs -1 to 1 s, baseline -500 to -50 ms; sites with fewer
       than 5 pulses, bad contacts and contacts without coordinates removed).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 14 contacts, 32 epochs. The command window names RA14
-      as not flat before the pulse: it is kept, as the clinicians marked it good.</span><span class="f">About 2 minutes:
+      as not flat before the pulse: it is kept, as the clinicians marked it good.</span><span class="f">About a minute:
       198 contacts, 627 epochs.</span></div>
       <div class="note">Line noise: the fitted sines were compared with a notch filter, ZapLine and ZapLine-plus, on
       synthetic stimulation data with a known clean signal and on both datasets. They left the least error 5 to 50 ms
@@ -237,7 +243,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults (sensitive cutoff; the stimulated pair and
       2 contacts on each side left out, as in Huang et al., 2024).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">10 to 20 minutes for the
+      <div class="expect"><b>Expect</b><span class="t">A few seconds for the 3 sites.</span><span class="f">6 to 7 minutes for the
       57 sites.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -245,11 +251,11 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
-      sites are next to each other on one lead, so most contacts respond).</span><span class="f">A few minutes: 3937
+      sites are next to each other on one lead, so most contacts respond).</span><span class="f">Under a minute: 3937
       of 10780 site-contact pairs respond. A warning says that 392 more cannot reach significance, at sites with too
-      few trials, and count as not tested. Against the published CRP of this participant: the same decision for 78%
-      of the 484 published pairs tested here (87% with the published t-test at tau_R and Benjamini-Yekutieli correction,
-      both options in this window).</span> The results repeat exactly from run to run on the same data (fixed random
+      few trials, and count as not tested. Against the published CRP of this participant: the same decision for 83%
+      of the 484 published pairs tested here. With the paper's own settings, iEEGLAB reaches the paper's decision on all
+      484; the Re-referencing compared tab (section 4) gives what each setting changes.</span> The results repeat exactly from run to run on the same data (fixed random
       seed).</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA7_summary_1.png" alt="CRP summary" onerror="this.closest('figure').style.display='none'"></figure>
@@ -302,7 +308,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       frequency, and the 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to
       1000 ms on the brain. The times from -100 to 110 ms are grey: a window that contains the pulse shows power at every
       frequency. Each contact's own stimulation epochs are left out of its average.
-      <span class="t">Over 0 to 1000 ms, the 70-150 Hz power of every contact but RA14 is 0.1 to 0.5 dB below its baseline (median -0.3 dB). RA14 is 3.8 dB below: a burst of power about 350 ms before the pulse (the bright patch in its row) raises its baseline, and it also makes the stripe at that time and most of the blue below 60 Hz after the pulse in the average. The grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">Over 0 to 1000 ms, every contact's 70-150 Hz power is within 0.4 dB of its baseline (median 0.0 dB), except RA14 (1.7 dB below) and LX12 (1.4 dB below).</span></div>
+      <span class="t">Over 0 to 1000 ms, the 70-150 Hz power of every contact but RA14 is 0.1 dB (RA7) to 0.5 dB (RA4) below its baseline (median -0.3 dB). RA14 is 3.8 dB below: a burst of power about 350 ms before the pulse (the bright patch in its row) raises its baseline, and it also makes the stripe at that time and most of the blue below 60 Hz after the pulse in the average. The grey band covers the first 110 ms, where the responses to a single pulse are largest. With <i>Window</i> 0.1 s the map starts at 70 ms.</span><span class="f">Over 0 to 1000 ms, every contact's 70-150 Hz power is between 0.3 dB below (RF13) and 0.4 dB above (RZ1) its baseline (median 0.0 dB), except RA14 (1.7 dB below) and LX12 (1.4 dB below).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_spectral_dialog.png" alt="Frequency analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_1.png" alt="Time-frequency power" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
@@ -315,13 +321,15 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
       the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
       second panel stars the contacts that differ<span class="f"> (when it names each contact: 60 or fewer)</span>, and the
-      brain shows only them, or every contact's tested change when none differs. <span class="f">About 3.5 minutes; the single-epoch band power takes about 1.7 GB of memory.</span><span class="t">No contact differs (smallest corrected p 0.20). The test averages each epoch's change in dB: for RA14 it is -0.2 dB, where the average power, which the burst in its baseline dominates, gives -3.8 dB. RA3, with 9 epochs, cannot reach significance after the correction and is marked not testable.</span><span class="f">No contact differs (smallest corrected p 0.06).</span></div>
+      brain shows only them, or every contact's tested change when none differs. <span class="f">About 2 minutes; the single-epoch band power takes about 1.7 GB of memory.</span><span class="t">No contact differs (smallest corrected p 0.20). The test averages each epoch's change in dB: for RA14 it is -0.2 dB, where the average power, which the burst in its baseline dominates, gives -3.8 dB. RA3, with 9 epochs, cannot reach significance after the correction and is marked not testable.</span><span class="f">No contact differs (smallest corrected p 0.06).</span></div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);</code></pre></details></li>
     <li data-o="Power spectrum"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Power spectrum of each contact</i>, keep the defaults.
       <div class="expect"><b>Expect</b>One curve per contact on a log scale, their median in black, falling steeply with
       frequency, and the 70-150 Hz power on the brain. On stimulation epochs the spectrum uses only the part before the
-      pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. No peak at the line frequency or its harmonics in
-      the median: the line noise was removed. <span class="t">The largest peak left is on RA3 at 180 Hz, next to the stimulated pairs.</span><span class="f">The largest peaks left are on LB3, at 60 Hz (20 times the neighbouring frequencies) and 180 Hz (12 times).</span></div>
+      pulse: the 1 s window is shortened to 0.95 s, one segment per epoch. <span class="t">No peak at 60 or 120 Hz in the median:
+      the line noise was removed. One is left at 180 Hz (about 3.5 times the neighbouring frequencies in the median); the
+      largest is on RA3 (40 times), next to the stimulated pairs.</span><span class="f">No peak at the line frequency or
+      its harmonics in the median: the line noise was removed. The largest peaks left are on LB3, at 60 Hz (20 times the neighbouring frequencies) and 180 Hz (12 times).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
@@ -347,8 +355,8 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <code>tutorial/ecog/sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set</code>.</span>
       <span class="f"><span class="menu">iEEGLAB &gt; Import raw recording</span>: select the <code>ds004080</code> folder (with
       several runs downloaded, choose run-041456). Keep the defaults.</span>
-      <div class="expect"><b>Expect</b><span class="t">20 channels at 2048 Hz, 2.9 minutes.</span><span class="f">About 2
-      minutes, with the progress shown: 88 ECoG channels at 2048 Hz.</span></div>
+      <div class="expect"><b>Expect</b><span class="t">20 channels at 2048 Hz, 2.9 minutes.</span><span class="f">A few seconds,
+      with the progress shown: 88 ECoG channels at 2048 Hz.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB1_eeglab_after_load.png" alt="EEGLAB with the dataset" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B1_import_options.png" alt="Import options" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre class="t"><code>tut = fullfile(fileparts(which('eegplugin_ieeglab')), 'tutorial', 'ecog');
@@ -376,7 +384,7 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
 EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li data-o="Preprocess"><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>: tick <i>Reject outlier trials</i>, keep the rest (line noise at 50, 100 and 150 Hz here).
-      <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 15 s:
+      <div class="expect"><b>Expect</b><span class="t">A few seconds: 18 contacts, 30 epochs.</span><span class="f">About 10 s:
       86 contacts, 160 epochs.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B4_preprocess.png" alt="Preprocessing window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -397,7 +405,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
 
     <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 10 of 48 pairs respond, N1 latency median 21 ms (14 to
-      99 ms).</span><span class="f">About a minute: 299 of 672 pairs respond, N1 latency median 47 ms (11 to 99 ms).</span></div>
+      99 ms).</span><span class="f">About 10 s: 299 of 672 pairs respond, N1 latency median 47 ms (11 to 99 ms).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, 'run_matrix', true, 'matrix_source', 'n1'));</code></pre></details></li>
@@ -459,7 +467,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
     <li data-o="Time-frequency, bipolar"><span class="menu">iEEGLAB &gt; Frequency analysis</span> again: <i>Time-frequency power and band power</i>, on the
       bipolar channels.
       <div class="expect"><b>Expect</b>As in the first time-frequency step, one row per bipolar channel.
-      <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others are between -0.6 dB (FB50-FB51) and +0.2 dB.</span><span class="f">Every channel stays within 0.2 dB of its baseline.</span></div>
+      <span class="t">FB53-FB54 and FB54-FB55 have no value (FB54 is stimulated in every epoch); the others are between -0.6 dB (FB50-FB51) and +0.2 dB.</span><span class="f">Every channel stays within 0.25 dB of its baseline (highest: FB55-FB56).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B13_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar channels" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details></li>
@@ -482,12 +490,14 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
   plus a test of each contact against its baseline. Screenshots to come.</p>
 
   <h2 id="ft-data">1. Data</h2>
-  <p>Four files from FieldTrip's download server, about 205 MB, kept in this folder structure:</p>
+  <p>Four files from FieldTrip's download server, about 205 MB, kept in this folder structure, and a fifth for the
+  comparison with FieldTrip (section 5):</p>
   <ul class="tight">
     <li><a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/SubjectUCI29_data.mat">SubjectUCI29_data.mat</a> (the epochs, 197 MB)</li>
     <li><a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/SubjectUCI29_elec_acpc_f.mat">SubjectUCI29_elec_acpc_f.mat</a> (contact positions)</li>
     <li><code>freesurfer/surf/</code>: <a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/freesurfer/surf/lh.pial">lh.pial</a>
       and <a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/freesurfer/surf/rh.pial">rh.pial</a> (the participant's brain)</li>
+    <li><a href="https://download.fieldtriptoolbox.org/tutorial/human_ecog/SubjectUCI29/SubjectUCI29_freq.mat">SubjectUCI29_freq.mat</a> (FieldTrip's result of the tutorial, 5 MB; section 5 only)</li>
   </ul>
 
   <h2 id="ft-import">2. Import</h2>
@@ -507,7 +517,11 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <span class="menu">iEEGLAB &gt; Visualize electrodes</span>.
       <div class="expect"><b>Expect</b>The command window: every brain figure of this dataset is drawn on lh.pial and
       rh.pial. The two grids over the left hemisphere, and depth leads in both: LAM, LHH and LTH on the left, RAM, RHH,
-      ROC and RTH on the right. A template brain would not line up: the positions are in this participant's space.</div>
+      ROC and RTH on the right. A template brain would not line up: the positions are in this participant's space. A
+      warning says that 22 of the 152 contacts lie outside the surfaces: all are grid contacts, 0.8 to 9 mm outside
+      (3.5 mm in the median). The grids rest on the cortex, and these positions are not yet corrected for the brain
+      shift after implantation (FieldTrip's tutorial corrects them later, in <code>SubjectUCI29_elec_acpc_fr.mat</code>).
+      Every depth contact is inside: the spaces do match.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', {fullfile('freesurfer', 'surf', 'lh.pial'), ...
     fullfile('freesurfer', 'surf', 'rh.pial')});
 EEG = ieeglab_vis_elec(EEG);
@@ -535,7 +549,8 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
       900 ms are grey: a 0.2 s window centred there would run past the epoch. 11 of 96 contacts increase their 70-150 Hz
       power from baseline, all on LPG: most LPG31 (+3.3 dB), LPG47 (+2.4 dB) and LPG32 (+1.8 dB), then LPG39, LPG23,
       LPG40, LPG24, LPG30, LPG12, LPG48 and LPG22 (+0.9 to +1.3 dB). None decreases; the smallest corrected p among the
-      others is 0.065. The average of the contacts rises most at 145 Hz, 390 ms (+2.3 dB).</div>
+      others is 0.065. The average of the contacts rises most at 145 Hz, 390 ms (+2.3 dB). The brain map repeats the
+      surface warning of step 2, for the same 22 grid contacts (23% of the 96).</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);</code></pre></details></li>
   </ol>
 
@@ -565,9 +580,12 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
   <h2 id="ft-check">5. Against FieldTrip</h2>
   <p>The same steps in FieldTrip (common average of the grids and bipolar depth leads with
   <code>ft_preprocessing</code>, then <code>ft_freqanalysis</code> with Hann windows of 0.2 s at 5 to 200 Hz every
-  10 ms, as the tutorial) give the same 145 channels and the same power: time-frequency r = 0.99999 (largest
+  10 ms, as the tutorial) give the same 145 channels and the same power: time-frequency r = 0.999997 (largest
   difference 0.03 in relative change), 70-150 Hz activity r = 1.0000, and the same ten strongest channels. The
-  tutorial has no statistics; the test above is iEEGLAB's. Script: <code>validation/validate_fieldtrip_uci29.m</code>.</p>
+  tutorial has no statistics; the test above is iEEGLAB's. The comparison reads FieldTrip's result from
+  <code>SubjectUCI29_freq.mat</code>, so FieldTrip itself is not needed; it takes about 10 s.</p>
+  <details class="cmd"><summary>Command line</summary><pre><code>addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation'));
+out = validate_fieldtrip_uci29(pwd);   % the folder with the three .mat files</code></pre></details>
   <p class="ref">Stolk, A., Griffin, S., van der Meij, R., Dewar, C., Saez, I., Lin, J. J., Piantoni, G., Schoffelen,
   J.-M., Knight, R. T., &amp; Oostenveld, R. (2018). Integrated analysis of anatomical and electrophysiological human
   intracranial data. <i>Nature Protocols, 13</i>(7), 1699-1723.</p>
@@ -587,7 +605,7 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
   <p class="intro">The analysis of Ojeda Valencia et al. (2023) on ds004696 sub-02, CRP of every stimulation site and
   recording contact and the connectivity matrix, run once with each re-referencing scheme of iEEGLAB and compared with
   the published result. The paper's own reference is a common average of the 20% of contacts with the lowest variance
-  from 15 to 500 ms in each block of 64 recording channels (the <i>published reference</i> below). Full recording only. About 4.0 hours of computing in all, most of it ICA.</p>
+  from 15 to 500 ms in each block of 64 recording channels (the <i>published reference</i> below). Full recording only. About 4 hours of computing in all on the laptop of this page alongside other jobs, most of it ICA; about 1 hour on a recent Mac.</p>
 
   <h2 id="refs-data">1. Data</h2>
   <p>sub-02 of <a href="https://openneuro.org/datasets/ds004696">ds004696</a>, as in the CCEP tab, and the published CRP
@@ -615,22 +633,22 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
   paper's responding pairs is given with a 95% confidence interval over the 20 stimulation sites.</p>
   <ol class="steps">
     <li data-o="Recording reference">No re-referencing: <span class="menu">iEEGLAB &gt; CCEP analysis</span> on the preprocessed dataset itself.
-      <div class="expect"><b>Expect</b>About 1 minute. 3495 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 79%: 218 respond in both, 5 in iEEGLAB only, 97 in the paper only. Effect size on the pairs that respond in the paper: d = 2.37 [1.82, 2.91].</div>
+      <div class="expect"><b>Expect</b>CCEP analysis 42 s. 3495 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 79%: 218 respond in both, 5 in iEEGLAB only, 97 in the paper only. Effect size on the pairs that respond in the paper: d = 2.37 [1.82, 2.91].</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="Common average"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>Common average (all good channels)</i>.
-      <div class="expect"><b>Expect</b>Re-referencing 24 s. 5913 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 86%: 265 respond in both, 20 in iEEGLAB only, 50 in the paper only. Effect size on the pairs that respond in the paper: d = 3.15 [2.47, 3.83]. What it removes: a median of 27 µV RMS over 10 to 300 ms.</div>
+      <div class="expect"><b>Expect</b>Re-referencing 19 s. 5913 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 86%: 265 respond in both, 20 in iEEGLAB only, 50 in the paper only. Effect size on the pairs that respond in the paper: d = 3.15 [2.47, 3.83]. What it removes: a median of 27 µV RMS over 10 to 300 ms.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="Published reference"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>Lowest-variance subset (Ojeda Valencia et al., 2023)</i>, keep the share at 0.2: the paper's own reference, the average of the 20% of contacts with the lowest variance from 15 to 500 ms in each block of 64 channels of the recording. iEEGLAB warns that the epochs are already baseline-corrected: here every scheme starts from the same preprocessed epochs, while the paper ranks its contacts before the baseline, which changes some of them (section 4).
-      <div class="expect"><b>Expect</b>Re-referencing 33 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.</div>
+      <div class="expect"><b>Expect</b>Re-referencing 23 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.2);
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>CARLA, per stimulation site (Huang et al., 2024)</i>, the window's default.
-      <div class="expect"><b>Expect</b>Re-referencing about 12 minutes. The same responses as Part A of the CCEP tab. 3937 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 242 respond in both, 7 in iEEGLAB only, 73 in the paper only. Effect size on the pairs that respond in the paper: d = 3.08 [2.41, 3.74]. What it removes: a median of 14 µV RMS over 10 to 300 ms.</div>
+      <div class="expect"><b>Expect</b>Re-referencing about 7 minutes. The same responses as Part A of the CCEP tab. 3937 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 242 respond in both, 7 in iEEGLAB only, 73 in the paper only. Effect size on the pairs that respond in the paper: d = 3.08 [2.41, 3.74]. What it removes: a median of 14 µV RMS over 10 to 300 ms.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="ICA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>ICA, local components only (Michelmann et al., 2018)</i>, keep the defaults.
-      <div class="expect"><b>Expect</b>Re-referencing took about 3.5 hours here (one ICA of 198 contacts on a shared machine; plan for a long run); 70 components spread evenly over the contacts are removed. 7165 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 70%: 278 respond in both, 110 in iEEGLAB only, 37 in the paper only. Effect size on the pairs that respond in the paper: d = 2.82 [2.18, 3.45]. What it removes: a median of 28 µV RMS over 10 to 300 ms.</div>
+      <div class="expect"><b>Expect</b>Re-referencing takes about 35 minutes on a recent Mac and took about 3.5 hours here alongside other jobs (one ICA of 198 contacts; plan for a long run); 70 components spread evenly over the contacts are removed. 7165 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 70%: 278 respond in both, 110 in iEEGLAB only, 37 in the paper only. Effect size on the pairs that respond in the paper: d = 2.82 [2.18, 3.45]. What it removes: a median of 28 µV RMS over 10 to 300 ms.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>[EEG, info] = ieeglab_icaref(EEG);   % keep info to try the other scaling without refitting
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="ICA, FieldTrip scaling">Command line only: the same decomposition, with the weights scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here). Start from the preprocessed dataset again and pass the <code>info</code> of the previous step, so ICA is not fitted a second time.
@@ -653,14 +671,22 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
   <figure class="shot"><img src="tutorial/images/refcompare/ref3_matrices.png" alt="Connectivity matrices" onerror="this.closest('figure').style.display='none'">
     <figcaption>The connectivity matrix of the published pairs, in the paper and with each scheme. White: stimulated
     contact, not tested.</figcaption></figure>
-  <p>The scheme changes how many pairs respond, from 3495 with the recording's reference to 7165 with ICA with iEEGLAB's scaling. Against the paper, the decisions agree on 70% (ICA with iEEGLAB's scaling) to 86% (the common average) of its pairs; 83% with the paper's own reference. iEEGLAB finds 2 to 110 responses the paper does not, and misses 37 to 97 of its 315: the preprocessing and the test differ (permutation and false discovery rate over all 11172 pairs, against the paper's t-test corrected over its own pairs). Where both find a response, the response duration is closest with the published reference (median difference 2 ms). With the paper's own settings (no filtering, blanking or trial rejection, its reference applied before the baseline, its t-test and correction), iEEGLAB reaches the paper's decision on all 484 pairs. Changed one at a time, the test changes the most: iEEGLAB's permutation test does not find 58 to 67 of the paper's responses, as it repeats the choice of response duration that the t-test makes on the same data. Trial rejection changes 17 decisions, and re-referencing after the baseline, as in the steps above, 26: the paper's reference ranks contacts by their variance over all trials, which includes each trial's offset.</p>
+  <p>The scheme changes how many pairs respond, from 3495 with the recording's reference to 7165 with ICA with iEEGLAB's scaling. Against the paper, the decisions agree on 70% (ICA with iEEGLAB's scaling) to 86% (the common average) of its pairs; 83% with the paper's own reference. iEEGLAB finds 2 to 110 responses the paper does not, and misses 37 to 97 of its 315: the preprocessing and the test differ (permutation and false discovery rate over all 11172 pairs, against the paper's t-test corrected over its own pairs). Where both find a response, the response duration is closest with the published reference (median difference 2 ms). With the paper's own settings (no filtering, blanking or trial rejection, its reference applied before the baseline, its t-test and correction), iEEGLAB reaches the paper's decision on all 484 pairs. Changed one at a time, the test changes the most: iEEGLAB's permutation test, which repeats the choice of response duration that the t-test makes on the same data, finds 160 of the paper's 315 responses with the paper's correction (Benjamini-Yekutieli; with 10 trials its p cannot fall below 0.002), and 248 (over all pairs) to 257 (over the paper's) with Benjamini-Hochberg. Trial rejection changes 17 decisions, and re-referencing after the baseline, as in the steps above, 26: the paper's reference ranks contacts by their variance over all trials, which includes each trial's offset.</p>
   <figure class="shot"><img src="tutorial/images/refcompare/ref4_effects.png" alt="Effect sizes per scheme" onerror="this.closest('figure').style.display='none'">
     <figcaption>The strength of the responses. Mean effect size <i>d</i> with its 95% confidence interval over the
     stimulation sites, (a) on the
     pairs that respond in the paper, (b) on those that do not, (c) the difference from the published reference
     (orange) on the pairs of a.</figcaption></figure>
   <p>Effect sizes say how strong the responses are, not only whether they pass the test. On the 315 pairs that respond in the paper, the mean d is 2.95 with the published reference and largest with the common average (3.15). On the 169 that do not, it is highest with ICA with iEEGLAB's scaling (1.13, against -0.05). Against the published reference, with 95% confidence intervals: the recording's reference -0.59 [-0.93, -0.24] on the responding pairs and +0.04 [-0.10, +0.18] on the others; the common average +0.20 [+0.08, +0.32] on the responding pairs and +0.16 [+0.07, +0.25] on the others; CARLA +0.12 [+0.01, +0.23] on the responding pairs and +0.04 [-0.04, +0.12] on the others; ICA with iEEGLAB's scaling -0.14 [-0.42, +0.14] on the responding pairs and +1.17 [+0.86, +1.49] on the others; ICA with FieldTrip's scaling -0.28 [-0.52, -0.04] on the responding pairs and +0.29 [+0.20, +0.39] on the others. A scheme that raises <i>d</i> where the paper finds no response either spreads a signal across contacts or reveals responses the paper's reference hides; one that raises it only where the paper finds a response makes the responses stand out (with CARLA and the common average, mostly by lowering the trial-to-trial variability). The pairs without a response were chosen with the paper's reference, which favours it there. Selecting the pairs on half of the trials and measuring <i>d</i> on the other half, which favours no scheme, CARLA differs from the published reference by +0.08 [-0.01, +0.16] on the responding pairs and +0.08 [+0.04, +0.11] on the others.</p>
-  <details class="cmd"><summary>Command line</summary><pre><code>S = compare_references_ds004696('ds004696', 'ref_compare');   % all six, with the tables per pair
+  <p>The numbers of this section come from the three functions below, in the plugin's <code>validation</code> folder.
+  They do not use the datasets of the steps above: <code>compare_references_ds004696</code> runs everything again from
+  the raw recording, the ICA included (about 45 minutes on a recent Mac, several hours on the laptop of this page), and
+  writes about 3 GB to its output folder; a second run reuses what is there. The two other functions start from its
+  preprocessed epochs (<code>matched_pipeline_ds004696</code> also imports the recording again, for the paper's own
+  settings). The
+  figures are drawn from these files by a plotting script that is not part of the plugin.</p>
+  <details class="cmd"><summary>Command line</summary><pre><code>addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation'));
+S = compare_references_ds004696('ds004696', 'ref_compare');   % all six, with the tables per pair
 S2 = split_half_effects_ds004696('ds004696', 'ref_compare');   % effect sizes, selection on the other half
 S3 = matched_pipeline_ds004696('ds004696', 'ref_compare');     % the paper's settings, then one change at a time</code></pre></details>
   <p class="ref">Ojeda Valencia, G., Gregg, N. M., Huang, H., Lundstrom, B. N., Brinkmann, B. H., Pal Attia, T., Van Gompel,

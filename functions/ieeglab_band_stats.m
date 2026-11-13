@@ -163,7 +163,7 @@ T = table(S.labels(:), mean(d, 2, 'omitnan'), tObs, pv, padj, sig, K, pMin, true
     'VariableNames', {'channel', 'band_db', 't', 'p', 'p_adj', 'significant', 'n_trials', 'p_min', 'testable'});
 T.band_db(~tested) = NaN;
 if any(ok)
-    [testable, msg] = ieeglab_testable(pv(ok), pMin(ok), ones(nnz(ok), 1), @(x) local_correct(x, o.correct), o.alpha);
+    [testable, msg] = ieeglab_testable(pv(ok), pMin(ok), ones(nnz(ok), 1), @(x) local_correct(x, o.correct), o.alpha, 'contacts');
     T.testable(ok) = testable;
     if ~isempty(msg), warning('ieeglab_band_stats:untestable', '%s', msg); end
 end

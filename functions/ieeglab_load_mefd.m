@@ -29,6 +29,10 @@ if isstring(sessPath), sessPath = char(sessPath); end
 if ~ischar(sessPath) || ~exist(sessPath,'dir')
     error('Invalid session directory: %s', char(sessPath));
 end
+% The reader gets an absolute path: on macOS and Linux, meflib resolves a
+% relative one with the PWD variable, which MATLAB leaves at its start-up folder
+% after a cd, and then crashes MATLAB (see ieeglab_abspath).
+sessPath = ieeglab_abspath(sessPath);
 
 if ~isempty(password)
     if isstring(password), password = char(password); end

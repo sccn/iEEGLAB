@@ -61,8 +61,11 @@
 - **Validation scripts** (`validation/`): against FieldTrip's intracranial
   tutorial (re-referencing, time-frequency and high-frequency activity), the
   authors' CRP code on their sample data, ER-detect on one ds004080 run, the
-  authors' ICA re-referencing script, and Huang et al.'s common average on
-  ds004977. `compare_references_ds004696` runs the analysis of Ojeda Valencia
+  authors' ICA re-referencing script, and Huang et al.'s common average and
+  CARLA on ds004977. `validate_carla_huang_ds004977` runs the authors' code on
+  the site of their Figure 5, then `ieeglab_carla` on the same input, then
+  iEEGLAB from the raw recording: all three keep the same 154 of 206 channels.
+  `compare_references_ds004696` runs the analysis of Ojeda Valencia
   et al. (2023) on ds004696 sub-02 with each re-referencing scheme and compares
   each with the published CRP (the paper's decision: the t-test at the response
   duration with the Benjamini-Yekutieli correction over its pairs), with an
@@ -89,6 +92,15 @@
 
 ### Changed
 
+- **The warning on tests that cannot reach significance** no longer says
+  "whatever the data": with a false discovery rate correction it depends on the
+  other tests' p-values, so the same pair can become testable when many others
+  respond. The band-power test's warning names contacts, not pairs.
+- **The warning that contacts lie outside the brain surfaces** gave the median
+  distance of every contact, which read as that of the contacts outside. It now
+  gives the median of the contacts outside (also in
+  `info.median_dist_outside_mm` of `ieeglab_check_coords`) and says that grid
+  and strip contacts, which rest on the cortex, can lie a few mm outside.
 - **"Lowest-variance subset"**, the re-referencing of Ojeda Valencia et al.
   (2023), was called a lowest-covariance subset in the menu and the help. It
   ranks the contacts by their variance in the response window, as the authors'
@@ -216,6 +228,16 @@
 
 ### Fixed
 
+- **Importing a MEF3 recording by a relative path crashed MATLAB on macOS and
+  Linux.** The MEF3 reader (meflib) makes a relative path absolute with the PWD
+  environment variable, which MATLAB leaves at its start-up folder after a `cd`,
+  so it looked in the wrong folder and crashed instead of returning an error.
+  `ieeglab_load_mefd` now hands it the absolute path (`ieeglab_abspath`).
+  Windows was not affected.
+- **Preprocessing left EEGLAB's baseline reminder in `lastwarn`.** `pop_epoch`
+  ends with a warning to remove the baseline in the EEGLAB menu; iEEGLAB already
+  hid it from the output, and now also restores the previous last warning, so
+  scripts that check for warnings no longer see it.
 - **Epochs could start one sample early.** An event's latency was its onset
   times the sampling rate, plus 1; for onsets written in decimal seconds this
   often lands just below the sample it names, and EEGLAB's epoching rounds

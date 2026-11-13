@@ -348,7 +348,8 @@ CARLA and CRP are checked against the published implementations
 
 The scripts in `validation/` compare iEEGLAB with other tools and with the
 authors' code on public data, some from the raw recording and some on the same
-input. Each one's help says which, and what to download.
+input. Each one's help says which, and what to download. The folder is not on
+the path: `addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation'))`.
 
 | Script | Against | Data |
 |---|---|---|
@@ -357,6 +358,7 @@ input. Each one's help says which, and what to download.
 | `validate_erdetect_ds004080` | ER-detect (van den Boom et al., 2025), N1 | ds004080, one run (sub-ccepAgeUMCU02) |
 | `validate_icaref_michelmann` | The ICA re-referencing authors' script (Michelmann et al., 2018) | SubjectUCI29 depth leads, and simulated data |
 | `validate_car_huang_ds004977` | The CARLA authors' common average (Huang et al., 2024) | ds004977 sub-1 run-02 (public samples: site RMO8-RMO9 only) |
+| `validate_carla_huang_ds004977` | The CARLA authors' code (Huang et al., 2024), on the site of their Figure 5 | ds004977 sub-1 run-02, site RMO8-RMO9 |
 
 ## Citing
 

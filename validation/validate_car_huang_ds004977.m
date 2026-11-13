@@ -17,8 +17,7 @@ function T = validate_car_huang_ds004977(dsDir, carlaDir, mnlDir)
 % (getNeighborChs), trials annotated bad removed and channels bad in any trial
 % left out (rmBadTrialsAnnots); then the common average of what remains, as
 % their figS3_compareCARvCARLA.m: mean over channels per trial. (Their CARLA,
-% on the site of Figure 5, is compared in the CARLA test of iEEGLAB: the same
-% 154 of 206 channels.)
+% on the site of Figure 5, is compared by validate_carla_huang_ds004977.)
 % iEEGLAB end to end: ieeglab_import, ieeglab_load, ieeglab_preprocess (0.5 Hz
 % high-pass, which is FIR in iEEGLAB; epochs -1 to 1 s; bad channels
 % removed), pop_ieeglab_reref('car') with the same 2 neighbours left out.

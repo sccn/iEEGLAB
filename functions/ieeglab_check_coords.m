@@ -16,10 +16,14 @@ function [ok, info] = ieeglab_check_coords(xyz, surfaces, varargin)
 % FreeSurfer surface RAS, or individual coordinates on a template): the function
 % warns ('ieeglab_check_coords:spaceMismatch') and returns ok = false.
 %
-% info: n, n_outside, frac_outside, median_dist_mm (to the nearest vertex).
+% info: n, n_outside, frac_outside, median_dist_mm (every contact to the nearest
+% vertex), median_dist_outside_mm (the contacts outside only).
 %
 % On OpenNeuro ds004696 sub-02, all 211 contacts are inside the published pial
 % surfaces (median 3.4 mm from the surface); shifted by 30 mm, 15% are outside.
+% In FieldTrip's ECoG tutorial (UCI29, positions before the brain-shift
+% correction), 22 of 152 contacts are outside, all grid contacts, 3.5 mm from the
+% surface in the median: the warning fires there although the spaces match.
 %
 % Cedric Cannard, iEEGLAB, 2026
 
@@ -30,7 +34,8 @@ p.parse(varargin{:});
 o = p.Results;
 
 xyz = xyz(all(isfinite(xyz), 2), :);
-info = struct('n', size(xyz, 1), 'n_outside', 0, 'frac_outside', 0, 'median_dist_mm', NaN);
+info = struct('n', size(xyz, 1), 'n_outside', 0, 'frac_outside', 0, 'median_dist_mm', NaN, ...
+    'median_dist_outside_mm', NaN);
 ok = true;
 if isempty(xyz) || isempty(surfaces), return; end
 if isstruct(surfaces), surfaces = num2cell(surfaces); end
@@ -49,14 +54,17 @@ end
 info.n_outside = nnz(~inside);
 info.frac_outside = info.n_outside / info.n;
 info.median_dist_mm = median(dmin);
+info.median_dist_outside_mm = median(dmin(~inside));   % NaN when none is outside
 if info.frac_outside > o.max_outside
     ok = false;
     if o.verbose
         warning('ieeglab_check_coords:spaceMismatch', ...
-            ['%d of %d contacts (%.0f%%) lie outside the brain surfaces drawn (median %.1f mm from the ' ...
-             'surface). The electrode coordinates and the surfaces are probably in different spaces: ' ...
-             'check the coordinate system in *_coordsystem.json against the surfaces.'], ...
-            info.n_outside, info.n, 100 * info.frac_outside, info.median_dist_mm);
+            ['%d of %d contacts (%.0f%%) lie outside the brain surfaces drawn, %.1f mm from the ' ...
+             'surface in the median. The electrode coordinates and the surfaces are probably in ' ...
+             'different spaces: check the coordinate system in *_coordsystem.json against the ' ...
+             'surfaces. Grid and strip contacts rest on the cortex, so a few of them can lie a few ' ...
+             'mm outside without any mismatch.'], ...
+            info.n_outside, info.n, 100 * info.frac_outside, info.median_dist_outside_mm);
     end
 end
 end

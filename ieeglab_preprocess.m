@@ -364,8 +364,17 @@ if local_opt(opt,'apply_epoch',false) && isfield(opt,'epoch_window') && ~continu
             fprintf('Epoching around %d event types, window [%g %g] ms\n', numel(evtTypes), t_ms(1), t_ms(2));
             % pop_epoch always ends with a warning to remove the baseline in the EEGLAB
             % menu; iEEGLAB removes it itself (below). Its output is captured and shown
-            % again without that one warning (and its "In ..." lines).
+            % again without that one warning (and its "In ..." lines), and lastwarn is
+            % put back, so a script checking for warnings does not see it either.
+            [w0, w0id] = lastwarn;
             txt = evalc('EEG = pop_epoch(EEG, evtTypes, t_ms/1000, ''epochinfo'',''yes'', ''newname'',''iEEGLAB epochs'');');
+            if contains(lastwarn, 'single-trial ERP baseline')
+                % the last other warning pop_epoch printed, else the one before the call
+                other = regexp(txt, '^\[?Warning: ([^\r\n]*?)\]?[ \t]*$', 'tokens', 'lineanchors');
+                other = cellfun(@(c) c{1}, other, 'UniformOutput', false);   % {} when none
+                other = other(~contains(other, 'single-trial ERP baseline'));
+                if ~isempty(other), lastwarn(other{end}); else, lastwarn(w0, w0id); end
+            end
             lines = regexp(txt, '\r?\n', 'split');
             keep = true(size(lines));
             for k = find(contains(lines, 'single-trial ERP baseline'))

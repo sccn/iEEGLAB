@@ -99,7 +99,12 @@ m = {ieeglab_read_gifti(fullfile(d, 'pial.L.surf.gii')), ieeglab_read_gifti(full
 [ok, info] = ieeglab_check_coords(xyz, m);
 tc.verifyTrue(ok);
 tc.verifyEqual(info.n_outside, 0);
+tc.verifyTrue(isnan(info.median_dist_outside_mm));
 tc.verifyWarning(@() ieeglab_check_coords(xyz + [0 0 60], m), 'ieeglab_check_coords:spaceMismatch');
+% the distance the warning gives is that of the contacts outside only
+[~, info] = ieeglab_check_coords(xyz + [0 0 60], m, 'verbose', false);
+tc.verifyGreaterThan(info.n_outside, 0);
+tc.verifyGreaterThan(info.median_dist_outside_mm, 0);
 end
 
 function work = local_bids_tree(flatDir, sub, ses)

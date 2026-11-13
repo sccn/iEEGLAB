@@ -125,6 +125,37 @@ try, ieeglab_load_mefd(tempdir); catch e, msg = e.message; end
 tc.verifySubstring(msg, 'no compiled (MEX) reader');
 end
 
+function test_abspath_of_relative_paths(tc)
+% The MEF3 reader crashes MATLAB on macOS and Linux when handed a relative path
+% after a cd (meflib resolves it with the PWD variable); ieeglab_load_mefd hands
+% it the path ieeglab_abspath returns, which must be absolute and must resolve
+% from MATLAB's current folder.
+root = tempname; mkdir(fullfile(root, 'a', 'b.mefd'));
+fclose(fopen(fullfile(root, 'a', 'f.txt'), 'w'));
+here = pwd; c = onCleanup(@() cellfun(@feval, {@() cd(here), @() rmdir(root, 's')}));
+cd(root);
+% compare folders through cd + pwd: tempdir can be a short (Windows) or linked
+% (macOS /var -> /private/var) name, which dir() and pwd may spell differently
+canon = @(d) local_cd_pwd(d);
+full = canon(fullfile(root, 'a', 'b.mefd'));
+tc.verifyEqual(canon(ieeglab_abspath(fullfile('a', 'b.mefd'))), full);
+tc.verifyEqual(canon(ieeglab_abspath(fullfile('a', 'b.mefd', '..', 'b.mefd'))), full);
+tc.verifyEqual(canon(ieeglab_abspath(full)), full);
+f = ieeglab_abspath(string(fullfile('a', 'f.txt')));
+tc.verifyTrue(isfile(f)); tc.verifyEqual(canon(fileparts(f)), canon(fullfile(root, 'a')));
+cd('a');
+tc.verifyEqual(canon(ieeglab_abspath('b.mefd')), full);
+tc.verifyEqual(canon(ieeglab_abspath('.')), canon(pwd));
+for p = {ieeglab_abspath('b.mefd'), f}   % absolute: still right from another folder
+    cd(tempdir); tc.verifyTrue(isfolder(p{1}) || isfile(p{1}), p{1}); cd(fullfile(root, 'a'));
+end
+tc.verifyError(@() ieeglab_abspath('no_such_folder'), 'ieeglab_abspath:notFound');
+end
+
+function p = local_cd_pwd(d)
+here = pwd; cd(d); p = pwd; cd(here);
+end
+
 function test_no_duplicate_plot_ccep(tc)
 % my_quick_ccep_plot.m declared "function plot_ccep", shadowing the real one.
 tc.verifyEmpty(which('my_quick_ccep_plot'), ...
@@ -154,8 +185,11 @@ function test_preprocess_runs_headless(tc)
 % The keystone regression: this used to hang forever because the GUI guard was
 % 'if nargin < 2' inside a one-input function.
 EEG = loadSeeg(tc, true);
+lastwarn('');
 [E, com] = ieeglab_preprocess(EEG, defaultOpt());
 tc.verifyGreaterThan(E.trials, 1, 'Data should be epoched.');
+tc.verifyFalse(contains(lastwarn, 'single-trial ERP baseline'), ...
+    'pop_epoch''s reminder to remove the baseline must not be left in lastwarn.');
 tc.verifyEqual(E.ref, 'CARLA');
 tc.verifyNotEmpty(com, 'A history string is required for eeglab_new to store the dataset.');
 tc.verifyEmpty(findall(0,'Type','figure'), 'No figures may be opened when plot=false.');

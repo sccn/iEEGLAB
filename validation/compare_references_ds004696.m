@@ -9,7 +9,7 @@ function S = compare_references_ds004696(dsDir, outDir, schemes)
 %
 % dsDir    the ds004696 BIDS folder with sub-02 and derivatives/stats/sub-02 (the
 %          published CRP, sub-02_ses-ieeg01_task-ccep_run-01_crp.mat)
-% outDir   where the results go (about 1 GB): the preprocessed epochs
+% outDir   where the results go (about 3 GB): the preprocessed epochs
 %          (preprocessed.mat, reused when present), per scheme a table of every
 %          site-contact pair (pairs_<scheme>.tsv), the effect size of every pair
 %          (effects_<scheme>.tsv) and the trial averages (averages_<scheme>.mat),
