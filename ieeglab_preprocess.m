@@ -593,7 +593,7 @@ end
 
 function local_plot_car_comparison(x, before, after, refName, chanLabel)
 mu = @(R) mean(R, 2, 'omitnan');
-sem = @(R) std(R, 0, 2, 'omitmissing') ./ sqrt(max(sum(~isnan(R), 2), 1));
+sem = @(R) std(R, 0, 2, 'omitnan') ./ sqrt(max(sum(~isnan(R), 2), 1));   % 'omitmissing' needs R2023a (issue #9)
 ieeglab_figure('Name','Re-referencing: before and after'); hold on
 ax = gca; co = ax.ColorOrder;
 band = @(m,s,c) fill([x; flipud(x)]', [m+s; flipud(m-s)]', c, 'FaceAlpha',0.2, 'EdgeColor', c);

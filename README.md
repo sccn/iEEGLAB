@@ -73,6 +73,7 @@ window or figure that opens, and the same step from the command line.
 | [ECoG: cortico-cortical evoked potentials](https://github.com/sccn/iEEGLAB/wiki/2-ECoG-CCEP-ds004080): the same on fsaverage, with the common average and the N1 | ds004080 sub-ccepAgeUMCU02 |
 | [FieldTrip tutorial data](https://github.com/sccn/iEEGLAB/wiki/3-FieldTrip-tutorial-data): common average of the grids, bipolar depth leads, high-frequency activity, against FieldTrip | FieldTrip's SubjectUCI29 |
 | [Re-referencing compared](https://github.com/sccn/iEEGLAB/wiki/4-Re-referencing-compared): six schemes against the published CRP | ds004696 sub-02, full recording |
+| [CARLA on its authors' data](https://github.com/sccn/iEEGLAB/wiki/5-CARLA-ds004977): the recording of their Figure 5, against the common average | ds004977 sub-1, run 2 |
 
 The first two run on small extracts of public recordings that ship with the
 plugin, at their native sampling rate (2048 Hz), each in one folder: the EEGLAB

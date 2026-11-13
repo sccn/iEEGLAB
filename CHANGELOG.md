@@ -96,6 +96,11 @@
   the repository's wiki at each change, for the EEGLAB website. The README
   follows the layout of the other EEGLAB plugin pages, with links to them, a
   quick start and images that also show outside GitHub.
+- **Tutorial page for ds004977** (`docs/5-CARLA-ds004977.md`): CARLA through
+  the menus with its authors' settings on the recording of their Figure 5
+  (sub-1 run 2, site RMO8-RMO9: the same 154 of 206 channels), the curve of
+  that figure from the command line, and the common average of every channel
+  for comparison.
 
 ### Changed
 
@@ -267,6 +272,11 @@
   which became zero. Re-run varsubset analyses of datasets with removed
   channels; datasets imported before this version keep the old blocks unless
   re-imported.
+- **Re-referencing figure on MATLAB before R2023a** (issue #9): the
+  before-and-after figure of preprocessing computed its error band with
+  `std(..., 'omitmissing')`, an option added in R2023a; older releases stopped
+  with "Invalid option. Option must be 'omitnan' or 'includenan'". It now uses
+  `'omitnan'`.
 
 ## 1.2.0 (2026-10-25)
 
