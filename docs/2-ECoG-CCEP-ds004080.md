@@ -138,7 +138,9 @@ EEG = pop_ieeglab_reref(EEG, 'method', 'car');
 **iEEGLAB > CCEP analysis**: defaults (N1 on ECoG, matrix from N1). The N1 is the largest negative peak 10 to 100 ms
 after the pulse (van Blooijs et al., 2018), tested with a sign-flip permutation test across trials (false discovery
 rate across the contacts of each site). Only negative peaks count, as in ER-detect (van den Boom et al., 2025), whose
-detection rule (a peak above 3.4 times the baseline SD) is an option.
+detection rule (a peak above 3.4 times the baseline SD) is an option. The peak is measured from the median of the
+average's baseline, so the epochs need not be baseline-corrected; ER-detect measures it from zero
+(`'n1_peak_from', 'zero'` from the command line).
 
 > **Expect.**
 >

@@ -15,8 +15,8 @@ opens, and the same step from the command line.
 | [Re-referencing compared](4-Re-referencing-compared.md) | ds004696 sub-02, full recording | Six re-referencing schemes against the published CRP of this participant |
 | [CARLA on its authors' data](5-CARLA-ds004977.md) | ds004977 sub-1, run 2 (304 MB download) | CARLA with its authors' settings on the recording of their Figure 5, against the common average of every channel |
 
-The same steps, with a checklist, are in `iEEGLAB_GUI_walkthrough.html` in the plugin folder (**Help > iEEGLAB
-documentation** in EEGLAB), and as one script in
+Each page also opens from **Help > iEEGLAB documentation** in EEGLAB. The same steps, with a checklist, are in
+`iEEGLAB_GUI_walkthrough.html` in the plugin folder (also in that menu), and the first two tutorials as one script in
 [`ieeglab_tutorial.m`](https://github.com/sccn/iEEGLAB/blob/main/ieeglab_tutorial.m).
 
 These pages are copied from the `docs/` folder of the [repository](https://github.com/sccn/iEEGLAB/tree/main/docs);

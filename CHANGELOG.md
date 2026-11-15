@@ -90,12 +90,14 @@
 - **Step-by-step page: tabs and an outline.** `iEEGLAB_GUI_walkthrough.html`
   has a tab for the CCEP steps (unchanged, ticks kept), one for FieldTrip's
   intracranial tutorial data, and one comparing the re-referencing schemes on
-  ds004696 sub-02 against the published result. On wide screens an outline on
-  the side follows where you are.
+  ds004696 sub-02 against the published result, and one for CARLA on its
+  authors' recording (ds004977, as the tutorial page). On wide screens an
+  outline on the side follows where you are.
 - **N1: `'peak_from', 'zero'`** measures the peak from zero (the average as it
   is, each trial's baseline already removed), as ER-detect, instead of from the
   baseline median of the average (the default). The ER-detect-equivalent
-  settings in the help now include it.
+  settings in the help now include it. The CCEP analysis passes it on
+  (`ieeglab_stats_subject(EEG, struct(..., 'n1_peak_from', 'zero'))`).
 - **Tutorial pages in Markdown** (`docs/`): the step-by-step page as four pages
   (sEEG and ECoG CCEP, FieldTrip's tutorial data, re-referencing compared),
   each step with its menu, what to expect, the screenshot and the command line,

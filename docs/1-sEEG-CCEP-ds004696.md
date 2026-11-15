@@ -160,7 +160,8 @@ EEG = pop_ieeglab_reref(EEG, 'method', 'carla');
 
 ### 7. CCEP analysis
 
-**iEEGLAB > CCEP analysis**: defaults (CRP over 15 ms to 1 s, matrix from CRP). On sEEG the response of each
+**iEEGLAB > CCEP analysis**: defaults (CRP on the samples after 15 ms up to 1 s, as in the authors' code; matrix from
+CRP). On sEEG the response of each
 site-contact pair is described by the Canonical Response Parameterization (CRP; Miller et al., 2023): its duration,
 shape and explained variance, with a permutation test. The connectivity matrix collects the significant responses.
 

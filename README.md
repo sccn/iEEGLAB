@@ -37,7 +37,8 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    [download it](https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip)
    and unzip it there. This page describes the current code. The latest
    [release](https://github.com/sccn/iEEGLAB/releases), 1.2.0, does not have the
-   brain-surface step, bipolar and custom montages or frequency analysis yet.
+   brain-surface step, bipolar and custom montages, frequency analysis with its
+   band-power test, or the FieldTrip import yet.
 3. Start EEGLAB and run *iEEGLAB > Check installation*
    (`ieeglab_check_install`), which lists anything missing. The iEEGLAB menu is
    right of *Help*:
@@ -45,8 +46,8 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    <img src="https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/00_eeglab_start.png" width="360" alt="EEGLAB with the iEEGLAB menu">
 
    *Help > iEEGLAB documentation* (also at the bottom of the iEEGLAB menu)
-   opens this page, the menu-by-menu walkthrough shipped with the plugin, the
-   tutorial script, and the help of each menu's function.
+   opens this page, each tutorial below, the menu-by-menu walkthrough shipped
+   with the plugin, the tutorial script, and the help of each menu's function.
 
 The menus and the tutorials need no MATLAB toolbox. With the Signal Processing
 Toolbox, CARLA also removes the line noise before ranking the channels.

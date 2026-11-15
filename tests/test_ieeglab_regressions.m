@@ -115,6 +115,17 @@ same = isfinite(T1.n1_latency_ms) & T1.n1_latency_ms == T2.n1_latency_ms;
 tc.assertGreaterThan(nnz(same), 0);
 tc.verifyEqual(T2.n1_amplitude_uv(same) - T1.n1_amplitude_uv(same), repmat(30, nnz(same), 1), 'AbsTol', 1e-3);
 tc.verifyError(@() ieeglab_detect_n1(E, struct('peak_from','raw','verbose',false)), 'ieeglab_detect_n1:badPeakFrom');
+% The same option through the CCEP analysis (ieeglab_stats_subject, 'n1_peak_from')
+s = struct('run_n1',true, 'run_crp',false, 'run_matrix',false, 'plot',false, 'verbose',false, ...
+    'n1_method','sd', 'min_trials',2);
+[~, M1] = evalc('ieeglab_stats_subject(E, s)'); [~, M2] = evalc('ieeglab_stats_subject(E2, s)');
+tc.verifyEqual(M2.ieeglab.n1.table.n1_amplitude_uv, M1.ieeglab.n1.table.n1_amplitude_uv, 'AbsTol', 1e-3);
+s.n1_peak_from = 'zero';
+[~, S1] = evalc('ieeglab_stats_subject(E, s)'); [~, S2] = evalc('ieeglab_stats_subject(E2, s)');
+T1 = S1.ieeglab.n1.table; T2 = S2.ieeglab.n1.table;
+same = isfinite(T1.n1_latency_ms) & T1.n1_latency_ms == T2.n1_latency_ms;
+tc.assertGreaterThan(nnz(same), 0);
+tc.verifyEqual(T2.n1_amplitude_uv(same) - T1.n1_amplitude_uv(same), repmat(30, nnz(same), 1), 'AbsTol', 1e-3);
 end
 
 function test_bonferroni_needs_enough_permutations(tc)

@@ -40,6 +40,9 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %          .n1_method   'permutation' (default) | 'sd'   .n1_threshold 3.4 (sd only)
 %          .n1_polarity 'negative' (default, as erdetect) | 'abs' | 'positive'
 %          .n1_min_baseline_sd  50 uV (floor on the baseline SD, as erdetect)
+%          .n1_peak_from 'median' (default: the peak measured from the median of
+%                       the average's baseline, valid without baseline
+%                       correction) | 'zero' (as erdetect). See ieeglab_detect_n1.
 %
 % CRP significance (.crp_test): run_CRP chooses the response duration tau_R as
 % the argmax of the mean cross-projection profile, so a t-test at tau_R is
@@ -86,14 +89,14 @@ def = struct('run_n1',isCCEP && isECoG, 'run_crp',~(isCCEP && isECoG), 'run_matr
     'export_dir','', 'plot',interactive, 'alpha',0.05, 'correct','fdr', 'min_trials',5, ...
     'exclude_stim',true, 'n_perm',1000, 'verbose',true, 'crp_window',[15 1000], ...
     'n1_window',[10 100], 'n1_baseline',[-500 -10], 'n1_method','permutation', 'n1_threshold',3.4, ...
-    'crp_test','permutation', 'correct_scope','subject', 'seed',0);
+    'n1_peak_from','median', 'crp_test','permutation', 'correct_scope','subject', 'seed',0);
 fn = fieldnames(def);
 for ii = 1:numel(fn)
     if ~isfield(opt, fn{ii}) || (isempty(opt.(fn{ii})) && ~ischar(def.(fn{ii})))
         opt.(fn{ii}) = def.(fn{ii});
     end
 end
-for f = {'matrix_source','correct','n1_method','n1_polarity','export_dir','crp_test','correct_scope'}
+for f = {'matrix_source','correct','n1_method','n1_polarity','n1_peak_from','export_dir','crp_test','correct_scope'}
     opt.(f{1}) = char(string(opt.(f{1})));
 end
 opt.crp_test = lower(opt.crp_test); opt.correct_scope = lower(opt.correct_scope);
@@ -169,7 +172,8 @@ if opt.run_n1
         'method', opt.n1_method, 'threshold', opt.n1_threshold, 'n_perm', opt.n_perm, ...
         'alpha', opt.alpha, 'correct', opt.correct, 'min_trials', opt.min_trials, ...
         'exclude_stim', opt.exclude_stim, 'polarity', opt.n1_polarity, ...
-        'min_baseline_sd', opt.n1_min_baseline_sd, 'verbose', opt.verbose, 'seed', opt.seed));
+        'min_baseline_sd', opt.n1_min_baseline_sd, 'peak_from', opt.n1_peak_from, ...
+        'verbose', opt.verbose, 'seed', opt.seed));
 end
 
 % ---------------- connectivity matrix ----------------

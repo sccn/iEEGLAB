@@ -111,6 +111,7 @@
     <button type="button" role="tab" data-tab="ccep" aria-selected="true">CCEP: sEEG and ECoG</button>
     <button type="button" role="tab" data-tab="fieldtrip" aria-selected="false">FieldTrip tutorial data</button>
     <button type="button" role="tab" data-tab="refs" aria-selected="false">Re-referencing compared</button>
+    <button type="button" role="tab" data-tab="carla" aria-selected="false">CARLA on its authors' data</button>
   </div>
 
   <div class="progress" role="status" aria-live="polite">
@@ -156,7 +157,7 @@
     <li data-o="Check installation">Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
       <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.
       <span class="menu">Help &gt; iEEGLAB documentation</span> (also at the bottom of the iEEGLAB menu) opens this page,
-      the README, the tutorial script, and the help of each menu.</div>
+      the README, each tutorial page on the web, the tutorial script, and the help of each menu.</div>
       <figure class="shot"><img src="tutorial/images/00_eeglab_start.png" alt="EEGLAB with the iEEGLAB menu" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>eeglab
 ieeglab_check_install</code></pre></details></li>
@@ -249,7 +250,7 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A6_reref.png" alt="Re-referencing window" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
 
-    <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP over 15 ms to 1 s, matrix from CRP).
+    <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (CRP on the samples after 15 ms up to 1 s, as in the authors' code; matrix from CRP).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 19 of 36 site-contact pairs respond (the stimulation
       sites are next to each other on one lead, so most contacts respond).</span><span class="f">Under a minute: 3937
       of 10780 site-contact pairs respond. A warning says that 392 more cannot reach significance, at sites with too
@@ -404,6 +405,9 @@ EEG = ieeglab_vis_elec(EEG);</code></pre></details></li>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
 
     <li data-o="CCEP analysis"><span class="menu">iEEGLAB &gt; CCEP analysis</span>: defaults (N1 on ECoG, matrix from N1).
+      The N1 is the largest negative peak 10 to 100 ms after the pulse, tested with a sign-flip permutation test across
+      trials. It is measured from the median of the average's baseline, so the epochs need not be baseline-corrected;
+      ER-detect measures it from zero (<code>'n1_peak_from', 'zero'</code> from the command line).
       <div class="expect"><b>Expect</b><span class="t">A few seconds: 10 of 48 pairs respond, N1 latency median 21 ms (14 to
       99 ms).</span><span class="f">About 10 s: 299 of 672 pairs respond, N1 latency median 47 ms (11 to 99 ms).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB7_ccep_analysis.png" alt="CCEP analysis window" onerror="this.closest('figure').style.display='none'"></figure>
@@ -684,8 +688,9 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
   the raw recording, the ICA included (about 45 minutes on a recent Mac, several hours on the laptop of this page), and
   writes about 3 GB to its output folder; a second run reuses what is there. The two other functions start from its
   preprocessed epochs (<code>matched_pipeline_ds004696</code> also imports the recording again, for the paper's own
-  settings). The
-  figures are drawn from these files by a plotting script that is not part of the plugin.</p>
+  settings). The figures and their confidence intervals come from
+  <code>validation/figures/figures_rereferencing.py</code> (Python, with NumPy, SciPy and Matplotlib), run on the output
+  folder of <code>compare_references_ds004696</code>.</p>
   <details class="cmd"><summary>Command line</summary><pre><code>addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation'));
 S = compare_references_ds004696('ds004696', 'ref_compare');   % all six, with the tables per pair
 S2 = split_half_effects_ds004696('ds004696', 'ref_compare');   % effect sizes, selection on the other half
@@ -694,6 +699,120 @@ S3 = matched_pipeline_ds004696('ds004696', 'ref_compare');     % the paper's set
   J. J., Bernstein, M. A., In, M.-H., Huston, J., III, Worrell, G. A., Miller, K. J., &amp; Hermes, D. (2023). Signatures
   of electrical stimulation driven network interactions in the human limbic system. <i>Journal of Neuroscience,
   43</i>(39), 6697-6711.</p>
+  </section>
+
+  <section class="tab" data-tab="carla" data-key="ieeglab-carla1-" hidden>
+  <p class="intro">CARLA (common average referencing by least anticorrelation; Huang et al., 2024) chooses, for each
+  stimulation site, the channels whose common average carries no evoked response. This tab applies it through the
+  menus to the recording of the paper's Figure 5, with the authors' settings: sub-1 of OpenNeuro ds004977, stereo-EEG at
+  4800 Hz, stimulation site RMO8-RMO9. The authors' code puts 154 of 206 channels in the common average there; iEEGLAB
+  chooses the same 154. The tab then compares CARLA with the common average of every channel. Screenshots to come.</p>
+
+  <h2 id="carla-data">1. Data</h2>
+  <p>Run 2 of sub-1, from <a href="https://openneuro.org/datasets/ds004977">ds004977</a> or with the
+  <a href="https://aws.amazon.com/cli/">AWS command line</a> (no account needed): 304 MB. Keep the folder structure.
+  Reading it needs the <b>MEF3</b> plugin (<span class="menu">File &gt; Manage EEGLAB extensions</span>).</p>
+  <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004977 ds004977 --exclude "*" --include "sub-1/ses-ieeg01/ieeg/*run-02*" --include "sub-1/ses-ieeg01/ieeg/*_electrodes.tsv" --include "sub-1/ses-ieeg01/ieeg/*_coordsystem.json" --include "dataset_description.json" --include "participants.tsv" --include "task-ccep_events.json"</code></pre>
+  <div class="note">The public dataset holds only the samples behind the paper's Figures 1 to 6; the other samples are 0
+  (see its README). In run 2, only the 12 pulses at RMO8-RMO9 have data: the other 9 sites import without an error but
+  are flat, so this tab keeps RMO8-RMO9 only. The dataset has no pial surfaces, so there is no brain figure: a template
+  brain would not line up with these coordinates (ACPC, the participant's own space).</div>
+
+  <h2 id="carla-steps">2. Steps</h2>
+  <p>Steps 1 to 4 take about a minute on a Windows laptop with 8 cores. The recording takes under 3 GB of memory.</p>
+  <ol class="steps">
+    <li data-o="Load the data"><span class="menu">iEEGLAB &gt; Import raw recording</span>: select the
+      <code>ds004977</code> folder, then sub-1's run 2 (<code>sub-1_ses-ieeg01_task-ccep_run-02_ieeg.mefd</code>). Keep
+      the defaults: the whole recording, brain channels only.
+      <div class="expect"><b>Expect</b>About 25 seconds, with the progress in the command window and a progress bar: 255
+      stereo-EEG channels at 4800 Hz, 9 minutes.</div>
+      <div class="note"><i>Read only these stimulation sites</i> (RMO8-RMO9) in the import options reads 44 seconds
+      instead of 9 minutes. The high-pass filter of step 3 then works on that stretch, which changes the covariance of a
+      few channels a little: CARLA still chooses 154 channels, but RP17 instead of RP14, its 154th and 155th channels.
+      Read the whole recording to reproduce the paper exactly.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>rec = fullfile('ds004977', 'sub-1', 'ses-ieeg01', 'ieeg', 'sub-1_ses-ieeg01_task-ccep_run-02_ieeg.mefd');
+EEG = ieeglab_import(rec);</code></pre></details></li>
+
+    <li data-o="Coordinates and events"><span class="menu">iEEGLAB &gt; Load electrode coordinates and events</span>: Ok
+      in both windows. The sidecar files next to the recording are found automatically; the event type is the
+      stimulation site, and the contacts marked bad in <code>channels.tsv</code> are marked here and removed during
+      preprocessing.
+      <div class="expect"><b>Expect</b>228 of 255 contacts with coordinates, 43 bad (from <code>channels.tsv</code>),
+      120 stimulations at 10 sites. A warning names the 27 contacts with no position in <code>electrodes.tsv</code>: 25 of
+      them are bad, the other two are RP18 and ROC14.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
+
+    <li data-o="Preprocess"><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>, with the settings of the
+      authors' code: <i>Choose which event types to analyse</i>, <b>Open selector</b>, RMO8-RMO9; untick <i>Remove
+      electrodes with no XYZ coordinates</i> (RP18 and ROC14 are good contacts, and the authors keep them); untick
+      <i>Blank the stimulation artifact</i>; tick <i>High-pass filter</i>, cutoff 0.5 Hz; untick <i>Remove line noise</i>
+      (CARLA removes it from its own copy of the data before it ranks the channels, as the authors' code does; the
+      re-referenced data keep it); untick <i>Remove the pre-stimulus baseline</i>; keep the rest (bad contacts removed,
+      epochs -1 to 1 s).
+      <div class="expect"><b>Expect</b>About 20 seconds: 212 contacts, 12 epochs.</div>
+      <div class="note">The authors high-pass with a Butterworth filter, iEEGLAB with a FIR filter (both zero-phase).
+      The channels chosen at step 4 are the same.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('event_filters', struct('type', {{'RMO8-RMO9'}}), ...
+    'remove_no_coords', false, 'remove_bad_channels', true, 'apply_blank', false, ...
+    'apply_highpass', true, 'highpass', 0.5, 'apply_notch', false, ...
+    'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', false, 'apply_baseline', false));
+EEGpre = EEG;   % kept for step 6</code></pre></details></li>
+
+    <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: CARLA, defaults. They are the
+      authors' settings for real data: a response window of 10 to 300 ms, the sensitive cutoff, and the stimulated pair
+      with 2 contacts on each side of it left out, as the bad contacts.
+      <div class="expect"><b>Expect</b>About 10 seconds. The command window reads <i>154/212 channels in reference, 6
+      excluded</i> (RMO6 to RMO11): of the 206 channels CARLA may use, it keeps 154, the same 154 as the authors' code
+      (Huang et al., 2024, Figure 5). The random draws use a fixed seed, so the result repeats from run to run.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
+
+    <li data-o="The curve of Figure 5">From the command line. CARLA ranks the channels by their covariance across
+      trials, lowest first, and adds them to the common average one at a time. For each number of channels, it
+      re-references the data with that average and finds the channel of the average most anticorrelated with the
+      re-referenced channels: a channel that carries a response becomes anticorrelated with the others once its response
+      is in the average. The curve is that channel's correlation (Fisher z, the paper's zeta), averaged over 100
+      bootstrap draws of the trials. CARLA keeps the number of channels at the top of the curve, before the first
+      significant drop (the sensitive cutoff).
+      <div class="expect"><b>Expect</b>The curve starts at -0.87 with 2 channels (1 channel has no value), rises to a
+      plateau near -0.1 from about 80 to 180 channels, peaks at -0.086 with 154 channels (the star), and falls to -0.29
+      with 200 channels and -0.45 with all 206: the channels ranked last carry the response.</div>
+      <details class="cmd" open><summary>Command line</summary><pre><code>S = EEG.ieeglab.car.groups(1).stats;   % CARLA's statistics for the site
+z = mean(S.zMinMean, 2);                % one value per number of channels: mean of the 100 draws
+n = numel(S.chsUsed);                   % the number chosen
+figure; plot(z, 'k'); hold on; plot(n, z(n), 'p', 'MarkerSize', 14)
+xlabel('Channels in the common average'); ylabel('\zeta (Fisher z)')</code></pre></details></li>
+
+    <li data-o="Common average, for comparison">In EEGLAB's <span class="menu">Datasets</span> menu, select the
+      dataset that preprocessing made (before CARLA). Then <span class="menu">iEEGLAB &gt; iEEG re-referencing</span>:
+      <i>Common average (all good channels)</i>, with 2 in <i>Also leave out N contacts on each side</i>, so that both
+      averages leave out the same contacts.
+      <div class="expect"><b>Expect</b>206 channels in the common average. Between 10 and 300 ms, its trial mean differs
+      from CARLA's by up to 23 uV, 134 ms after the pulse: the responses of the 52 channels that CARLA leaves out.</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>EEGcar = pop_ieeglab_reref(EEGpre, 'method', 'car', 'neighbors', 2);
+% the two common averages, trial mean
+G = EEG.ieeglab.car.groups(1); Gc = EEGcar.ieeglab.car.groups(1);
+avg = @(labels) mean(mean(EEGpre.data(ismember({EEGpre.chanlocs.labels}, labels), :, :), 3), 1);
+figure; plot(EEGpre.times, avg(Gc.reference) - avg(G.reference)); xlim([-100 500])
+xlabel('Time (ms)'); ylabel('Common average minus CARLA''s (uV)')</code></pre></details></li>
+
+    <li data-o="CCEP analysis of both"><span class="menu">iEEGLAB &gt; CCEP analysis</span>, defaults, once on the CARLA
+      dataset and once on the common average dataset (select each in the <span class="menu">Datasets</span> menu). The
+      response of each contact is described by the Canonical Response Parameterization (CRP; Miller et al., 2023), with
+      a permutation test.
+      <div class="expect"><b>Expect</b>A few seconds each. After CARLA, 89 of the 210 contacts respond; after the common
+      average, 147 do. The common average subtracts the responses it carries from every contact, which can make contacts
+      without a response of their own look responsive (Huang et al., 2024).</div>
+      <details class="cmd"><summary>Command line</summary><pre><code>opt = struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp');
+EEG = ieeglab_stats_subject(EEG, opt);
+EEGcar = ieeglab_stats_subject(EEGcar, opt);</code></pre></details></li>
+  </ol>
+  <p>Report anything that differs as in the CCEP tab (<a href="#report">What to report</a>).</p>
+  <p class="ref">Huang, H., Ojeda Valencia, G., Gregg, N. M., Osman, G. M., Montoya, M. N., Worrell, G. A., Miller, K. J.,
+  &amp; Hermes, D. (2024). CARLA: Adjusted common average referencing for cortico-cortical evoked potential data.
+  <i>Journal of Neuroscience Methods, 407</i>, 110153.</p>
+  <p class="ref">Miller, K. J., Müller, K.-R., Ojeda Valencia, G., Huang, H., Gregg, N. M., Worrell, G. A., &amp; Hermes,
+  D. (2023). Canonical response parameterization: Quantifying the structure of responses to single-pulse intracranial
+  electrical brain stimulation. <i>PLOS Computational Biology, 19</i>(5), e1011105.</p>
   </section>
 
   <footer>iEEGLAB, Cedric Cannard. Tick each step as you go (saved in this browser only, per tab).</footer>
