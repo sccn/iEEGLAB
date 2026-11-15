@@ -62,7 +62,7 @@ function [crp_parms, crp_projs] = run_CRP(V, t_win, opts)
 %
 %   USAGE (pipeline context)
 %       % sig: [chan x time x trials], timevec: 1×T
-%       pick   = (timevec >= 0.015) & (timevec <= 1.0);  % CRP window
+%       pick   = (timevec > 0.015) & (timevec <= 1.0);   % CRP window (after 15 ms)
 %       V_full = squeeze(sig(ii, :, :));   % [time x trials] for channel ii
 %       V_win  = V_full(pick, :);          % time-windowed
 %       [crp_parms, crp_projs] = run_CRP(V_win, timevec(pick));

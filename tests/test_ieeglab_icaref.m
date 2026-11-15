@@ -40,12 +40,15 @@ end
 
 function test_broadness_does_not_depend_on_units(tc)
 % The same data in volts instead of microvolts must give the same broad
-% components with normalized weights (the default).
+% components, with FieldTrip's scaling (the default) and normalized weights.
 [E, ~, ~] = local_sim(8, 0);
-[~, ~, a] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
-E.data = E.data * 1e-6;
-[~, ~, b] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
-tc.verifyEqual(b.broad, a.broad);
+V = E; V.data = E.data * 1e-6;
+for w = {'fieldtrip', 'normalized'}
+    o = struct('weights', w{1}, 'verbose', false);
+    [~, ~, a] = evalc('ieeglab_icaref(E, o)');
+    [~, ~, b] = evalc('ieeglab_icaref(V, o)');
+    tc.verifyEqual(b.broad, a.broad, w{1});
+end
 end
 
 function test_an_earlier_decomposition_is_reused(tc)
@@ -53,8 +56,8 @@ function test_an_earlier_decomposition_is_reused(tc)
 % scaling gives (the fit is reproducible), and contacts that differ are refused.
 [E, ~, ~] = local_sim(8, 0);
 [~, ~, a] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
-[~, B, b] = evalc('ieeglab_icaref(E, struct(''weights'', ''fieldtrip'', ''verbose'', false))');
-[~, C, c] = evalc('ieeglab_icaref(E, struct(''weights'', ''fieldtrip'', ''decomposition'', a, ''verbose'', false))');
+[~, B, b] = evalc('ieeglab_icaref(E, struct(''weights'', ''normalized'', ''verbose'', false))');
+[~, C, c] = evalc('ieeglab_icaref(E, struct(''weights'', ''normalized'', ''decomposition'', a, ''verbose'', false))');
 tc.verifyEqual(c.broad, b.broad);
 tc.verifyEqual(c.unmixing, a.unmixing);
 tc.verifyEqual(double(C.data), double(B.data), 'AbsTol', 1e-4);
@@ -77,6 +80,11 @@ function test_same_through_the_dialog_function(tc)
 [~, B, com] = evalc('pop_ieeglab_reref(E, ''method'', ''ica'')');
 tc.verifyEqual(double(B.data), double(A.data), 'AbsTol', 1e-4);
 tc.verifyTrue(contains(com, '''method'', ''ica'''));
+tc.verifyTrue(contains(com, '''weights'', ''fieldtrip'''), 'FieldTrip''s scaling is the default.');
+[~, An] = evalc('ieeglab_icaref(E, struct(''weights'', ''normalized'', ''verbose'', false))');
+[~, Bn] = evalc('pop_ieeglab_reref(E, ''method'', ''ica'', ''weights'', ''normalized'')');
+tc.verifyEqual(double(Bn.data), double(An.data), 'AbsTol', 1e-4);
+tc.verifyError(@() pop_ieeglab_reref(E, 'method', 'ica', 'weights', 'other'), 'pop_ieeglab_reref:weights');
 end
 
 function test_stimulated_contacts_stay_out_of_the_others(tc)

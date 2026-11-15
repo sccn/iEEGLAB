@@ -34,7 +34,8 @@ function [EEG, com] = ieeglab_stats_subject(EEG, opt)
 %          contacts of each site. N1 is always corrected within each site.
 % CRP:     .crp_window  [15 1000] ms, after the stimulation artifact, as in the
 %          published CRP analyses (Miller et al., 2023; Ojeda Valencia et al.,
-%          2023). Clipped to the end of the epoch, with a warning.
+%          2023): the samples after 15 ms up to 1000 ms, as in the authors'
+%          code. Clipped to the end of the epoch, with a warning.
 % N1:      .n1_window   [10 100] ms   .n1_baseline [-500 -10] ms
 %          .n1_method   'permutation' (default) | 'sd'   .n1_threshold 3.4 (sd only)
 %          .n1_polarity 'negative' (default, as erdetect) | 'abs' | 'positive'
@@ -218,7 +219,11 @@ if opt.crp_window(2) > EEG.times(end) + 1500/EEG.srate   % EEGLAB ends epochs on
         opt.crp_window(1), opt.crp_window(2), EEG.times(end), opt.crp_window(1), EEG.times(end), ...
         opt.crp_window(2));
 end
-pick = tt_s >= opt.crp_window(1)/1000 & tt_s <= opt.crp_window(2)/1000;
+% Samples after the window start, up to its end, as the authors' code (t > start
+% & t <= end); the tolerance keeps a sample that falls on the start out of it
+% whatever the rounding of EEG.times.
+tol = 1e-3 / EEG.srate;
+pick = tt_s > opt.crp_window(1)/1000 + tol & tt_s <= opt.crp_window(2)/1000 + tol;
 if nnz(pick) < 10
     error('ieeglab_stats_subject:shortWindow', ...
         ['CRP window [%g %g] ms selects only %d samples of the epoch ' ...

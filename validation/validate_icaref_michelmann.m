@@ -28,8 +28,9 @@ function out = validate_icaref_michelmann(dataDir)
 %      authors' script uses FieldTrip's default): iEEGLAB with 'weights',
 %      'fieldtrip' and 'extended', 0 against the authors' lines; the counts of
 %      broad components with the other scalings of the same decomposition; and
-%      iEEGLAB's default (normalized weights, extended runica) on the
-%      unfiltered data, with how much of the data it removes.
+%      iEEGLAB's default (FieldTrip's scaling, extended runica) and the
+%      normalized weights of that decomposition on the unfiltered data, with
+%      how much of the data each removes.
 %   2. Simulation, 20 contacts: one source spread evenly over all contacts (a
 %      reference) and 19 local ones. Both must find the broad source and give
 %      the same re-referenced data, so the projection is compared where it
@@ -78,12 +79,16 @@ fprintf(['1. UCI29 depth leads, %d contacts, %d components (1 Hz high-pass, runi
     out.broad_normalized_same_decomposition);
 
 [R2, i2] = ieeglab_icaref(D, struct('verbose', false));     % iEEGLAB's default, unfiltered data
+[R3n, i3n] = ieeglab_icaref(D, struct('weights', 'normalized', 'decomposition', i2, 'verbose', false));
 X = reshape(double(D.data), D.nbchan, []);
-Y2 = reshape(double(R2.data), D.nbchan, []);
+rmsRel = @(R) sqrt(mean((X(:) - reshape(double(R.data), [], 1)).^2)) / sqrt(mean(X(:).^2));
 out.default_broad = nnz(i2.broad);
-out.default_removed_rms_rel = sqrt(mean((X(:) - Y2(:)).^2)) / sqrt(mean(X(:).^2));
-fprintf(['   iEEGLAB''s default (normalized weights, extended runica, unfiltered data): %d of %d broad, ' ...
-    'removing %.3f of the data''s RMS.\n'], out.default_broad, numel(i2.broad), out.default_removed_rms_rel);
+out.default_removed_rms_rel = rmsRel(R2);
+out.normalized_broad = nnz(i3n.broad);
+out.normalized_removed_rms_rel = rmsRel(R3n);
+fprintf(['   iEEGLAB''s default (FieldTrip''s scaling, extended runica, unfiltered data): %d of %d broad, ' ...
+    'removing %.3f of the data''s RMS; normalized weights: %d, removing %.3f.\n'], out.default_broad, ...
+    numel(i2.broad), out.default_removed_rms_rel, out.normalized_broad, out.normalized_removed_rms_rel);
 
 % ---------------- 2. simulation with a known broad source ----------------
 rs = RandStream('mt19937ar', 'Seed', 3);

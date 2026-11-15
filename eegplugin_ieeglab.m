@@ -133,8 +133,23 @@ function local_docs_menu(parent, plugin_path, separator)
 % every menu's function (the text each dialog's Help button shows).
 m = uimenu(parent, 'Label', 'iEEGLAB documentation', 'Tag', 'ieeglab_help', ...
     'Separator', iff(separator, 'on', 'off'), 'userdata', 'study:on');
-uimenu(m, 'Label', 'README and tutorial (web)', 'userdata', 'study:on', ...
+uimenu(m, 'Label', 'README and installation (web)', 'userdata', 'study:on', ...
     'Callback', 'web(''https://github.com/sccn/iEEGLAB#readme'', ''-browser'');');
+% One tutorial page per dataset: the Markdown files of docs/, published as the
+% repository's wiki, each titled by its first heading
+pages = dir(fullfile(plugin_path, 'docs', '*.md'));
+pages = pages(~ismember({pages.name}, {'Home.md', '_Sidebar.md'}));
+for k = 1:numel(pages)
+    [~, base] = fileparts(pages(k).name);
+    lbl = base;
+    try
+        first = strtrim(regexp(fileread(fullfile(pages(k).folder, pages(k).name)), '^# ([^\r\n]+)', 'tokens', 'once', 'lineanchors'));
+        if ~isempty(first), lbl = first{1}; end
+    catch
+    end
+    uimenu(m, 'Label', sprintf('Tutorial: %s (web)', lbl), 'userdata', 'study:on', 'Separator', iff(k == 1, 'on', 'off'), ...
+        'Callback', sprintf('web(''https://github.com/sccn/iEEGLAB/wiki/%s'', ''-browser'');', base));
+end
 walk = fullfile(plugin_path, 'iEEGLAB_GUI_walkthrough.html');
 uimenu(m, 'Label', 'Menu-by-menu walkthrough', 'userdata', 'study:on', ...
     'Callback', sprintf('web(''%s'', ''-browser'');', strrep(walk, '''', '''''')));

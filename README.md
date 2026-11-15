@@ -202,6 +202,12 @@ the path: `addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation')
 | `validate_carla_huang_ds004977` | The CARLA authors' code (Huang et al., 2024), on the site of their Figure 5 | ds004977 sub-1 run-02, site RMO8-RMO9 |
 | `compare_references_ds004696`, `matched_pipeline_ds004696`, `split_half_effects_ds004696` | The published CRP of ds004696 sub-02 (Ojeda Valencia et al., 2023), with each re-referencing scheme and with the paper's own settings ([Re-referencing compared](https://github.com/sccn/iEEGLAB/wiki/4-Re-referencing-compared)) | ds004696 sub-02 |
 
+The figures are drawn in Python (NumPy, SciPy, Matplotlib) from what these
+scripts save: `validation/figures/figures_validations.py` for FieldTrip, CRP,
+N1 and CARLA, and `validation/figures/figures_rereferencing.py` for the
+re-referencing schemes, which also computes the effect sizes' confidence
+intervals. Each script's first lines say what it reads.
+
 ## Version history
 
 Changes in each version: [CHANGELOG.md](https://github.com/sccn/iEEGLAB/blob/main/CHANGELOG.md).

@@ -34,19 +34,21 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %   .p_broad     chi-square p-value above which a component counts as broad.
 %                Default 0.2, as in the paper.
 %   .weights     how the absolute mixing weights are scaled before the
-%                chi-square. 'fieldtrip': as the authors' code, which takes the
-%                mixing matrix from FieldTrip's ft_componentanalysis; FieldTrip
-%                divides runica's sphering matrix by its norm (normalisesphere
-%                'yes', its default), which multiplies the mixing matrix by that
-%                norm (2 / sqrt of the smallest eigenvalue of the data
-%                covariance), so the statistic does not depend on the data's
-%                units. 'raw': the mixing matrix as runica gives it (units of the
-%                data: on microvolt iEEG nearly every component tests as local).
-%                'normalized' (default): each column divided by its mean, so the
-%                test measures how unevenly the component is spread over the
-%                contacts (chi2 = n x CV^2 of the weights); this flags many more
-%                components as broad than 'fieldtrip' (FieldTrip's UCI29 depth
-%                leads, 56 contacts: 46 against 0).
+%                chi-square. 'fieldtrip' (default): as the authors' code, which
+%                takes the mixing matrix from FieldTrip's ft_componentanalysis;
+%                FieldTrip divides runica's sphering matrix by its norm
+%                (normalisesphere 'yes', its default), which multiplies the mixing
+%                matrix by that norm (2 / sqrt of the smallest eigenvalue of the
+%                data covariance), so the statistic does not depend on the data's
+%                units. 'normalized': each column divided by its mean, so the
+%                test measures only how unevenly the component is spread over the
+%                contacts (chi2 = n x CV^2 of the weights). It flags far more
+%                components as broad: 46 of 56 against 0 on FieldTrip's UCI29
+%                depth leads, 70 of 198 against 6 on ds004696 sub-02, where it
+%                removed most of the signal and made contacts without a published
+%                response respond. 'raw': the mixing matrix as runica gives it
+%                (units of the data: on microvolt iEEG nearly every component
+%                tests as local).
 %   .fit_window  [start end] ms of each epoch used to estimate the unmixing.
 %                Default for CCEP data: the pre-stimulus part, from the epoch
 %                start to -50 ms, so the stimulation artifact cannot drive the
@@ -85,7 +87,7 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 % Cedric Cannard, iEEGLAB, 2026
 
 if nargin < 2 || isempty(opt), opt = struct(); end
-def = struct('rank', [], 'p_broad', 0.2, 'weights', 'normalized', 'fit_window', [], 'extended', 1, 'reproducible', true, ...
+def = struct('rank', [], 'p_broad', 0.2, 'weights', 'fieldtrip', 'fit_window', [], 'extended', 1, 'reproducible', true, ...
     'bad_channels', [], 'verbose', true, 'max_fit_samples', [], 'decomposition', []);
 for f = fieldnames(def)'
     if ~isfield(opt, f{1}), opt.(f{1}) = def.(f{1}); end
@@ -194,7 +196,7 @@ switch lower(char(opt.weights))
     case 'normalized', aw = aw ./ mean(aw, 1);           % mean 1 per column: unit-free
     case 'fieldtrip',  aw = aw * sNorm;                  % FieldTrip's unit-norm sphere (eye after PCA: 1)
     case 'raw'                                           % as the weights come (units of the data)
-    otherwise, error('ieeglab_icaref:weights', 'weights must be ''normalized'', ''fieldtrip'' or ''raw''.');
+    otherwise, error('ieeglab_icaref:weights', 'weights must be ''fieldtrip'' (default), ''normalized'' or ''raw''.');
 end
 e = mean(aw, 1);
 chi2 = sum((aw - e).^2, 1) ./ e;

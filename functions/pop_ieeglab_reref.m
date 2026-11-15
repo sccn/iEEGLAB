@@ -53,6 +53,9 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 %                average the rank is one less than the number of channels).
 %   'p_broad'    chi-square p above which an ICA component counts as broad
 %                ('ica'). Default 0.2.
+%   'weights'    how the ICA weights are scaled for that test ('ica'):
+%                'fieldtrip' (default, as the authors' script) or 'normalized'.
+%                See ieeglab_icaref.
 %
 % Continuous data are offered what needs no epoch: common average, ICA,
 % bipolar and custom montages. CARLA and the lowest-variance subset rank
@@ -98,7 +101,8 @@ if isfield(EEG, 'ieeglab') && isfield(EEG.ieeglab, 'opt') && isstruct(EEG.ieegla
 % the value of the previous run when it used the same method (local_fill)
 g = struct('method', iff(isCCEP, 'carla', 'car'), 'timewin', [], 'sensitive', [], ...
     'persite', local_prev(prev, 'car_persite', true), 'fraction', [], 'neighbors', [], ...
-    'rank', [], 'p_broad', 0.2, 'montage', [], 'spacing_factor', 2);
+    'rank', [], 'p_broad', 0.2, 'weights', 'fieldtrip', 'montage', [], 'spacing_factor', 2);
+W = {'fieldtrip', 'normalized'};                    % ICA weight scalings offered in the dialog
 
 if nargin < 2
     % ---- dialog: one section per method; options of the other methods are greyed out
@@ -131,9 +135,11 @@ if nargin < 2
     if any(strcmp({M.name}, 'ica'))
         uilist = [uilist head('ICA') ...
             row('rank', '   Number of components (empty = estimated rank)', {'style' 'edit' 'string' ''}) ...
-            row('p_broad', '   A component is broad (removed) if chi-square p above', {'style' 'edit' 'string' num2str(g.p_broad)})];
-        geom = [geom {1 [1.3 1] [1.3 1]}];
-        gv = [gv 1 1 1];
+            row('p_broad', '   A component is broad (removed) if chi-square p above', {'style' 'edit' 'string' num2str(g.p_broad)}) ...
+            row('weights', '   Weights scaled for that test', {'style' 'popupmenu' 'string' ...
+                {'As FieldTrip (the authors'' script)', 'Normalized per component'} 'value' 1})];
+        geom = [geom {1 [1.3 1] [1.3 1] [1.3 1]}];
+        gv = [gv 1 1 1 1];
     end
     browse = {'style' 'pushbutton' 'string' '...' 'tag' 'browse' 'enable' onFor('montage') 'callback' @local_browse};
     uilist = [uilist head('Bipolar') ...
@@ -167,6 +173,7 @@ if nargin < 2
     if isfield(out, 'neighbors'), g.neighbors = str2double(out.neighbors); end
     if isfield(out, 'rank'), g.rank = str2double(out.rank); if ~isfinite(g.rank), g.rank = []; end; end
     if isfield(out, 'p_broad'), g.p_broad = str2double(out.p_broad); end
+    if isfield(out, 'weights'), g.weights = W{out.weights}; end
     g.spacing_factor = str2double(out.spacing_factor);
     if strcmp(g.method, 'montage'), g.montage = strtrim(out.montage); end
 else
@@ -204,6 +211,10 @@ if strcmp(g.method, 'bipolar') && ~(isscalar(g.spacing_factor) && isfinite(g.spa
 end
 if strcmp(g.method, 'ica') && ~(isscalar(g.p_broad) && g.p_broad > 0 && g.p_broad < 1)
     error('pop_ieeglab_reref:pBroad', 'p_broad must be between 0 and 1.');
+end
+g.weights = lower(char(g.weights));
+if strcmp(g.method, 'ica') && ~ismember(g.weights, {'fieldtrip', 'normalized', 'raw'})
+    error('pop_ieeglab_reref:weights', 'weights must be ''fieldtrip'' (default), ''normalized'' or ''raw''.');
 end
 if strcmp(g.method, 'carla') && ~isCCEP
     error('pop_ieeglab_reref:carlaNeedsCCEP', ...
@@ -271,7 +282,7 @@ opt.car_fraction = g.fraction;
 opt.car_neighbors = g.neighbors;
 opt.bad_channels = [];          % bad channels reach ieeglab_car through chanlocs.status
 if strcmp(g.method, 'ica')
-    EEG = ieeglab_icaref(EEG, struct('rank', g.rank, 'p_broad', g.p_broad, 'verbose', true));
+    EEG = ieeglab_icaref(EEG, struct('rank', g.rank, 'p_broad', g.p_broad, 'weights', g.weights, 'verbose', true));
 else
     EEG = ieeglab_car(EEG, opt);
 end
@@ -295,7 +306,7 @@ if ~strcmp(g.method, 'ica')                         % always: the default depend
 end
 if strcmp(g.method, 'ica')
     if ~isempty(g.rank), args = [args {'''rank''', num2str(g.rank)}]; end
-    args = [args {'''p_broad''', mat2str(g.p_broad)}];
+    args = [args {'''p_broad''', mat2str(g.p_broad), '''weights''', ['''' g.weights '''']}];
 end
 com = sprintf('EEG = pop_ieeglab_reref(EEG, %s);', strjoin(args, ', '));
 end
@@ -314,7 +325,7 @@ M = struct( ...
               'Removes the ICA components spread evenly over all contacts (the reference and other shared signals).', ...
               'Each contact minus the next one on its lead: RA1-RA2 = RA1 - RA2.', ...
               'One new channel per row: positive contact minus negative contact(s), e.g. a bipolar pair or a local average.'}, ...
-    'uses',  {{'timewin','sensitive','neighbors'}, {'neighbors'}, {'timewin','fraction','neighbors'}, {'rank','p_broad'}, ...
+    'uses',  {{'timewin','sensitive','neighbors'}, {'neighbors'}, {'timewin','fraction','neighbors'}, {'rank','p_broad','weights'}, ...
               {'spacing_factor'}, {'montage','browse'}});
 % Continuous data: what needs no epoch. Stimulation data: only the fixed
 % montages before segmentation, since the stimulated pair is known per epoch.
@@ -333,7 +344,7 @@ function local_update(h, M)
 % Grey out the options the selected method does not use, and describe it
 fig = ancestor(h, 'figure');
 m = M(get(h, 'value'));
-for tag = {'timewin','sensitive','fraction','neighbors','rank','p_broad','spacing_factor','montage','browse'}
+for tag = {'timewin','sensitive','fraction','neighbors','rank','p_broad','weights','spacing_factor','montage','browse'}
     st = iff(ismember(tag{1}, m.uses), 'on', 'off');
     set(findobj(fig, 'tag', tag{1}), 'enable', st);
     set(findobj(fig, 'tag', ['lbl_' tag{1}]), 'enable', st);

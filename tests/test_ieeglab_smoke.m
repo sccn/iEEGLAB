@@ -668,6 +668,21 @@ EEG.event = [];
 tc.verifyEqual(ieeglab_detect_mode(EEG), 'continuous');
 end
 
+function test_docs_pages_reach_the_help_menu(tc)
+% Every tutorial page in docs/ is listed in the wiki sidebar and starts with
+% the '# ' heading that labels it in EEGLAB's Help menu (eegplugin_ieeglab)
+d = fullfile(tc.TestData.root, 'docs');
+pages = dir(fullfile(d, '*.md'));
+pages = pages(~ismember({pages.name}, {'Home.md', '_Sidebar.md'}));
+tc.verifyGreaterThanOrEqual(numel(pages), 5);
+side = fileread(fullfile(d, '_Sidebar.md'));
+for k = 1:numel(pages)
+    txt = fileread(fullfile(d, pages(k).name));
+    tc.verifyTrue(startsWith(txt, '# '), [pages(k).name ' must start with its title']);
+    tc.verifyTrue(contains(side, ['(' pages(k).name ')']), [pages(k).name ' is missing from _Sidebar.md']);
+end
+end
+
 function [V, F] = local_tetra()
 % a small closed surface (mm) and its 0-based faces, as FreeSurfer stores them
 V = [0 0 0; 10 0 0; 0 10 0; 0 0 10];

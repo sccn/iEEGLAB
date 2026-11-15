@@ -38,8 +38,10 @@
   not changed and no new dataset is proposed. The data are transformed once per
   block of epochs and reused for every frequency.
 - **Documentation in EEGLAB's Help menu** (*Help > iEEGLAB documentation*, also
-  at the bottom of the iEEGLAB menu): the README, the menu-by-menu walkthrough,
-  the tutorial script, and the help of each menu's function.
+  at the bottom of the iEEGLAB menu): the README, one entry per tutorial page
+  of `docs/` (opened on the repository's wiki, titled by the page's heading),
+  the menu-by-menu walkthrough, the tutorial script, and the help of each
+  menu's function.
 - **Band-power statistics** (`ieeglab_band_stats`; *Frequency analysis*, box
   "Test each contact's band power ... against its baseline";
   `pop_ieeglab_spectral(..., 'stats', true)`). For each contact, epoch and
@@ -77,6 +79,11 @@
   (no filtering, blanking or trial rejection, its reference before the
   baseline, its t-test and correction), which reproduces the published
   decisions on every pair, then changes one setting at a time to iEEGLAB's.
+  The figures are drawn in Python (NumPy, SciPy, Matplotlib) by
+  `validation/figures/figures_validations.py` (FieldTrip, with the
+  high-frequency test on the participant's pial surface, CRP, N1 and CARLA)
+  and `validation/figures/figures_rereferencing.py` (the re-referencing
+  schemes and the effect sizes' confidence intervals).
 - **ICA re-referencing: `'decomposition'`** reuses the mixing and unmixing of an
   earlier run on the same data, so another weight scaling or `p_broad` can be
   tried without fitting ICA again.
@@ -104,6 +111,17 @@
 
 ### Changed
 
+- **ICA re-referencing scales the weights as FieldTrip by default**
+  (`'weights', 'fieldtrip'`), as the authors' script, and the re-referencing
+  window offers the choice (*Weights scaled for that test*). The weights
+  normalized per component (`'weights', 'normalized'`, the former default)
+  counted far more components as broad: 46 of 56 on FieldTrip's tutorial depth
+  leads (none with FieldTrip's scaling), and 70 of 198 on ds004696 sub-02 (6),
+  where they made contacts without a published response respond. Scripts that
+  pass `'weights', 'normalized'` get the former result.
+- **The CRP window starts after 15 ms** (`t > 0.015 & t <= 1`), as the authors'
+  code. At 4800 and 5000 Hz, where a sample falls exactly on 15 ms, that sample
+  is no longer in the window; at 2048 Hz nothing changes.
 - **The warning on tests that cannot reach significance** no longer says
   "whatever the data": with a false discovery rate correction it depends on the
   other tests' p-values, so the same pair can become testable when many others
