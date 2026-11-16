@@ -39,16 +39,47 @@ tc.verifyEqual(info.rank, 6, 'An explicit rank must be used as given.');
 end
 
 function test_broadness_does_not_depend_on_units(tc)
-% The same data in volts instead of microvolts must give the same broad
-% components, with FieldTrip's scaling (the default) and normalized weights.
+% The same data in volts instead of microvolts must give the same statistic,
+% with FieldTrip's scaling (the default) and normalized weights, at full rank
+% and after a common average (one component fewer than contacts: runica's PCA).
 [E, ~, ~] = local_sim(8, 0);
-V = E; V.data = E.data * 1e-6;
-for w = {'fieldtrip', 'normalized'}
-    o = struct('weights', w{1}, 'verbose', false);
-    [~, ~, a] = evalc('ieeglab_icaref(E, o)');
-    [~, ~, b] = evalc('ieeglab_icaref(V, o)');
-    tc.verifyEqual(b.broad, a.broad, w{1});
+C = E; X = double(E.data); C.data = single(X - mean(X, 1));
+for d = {E, C}
+    D = d{1}; V = D; V.data = D.data * 1e-6;
+    for w = {'fieldtrip', 'normalized'}
+        o = struct('weights', w{1}, 'verbose', false);
+        [~, ~, a] = evalc('ieeglab_icaref(D, o)');
+        [~, ~, b] = evalc('ieeglab_icaref(V, o)');
+        msg = sprintf('%s, rank %d', w{1}, a.rank);
+        tc.verifyEqual(b.chi2, a.chi2, 'RelTol', 1e-3, msg);
+        tc.verifyEqual(b.broad, a.broad, msg);
+    end
 end
+end
+
+function test_fieldtrip_scaling_is_the_default(tc)
+[E, ~, ~] = local_sim(8, 0);
+[~, ~, info] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
+tc.verifyEqual(info.weights, 'fieldtrip');
+[~, ~, f] = evalc('ieeglab_icaref(E, struct(''weights'', ''fieldtrip'', ''decomposition'', info, ''verbose'', false))');
+tc.verifyEqual(f.chi2, info.chi2, 'RelTol', 1e-12);
+tc.verifyError(@() ieeglab_icaref(E, struct('weights', 'other', 'verbose', false)), 'ieeglab_icaref:weights');
+end
+
+function test_sphere_norm_after_pca(tc)
+% With one component fewer than contacts, the scaling is the norm of the sphering
+% matrix of the reduced data: what runica returns when given only those r dimensions.
+[E, ~, ~] = local_sim(8, 0);
+X = double(E.data); E.data = single(X - mean(X, 1));
+[~, ~, info] = evalc('ieeglab_icaref(E, struct(''verbose'', false))');
+tc.verifyEqual(info.rank, 7);
+fit = E.times >= info.fit_window_ms(1) & E.times <= info.fit_window_ms(2);
+Xf = reshape(double(E.data(:, fit, :)), E.nbchan, []);
+[V, ev] = eig(cov(Xf')); [~, k] = sort(diag(ev), 'descend'); V = V(:, k(1:7));
+prev = rng;                                    % runica leaves the legacy generator on
+[~, ~, s] = evalc('runica(V'' * Xf, ''extended'', 1, ''verbose'', ''off'', ''maxsteps'', 2)');
+rng(prev);
+tc.verifyEqual(info.sphere_norm, norm(s), 'RelTol', 1e-6);
 end
 
 function test_an_earlier_decomposition_is_reused(tc)

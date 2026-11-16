@@ -1,6 +1,6 @@
 """Figures of the method validations (FieldTrip, CRP, N1, CARLA), from the outputs of the MATLAB
 validation scripts (validate_fieldtrip_uci29, validate_crp_scripts, validate_erdetect_ds004080,
-validate_carla_huang_ds004977), all written to one folder.
+validate_carla_huang_ds004977), which run_validations.m writes to one folder.
 Usage: python figures_validations.py <validation output folder> <figure folder> [<SubjectUCI29 folder>]
 With FieldTrip's SubjectUCI29 folder, also draws the high-frequency test on the participant's pial surface.
 Needs NumPy, SciPy and Matplotlib."""
@@ -33,7 +33,7 @@ def identity(ax, x, y):
     ax.set_xlim(lo - pad, hi + pad); ax.set_ylim(lo - pad, hi + pad); ax.set_aspect('equal')
 
 
-# ---------- Figure 1: FieldTrip (task 4) ----------
+# ---------- Figure 1: FieldTrip ----------
 F = sio.loadmat(os.path.join(val, 'fieldtrip_uci29_figure.mat'), squeeze_me=True)
 f, t = F['tf_freqs'], F['tf_times_ms']
 A, B = F['tf_mean_ieeglab'], F['tf_mean_fieldtrip']
@@ -51,7 +51,7 @@ ax.set(xlabel='FieldTrip', ylabel='iEEGLAB'); letter(ax, 'c  70-150 Hz, 0-800 ms
 fig.savefig(os.path.join(out, 'fieldtrip_tf_hfa.png'), bbox_inches='tight'); plt.close(fig)
 print('fig1: r tf', float(F['tf_r']), 'hfa r', float(F['hfa_r']), 'n', len(x), 'max', float(F['hfa_max_abs_diff']))
 
-# ---------- Figure 2: CRP against the authors' scripts (task 5) ----------
+# ---------- Figure 2: CRP against the authors' scripts ----------
 rows = list(csv.DictReader(open(os.path.join(val, 'crp_vs_crp_scripts.tsv')), delimiter='\t'))
 g = lambda k: np.array([float(r[k]) for r in rows])
 ta, ti, pa, pi = g('tR_ms_authors'), g('tR_ms_ieeglab'), g('p_tR_authors'), g('p_tR_ieeglab')
@@ -66,7 +66,7 @@ ax.set(xlabel='Authors\' scripts', ylabel='iEEGLAB'); letter(ax, 'b  -log10 p')
 fig.savefig(os.path.join(out, 'crp_vs_authors.png'), bbox_inches='tight'); plt.close(fig)
 print('fig2: files', len(ta), 'same tR', int(np.sum(ta == ti)), 'max p rel diff', float(np.max(np.abs(pa - pi) / pa)))
 
-# ---------- Figure 4: N1 against ER-detect (task 6) ----------
+# ---------- Figure 4: N1 against ER-detect ----------
 E = sio.loadmat(os.path.join(val, 'validate_erdetect_ds004080_out.mat'), squeeze_me=True, struct_as_record=False)['out']
 rowsE = [('ER-detect\'s rule', E.B), ('iEEGLAB\'s test', E.C)]
 fig, ax = plt.subplots(figsize=(6.0, 1.5))
@@ -90,7 +90,7 @@ ax.spines['left'].set_visible(False); ax.tick_params(axis='y', length=0)
 fig.savefig(os.path.join(out, 'n1_vs_erdetect.png'), bbox_inches='tight'); plt.close(fig)
 print('fig4:', [(n, int(S.both), int(S.ieeglab_only), int(S.erdetect_only), int(S.neither), round(float(S.kappa), 3)) for n, S in rowsE])
 
-# ---------- Figure 5: CARLA and the common average (task 7) ----------
+# ---------- Figure 5: CARLA and the common average ----------
 J = json.load(open(os.path.join(val, 'carla_fig5.json')))
 R, C = J['ref'], J['ieeglab']; fl = lambda v: np.asarray(v, dtype=float)
 fig, axs = plt.subplots(1, 2, figsize=(6.6, 2.4), gridspec_kw={'wspace': 0.35})

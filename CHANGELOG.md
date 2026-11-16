@@ -4,7 +4,7 @@
 
 ### New
 
-- **Bipolar re-referencing** (*iEEG re-referencing > Bipolar*,
+- **Bipolar re-referencing** (*Bipolar* in *iEEG re-referencing*,
   `pop_ieeglab_reref(EEG, 'method', 'bipolar')`, `ieeglab_montage`,
   `ieeglab_apply_montage`). Each contact minus the next one on its lead
   (`RA1-RA2`), with the same pairs and weights as FieldTrip's bipolar montage
@@ -79,17 +79,20 @@
   (no filtering, blanking or trial rejection, its reference before the
   baseline, its t-test and correction), which reproduces the published
   decisions on every pair, then changes one setting at a time to iEEGLAB's.
+  `run_validations` runs the FieldTrip, CRP, ER-detect, ICA and CARLA
+  validations on the data given and writes their outputs to one folder.
   The figures are drawn in Python (NumPy, SciPy, Matplotlib) by
-  `validation/figures/figures_validations.py` (FieldTrip, with the
-  high-frequency test on the participant's pial surface, CRP, N1 and CARLA)
-  and `validation/figures/figures_rereferencing.py` (the re-referencing
-  schemes and the effect sizes' confidence intervals).
+  `validation/figures/figures_validations.py` from that folder (FieldTrip,
+  with the high-frequency test on the participant's pial surface, CRP, N1 and
+  CARLA) and `validation/figures/figures_rereferencing.py` from the output
+  folder of `compare_references_ds004696` (the re-referencing schemes and the
+  effect sizes' confidence intervals).
 - **ICA re-referencing: `'decomposition'`** reuses the mixing and unmixing of an
   earlier run on the same data, so another weight scaling or `p_broad` can be
   tried without fitting ICA again.
 - **Step-by-step page: tabs and an outline.** `iEEGLAB_GUI_walkthrough.html`
   has a tab for the CCEP steps (unchanged, ticks kept), one for FieldTrip's
-  intracranial tutorial data, and one comparing the re-referencing schemes on
+  intracranial tutorial data, one comparing the re-referencing schemes on
   ds004696 sub-02 against the published result, and one for CARLA on its
   authors' recording (ds004977, as the tutorial page). On wide screens an
   outline on the side follows where you are.
@@ -98,12 +101,13 @@
   baseline median of the average (the default). The ER-detect-equivalent
   settings in the help now include it. The CCEP analysis passes it on
   (`ieeglab_stats_subject(EEG, struct(..., 'n1_peak_from', 'zero'))`).
-- **Tutorial pages in Markdown** (`docs/`): the step-by-step page as four pages
-  (sEEG and ECoG CCEP, FieldTrip's tutorial data, re-referencing compared),
-  each step with its menu, what to expect, the screenshot and the command line,
-  for the tutorial extracts and the full recordings. A workflow copies them to
-  the repository's wiki at each change, for the EEGLAB website. The README
-  follows the layout of the other EEGLAB plugin pages, with links to them, a
+- **Tutorial pages in Markdown** (`docs/`): the step-by-step page as one page
+  per dataset (sEEG and ECoG CCEP, FieldTrip's tutorial data, re-referencing
+  compared, and CARLA on ds004977, below), each step with its menu, what to
+  expect (for the tutorial extract and the full recording where a page has
+  both) and the command line; only the two CCEP pages have screenshots. A
+  workflow copies them to the repository's wiki at each change, for the EEGLAB
+  website. The README follows the layout of the other EEGLAB plugin pages, with links to them, a
   quick start and images that also show outside GitHub.
 - **Tutorial page for ds004977** (`docs/5-CARLA-ds004977.md`): CARLA through
   the menus with its authors' settings on the recording of their Figure 5
@@ -120,10 +124,14 @@
   counted far more components as broad: 46 of 56 on FieldTrip's tutorial depth
   leads (none with FieldTrip's scaling), and 70 of 198 on ds004696 sub-02 (6),
   where they made contacts without a published response respond. Scripts that
-  pass `'weights', 'normalized'` get the former result.
+  pass `'weights', 'normalized'` get the former result. With fewer components
+  than contacts (after a common average, for instance), the scaling uses the
+  sphering matrix of the reduced data, so the test does not depend on the
+  data's units there either.
 - **The CRP window starts after 15 ms** (`t > 0.015 & t <= 1`), as the authors'
-  code. At 4800 and 5000 Hz, where a sample falls exactly on 15 ms, that sample
-  is no longer in the window; at 2048 Hz nothing changes.
+  code. Where a sample falls exactly on 15 ms (at 1000, 2000, 4800 or 5000 Hz,
+  for instance), that sample is no longer in the window; at 2048 Hz nothing
+  changes.
 - **The warning on tests that cannot reach significance** no longer says
   "whatever the data": with a false discovery rate correction it depends on the
   other tests' p-values, so the same pair can become testable when many others
@@ -170,7 +178,7 @@
 - **The menus and the tutorial need no MATLAB toolbox.** The t-test of `run_CRP`
   failed without the Statistics Toolbox, and with it all of CRP, whatever the
   test chosen, with a message about trial counts. It now uses base MATLAB, as do
-  CARLA and the lowest-covariance subset (`ieeglab_quantile`). The MEF3 reader
+  CARLA and the lowest-variance subset (`ieeglab_quantile`). The MEF3 reader
   stopped without the Parallel Computing Toolbox. *Check installation* lists
   Biosig for EDF/BDF and no longer lists `corr`.
 - The version is `1.3.0-dev`, so exports no longer carry the number of a release
@@ -193,9 +201,10 @@
   each duration (70 times faster, same values to 5e-15), and the permutation
   test evaluates every duration and sign pattern in one matrix product, each
   distinct pattern once so that ties with the observed data stay exact (same
-  p-values). On the full ds004696 sub-02 recording CARLA took 21 minutes on a
-  loaded machine (6737 s idle before); CCEP statistics on 1568 of its pairs
-  went from 190-768 s to 15-17 s with identical results.
+  p-values). On the full ds004696 sub-02 recording (57 sites), on a laptop
+  with nothing else running, CARLA went from 6737 s to 6 to 7 minutes; CCEP
+  statistics on 1568 of its pairs went from 190-768 s to 15-17 s with
+  identical results.
 - **Faster import and line-noise removal, same data.** BrainVision recordings
   are read all channels at once and the iEEG channels kept afterwards:
   `pop_loadbv` reads a channel subset one strided pass per channel (full
@@ -216,7 +225,7 @@
   neighbour of LA2.
 - *iEEG re-referencing* offers what the data allow: on continuous data the
   common average, ICA re-referencing, bipolar and custom montages; after
-  segmentation also CARLA and the lowest-covariance subset (CCEP). On continuous
+  segmentation also CARLA and the lowest-variance subset (CCEP). On continuous
   stimulation data only the montages are offered: the common average and ICA
   wait for epochs, where each pulse's stimulated pair is known and left out.
   On continuous data the common average (ignoring NaN samples, as on epochs)

@@ -99,7 +99,10 @@ end
 for f = {'matrix_source','correct','n1_method','n1_polarity','n1_peak_from','export_dir','crp_test','correct_scope'}
     opt.(f{1}) = char(string(opt.(f{1})));
 end
-opt.crp_test = lower(opt.crp_test); opt.correct_scope = lower(opt.correct_scope);
+opt.crp_test = lower(opt.crp_test); opt.correct_scope = lower(opt.correct_scope); opt.n1_peak_from = lower(opt.n1_peak_from);
+if ~any(strcmp(opt.n1_peak_from, {'median','zero'}))      % checked before the CRP runs, not after
+    error('ieeglab_stats_subject:badPeakFrom', 'n1_peak_from must be ''median'' or ''zero''; got ''%s''.', opt.n1_peak_from);
+end
 if ~any(strcmp(opt.crp_test, {'permutation','ttest'}))
     error('ieeglab_stats_subject:badTest', 'crp_test must be ''permutation'' or ''ttest''; got ''%s''.', opt.crp_test);
 end

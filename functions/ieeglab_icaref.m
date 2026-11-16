@@ -40,7 +40,11 @@ function [EEG, info] = ieeglab_icaref(EEG, opt)
 %                (normalisesphere 'yes', its default), which multiplies the mixing
 %                matrix by that norm (2 / sqrt of the smallest eigenvalue of the
 %                data covariance), so the statistic does not depend on the data's
-%                units. 'normalized': each column divided by its mean, so the
+%                units. With fewer components than contacts (runica's PCA
+%                reduction, e.g. after a common average) the norm is that of the
+%                reduced data's sphering matrix (2 / sqrt of the smallest kept
+%                eigenvalue), as runica's own sphere is then the identity.
+%                'normalized': each column divided by its mean, so the
 %                test measures only how unevenly the component is spread over the
 %                contacts (chi2 = n x CV^2 of the weights). It flags far more
 %                components as broad: 46 of 56 against 0 on FieldTrip's UCI29
@@ -91,6 +95,10 @@ def = struct('rank', [], 'p_broad', 0.2, 'weights', 'fieldtrip', 'fit_window', [
     'bad_channels', [], 'verbose', true, 'max_fit_samples', [], 'decomposition', []);
 for f = fieldnames(def)'
     if ~isfield(opt, f{1}), opt.(f{1}) = def.(f{1}); end
+end
+opt.weights = lower(char(opt.weights));
+if ~ismember(opt.weights, {'fieldtrip', 'normalized', 'raw'})
+    error('ieeglab_icaref:weights', 'weights must be ''fieldtrip'' (default), ''normalized'' or ''raw''.');
 end
 if isempty(which('runica'))
     error('ieeglab_icaref:noRunica', 'runica (EEGLAB) is not on the path. Start EEGLAB first.');
@@ -187,16 +195,22 @@ else
     [~, w, s] = evalc('runica(Xfit, args{:})');
     U = w * s;                          % r x nGood unmixing
     A = pinv(U);                        % nGood x r mixing: column k = component k on the contacts
-    sNorm = norm(s);
+    if r < nGood
+        % after its PCA reduction runica returns an identity sphere; the sphering
+        % matrix of the reduced data (2 x inverse square root of their covariance,
+        % whose eigenvalues are the r largest of ev) has norm 2 / sqrt(ev(r))
+        sNorm = 2 / sqrt(max(ev(r), ev(1) * eps));
+    else
+        sNorm = norm(s);                % = 2 / sqrt(ev(end))
+    end
 end
 
 % ---- broadness: chi-square of |mixing weights| against their mean, df = contacts - 1
 aw = abs(A);
-switch lower(char(opt.weights))
+switch opt.weights
     case 'normalized', aw = aw ./ mean(aw, 1);           % mean 1 per column: unit-free
-    case 'fieldtrip',  aw = aw * sNorm;                  % FieldTrip's unit-norm sphere (eye after PCA: 1)
+    case 'fieldtrip',  aw = aw * sNorm;                  % FieldTrip's unit-norm sphere: unit-free
     case 'raw'                                           % as the weights come (units of the data)
-    otherwise, error('ieeglab_icaref:weights', 'weights must be ''fieldtrip'' (default), ''normalized'' or ''raw''.');
 end
 e = mean(aw, 1);
 chi2 = sum((aw - e).^2, 1) ./ e;
@@ -232,7 +246,7 @@ if ~keepAll
 end
 EEG.ref = 'ICA re-referencing (Michelmann et al., 2018)';
 info = struct('method', 'ica', 'rank', r, 'estimated_rank', estRank, 'n_components', r, ...
-    'broad', broad, 'chi2', chi2, 'p', p, 'p_broad', opt.p_broad, 'weights', char(opt.weights), ...
+    'broad', broad, 'chi2', chi2, 'p', p, 'p_broad', opt.p_broad, 'weights', opt.weights, ...
     'mixing', A, 'unmixing', U, 'sphere_norm', sNorm, 'channels', {labels(good)}, ...
     'fit_window_ms', opt.fit_window, 'reproducible', opt.reproducible);
 if ~isfield(EEG, 'ieeglab'), EEG.ieeglab = struct(); end

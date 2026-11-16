@@ -18,6 +18,10 @@ Steps 1, 2 and 4 of the [sEEG page](1-sEEG-CCEP-ds004696.md), with the full reco
 
 > **Expect.** 198 contacts, 627 epochs, 57 stimulation sites.
 
+```matlab
+EEGpre = EEG;   % the preprocessed dataset: every scheme below starts from it
+```
+
 ## Each scheme, then the CCEP analysis
 
 For each: back to the preprocessed dataset, **iEEGLAB > iEEG re-referencing** with the method below, then **iEEGLAB > CCEP analysis** with its defaults (CRP from 15 ms to 1 s, permutation test, false discovery rate over all 11172 pairs; step 7 of the sEEG page counts 392 of them, at two sites with 5 and 6 trials, as not tested, as they cannot reach significance there). *Expect* gives the pairs that respond and how many of the 484 pairs of the published CRP get the same decision (315 respond there with the paper's test: the t-test at the response duration, Benjamini-Yekutieli correction over its pairs). The effect size *d* says how strong a response is: each trial projected onto the average of the other trials from 15 ms to 1 s, mean over standard deviation, so it rises when the response grows or its trial-to-trial variability falls. Its mean over the paper's responding pairs is given with a 95% confidence interval over the 20 stimulation sites.
@@ -29,7 +33,7 @@ No re-referencing: **iEEGLAB > CCEP analysis** on the preprocessed dataset itsel
 > **Expect.** CCEP analysis 42 s. 3495 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 79%: 218 respond in both, 5 in iEEGLAB only, 97 in the paper only. Effect size on the pairs that respond in the paper: d = 2.37 [1.82, 2.91].
 
 ```matlab
-EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
+EEG = ieeglab_stats_subject(EEGpre, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
 ### 3. Common average
@@ -39,7 +43,7 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 > **Expect.** Re-referencing 19 s. 5913 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 86%: 265 respond in both, 20 in iEEGLAB only, 50 in the paper only. Effect size on the pairs that respond in the paper: d = 3.15 [2.47, 3.83]. What it removes: a median of 27 µV RMS over 10 to 300 ms.
 
 ```matlab
-EEG = pop_ieeglab_reref(EEG, 'method', 'car');
+EEG = pop_ieeglab_reref(EEGpre, 'method', 'car');
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
@@ -50,7 +54,7 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 > **Expect.** Re-referencing 23 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.
 
 ```matlab
-EEG = pop_ieeglab_reref(EEG, 'method', 'varsubset', 'fraction', 0.2);
+EEG = pop_ieeglab_reref(EEGpre, 'method', 'varsubset', 'fraction', 0.2);
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
@@ -61,18 +65,18 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 > **Expect.** Re-referencing about 7 minutes. The same responses as step 7 of the [sEEG page](1-sEEG-CCEP-ds004696.md). 3937 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 242 respond in both, 7 in iEEGLAB only, 73 in the paper only. Effect size on the pairs that respond in the paper: d = 3.08 [2.41, 3.74]. What it removes: a median of 14 µV RMS over 10 to 300 ms.
 
 ```matlab
-EEG = pop_ieeglab_reref(EEG, 'method', 'carla');
+EEG = pop_ieeglab_reref(EEGpre, 'method', 'carla');
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
 ### 6. ICA
 
-**iEEGLAB > iEEG re-referencing**: *ICA, local components only (Michelmann et al., 2018)*, keep the defaults. The weights of each component are scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here), before the test of whether the component is spread evenly over the contacts.
+**iEEGLAB > iEEG re-referencing**: *ICA, local components only (Michelmann et al., 2018)*, keep the defaults. The weights of each component are scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here), before the test of whether the component is spread evenly over the contacts. The command line below calls `ieeglab_icaref`, as the numbers of *Expect* do; the menu also removes the preprocessing baseline again after re-referencing, as for every scheme, so its numbers can differ from these.
 
 > **Expect.** Re-referencing takes about 35 minutes on a recent Mac and took about 3.5 hours on a Windows laptop alongside other jobs (one ICA of 198 contacts; plan for a long run); 6 components spread evenly over the contacts are removed. 4813 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 85%: 260 respond in both, 20 in iEEGLAB only, 55 in the paper only. Effect size on the pairs that respond in the paper: d = 2.68 [2.13, 3.22]. What it removes: a median of 13 µV RMS over 10 to 300 ms.
 
 ```matlab
-[EEG, info] = ieeglab_icaref(EEG);   % keep info to try the other scaling without refitting
+[EEG, info] = ieeglab_icaref(EEGpre);   % keep info to try the other scaling without refitting
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
@@ -83,7 +87,7 @@ The same decomposition, with each component's weights divided by their mean befo
 > **Expect.** Re-referencing 9 s with the earlier decomposition; 70 components removed. 7165 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 70%: 278 respond in both, 110 in iEEGLAB only, 37 in the paper only. Effect size on the pairs that respond in the paper: d = 2.82 [2.18, 3.45]. What it removes: a median of 28 µV RMS over 10 to 300 ms. This is why it is not the default: it removes a third of the components, and contacts without a published response respond (see below).
 
 ```matlab
-EEG = ieeglab_icaref(EEG, struct('weights', 'normalized', 'decomposition', info));
+EEG = ieeglab_icaref(EEGpre, struct('weights', 'normalized', 'decomposition', info));
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
 ```
 
@@ -103,7 +107,7 @@ At each main step: what re-referencing changes in the signal, which pairs respon
 
 *The connectivity matrix of the published pairs, in the paper and with each scheme. White: stimulated contact, not tested.*
 
-The scheme changes how many pairs respond, from 3495 with the recording's reference to 7165 with ICA with normalized weights. Against the paper, the decisions agree on 70% (ICA with normalized weights) to 86% (the common average) of its pairs; 83% with the paper's own reference. iEEGLAB finds 2 to 110 responses the paper does not, and misses 37 to 97 of its 315: the preprocessing and the test differ (permutation and false discovery rate over all 11172 pairs, against the paper's t-test corrected over its own pairs). Where both find a response, the response duration is closest with the published reference (median difference 2 ms). With the paper's own settings (no filtering, blanking or trial rejection, its reference applied before the baseline, its t-test and correction), iEEGLAB reaches the paper's decision on all 484 pairs. Changed one at a time, the test changes the most: iEEGLAB's permutation test, which repeats the choice of response duration that the t-test makes on the same data, finds 160 of the paper's 315 responses with the paper's correction (Benjamini-Yekutieli; with 10 trials its p cannot fall below 0.002), and 248 (over all pairs) to 257 (over the paper's) with Benjamini-Hochberg. Trial rejection changes 17 decisions, and re-referencing after the baseline, as in the steps above, 26: the paper's reference ranks contacts by their variance over all trials, which includes each trial's offset.
+The scheme changes how many pairs respond, from 3495 with the recording's reference to 7165 with ICA with normalized weights. Against the paper, the decisions agree on 70% (ICA with normalized weights) to 86% (the common average) of its pairs; 83% with the paper's own reference. iEEGLAB finds 2 to 110 responses the paper does not, and misses 37 to 97 of its 315: the preprocessing and the test differ (permutation and false discovery rate over all 11172 pairs, against the paper's t-test corrected over its own pairs). Where both find a response, the response duration is closest with the published reference (median difference 2 ms). With the paper's own settings (no filtering, blanking or trial rejection, its reference applied before the baseline, its t-test and correction), iEEGLAB reaches the paper's decision on all 484 pairs. Changed one at a time, the test changes the most: iEEGLAB's permutation test, which repeats the choice of response duration that the t-test makes on the same data, finds 160 of the paper's 315 responses with the paper's correction (Benjamini-Yekutieli; with 10 trials it draws 1000 of the 1024 sign patterns at random, so its p cannot fall below 1/1001, about 0.001), and 248 (over all pairs) to 257 (over the paper's) with Benjamini-Hochberg. Trial rejection changes 17 decisions, and re-referencing after the baseline, as in the steps above, 26: the paper's reference ranks contacts by their variance over all trials, which includes each trial's offset.
 
 ![Effect sizes per scheme](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/refcompare/ref4_effects.png)
 

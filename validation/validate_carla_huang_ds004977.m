@@ -29,7 +29,8 @@ function out = validate_carla_huang_ds004977(dsDir, carlaDir, mnlDir)
 % (C) chose the reference's channels (same_channels, jaccard), the median r of
 % the re-referenced trial means of (A) and (C) over 10 to 300 ms, and the
 % trial-mean common average subtracted by (C) against (A) (car_r,
-% car_max_abs_diff_uv).
+% car_max_abs_diff_uv), and figure: the data of the figure, which
+% run_validations writes to carla_fig5.json for figures/figures_validations.py.
 %
 % Reference:
 %   Huang, H., Ojeda Valencia, G., Gregg, N. M., Osman, G. M., Montoya, M. N.,
@@ -90,7 +91,16 @@ rng('default');
 out.n_same_input = numel(Sb.chsUsed);
 out.same_input_identical = isequal(Sb.chsUsed(:), Sref.chsUsed(:)) && isequal(Sb.order(:), Sref.order(:));
 out.same_input_zminmean_max_diff = max(abs(Sb.zMinMean(:) - Sref.zMinMean(:)));
-clear X
+
+% data of the figure (-100 to 500 ms, every 4th sample), before X is cleared
+ds4 = find(tt >= -0.1 & tt < 0.5); ds4 = ds4(1:4:end);
+notched = zeros(size(X));
+for tr = 1:size(X, 3), notched(:, :, tr) = ieeg_notch(X(:, :, tr)', srate, 60)'; end
+fig = struct('site', site, 'n_published', 154, 'n_total_published', 206, 'tt', tt(ds4), ...
+    'ref', local_pack(Sref, labs, CARref, notched, X, Vref, ds4, [100 203], tt), ...
+    'same_input', struct('n', numel(Sb.chsUsed), 'zMinMean_mean', mean(Sb.zMinMean, 2)', ...
+        'zMinMean_sd', std(Sb.zMinMean, 0, 2)'));
+clear X notched
 
 % ---------------- (C) iEEGLAB end to end ----------------
 EEG = ieeglab_import(fullfile(ieeg, [stem '_ieeg.mefd']));
@@ -124,6 +134,12 @@ carC = mean(squeeze(mean(double(EEG0.data(iref, :, :)), 1)), 2);
 carA = mean(CARref, 2);
 out.car_r = local_r(carC, carA);
 out.car_max_abs_diff_uv = max(abs(carC - carA));
+Sc = G.stats;
+fig.ieeglab = struct('n', numel(G.reference), 'n_total', numel(pool), ...
+    'zMinMean_mean', mean(Sc.zMinMean, 2)', 'zMinMean_sd', std(Sc.zMinMean, 0, 2)', ...
+    'vars_sorted', Sc.vars(Sc.order(~isnan(Sc.vars(Sc.order))))', 'CAR_mean', carC(ds4)', ...
+    'r_rereferenced', r);
+out.figure = fig;
 out.seconds = toc(t0);
 
 fprintf(['\nCARLA on %s (Huang et al., 2024, Figure 5; published: 154 of 206 channels).\n' ...
@@ -139,4 +155,20 @@ end
 
 function r = local_r(a, b)
 c = corrcoef(a, b); r = c(1, 2);
+end
+
+function P = local_pack(S, labs, CAR, notched, X, V, idx, ranks, tt)
+% CARLA's curve, the channels in its order and two example channels
+P = struct('n', numel(S.chsUsed), 'n_total', numel(labs), 'zMinMean_mean', mean(S.zMinMean, 2)', ...
+    'zMinMean_sd', std(S.zMinMean, 0, 2)', 'vars_sorted', S.vars(S.order)', ...
+    'labels_sorted', {labs(S.order)'}, 'sorted_means', mean(notched(S.order, idx, :), 3), ...
+    'CAR', CAR(idx, :)', 'CAR_mean', mean(CAR(idx, :), 2)');
+ex = struct('rank', {}, 'label', {}, 'raw', {}, 'notch', {}, 'reref', {});
+win = find(tt >= -0.1 & tt < 0.5); win = win(1:2:end);
+for k = ranks
+    c = S.order(k);
+    ex(end + 1) = struct('rank', k, 'label', labs{c}, 'raw', squeeze(X(c, win, :))', ...
+        'notch', squeeze(notched(c, win, :))', 'reref', squeeze(V(c, win, :))'); %#ok<AGROW>
+end
+P.examples = ex; P.tt_examples = tt(win);
 end

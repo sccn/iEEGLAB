@@ -116,8 +116,8 @@ coordinates removed.
 
 > **Note.** Line noise: the fitted sines were compared with a notch filter, ZapLine (de Cheveigné, 2020) and
 > ZapLine-plus (Klug & Kloosterman, 2022), on synthetic stimulation data with a known clean signal and on both
-> datasets. They left the least error 5 to 50 ms after the pulse (0.1 uV, against 0.5 uV for the notch and 19 to
-> 20 uV for ZapLine), and are the default. Details in the help of `ieeglab_line_noise`.
+> datasets. They left the least error 5 to 50 ms after the pulse (0.1 µV, against 0.5 µV for the notch and 19 to
+> 20 µV for ZapLine), and are the default. Details in the help of `ieeglab_line_noise`.
 
 ![Preprocessing window](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/TA4_preprocess.png)
 

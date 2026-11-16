@@ -130,16 +130,20 @@ ieeglab_export(EEG, 'results_seeg');
 
 Both work on any iEEG dataset, with or without stimulation. *iEEG
 re-referencing* offers what the data allow: on continuous data the common
-average, ICA, bipolar and custom montages; after segmentation also CARLA and
-the lowest-variance subset. On stimulation data the common average and ICA
-wait for the epochs, where each pulse's stimulated pair is known and left out.
-Re-referencing from this menu after *Preprocess iEEG data* gives the same
-result as choosing it inside preprocessing. A bipolar montage also gives the
-same result before or after preprocessing, except inside the blanked artifact
-window (its default interpolation is not linear) and for the line-noise fit,
-which estimates the mains frequency from all channels together.
+average, ICA, bipolar and custom montages. On stimulation (CCEP) data, CARLA
+and the lowest-variance subset are offered after segmentation, and the common
+average and ICA wait for the epochs too, where each pulse's stimulated pair is
+known and left out. *Preprocess iEEG data* does not re-reference: when it
+removed a baseline, *iEEG re-referencing* removes it again afterwards, which for
+CARLA and the common average gives the same result as re-referencing before the
+baseline (`ieeglab_preprocess` with `apply_car`, for scripts). The
+lowest-variance subset can choose other contacts after a baseline, and warns.
+A bipolar montage also gives the same result before or after preprocessing,
+except inside the blanked artifact window (its default interpolation is not
+linear) and for the line-noise fit, which estimates the mains frequency from
+all channels together.
 
-*iEEGLAB > iEEG re-referencing > Bipolar* subtracts from each contact the next
+*Bipolar* in *iEEGLAB > iEEG re-referencing* subtracts from each contact the next
 one on its lead (`RA1-RA2` = RA1 - RA2), as FieldTrip does for depth electrodes
 (Stolk et al., 2018); A'1 is on lead A', not A. Bad contacts are not paired, a
 missing contact leaves a gap, and with coordinates two contacts farther apart
@@ -203,11 +207,15 @@ the path: `addpath(fullfile(fileparts(which('eegplugin_ieeglab')), 'validation')
 | `validate_carla_huang_ds004977` | The CARLA authors' code (Huang et al., 2024), on the site of their Figure 5 | ds004977 sub-1 run-02, site RMO8-RMO9 |
 | `compare_references_ds004696`, `matched_pipeline_ds004696`, `split_half_effects_ds004696` | The published CRP of ds004696 sub-02 (Ojeda Valencia et al., 2023), with each re-referencing scheme and with the paper's own settings ([Re-referencing compared](https://github.com/sccn/iEEGLAB/wiki/4-Re-referencing-compared)) | ds004696 sub-02 |
 
-The figures are drawn in Python (NumPy, SciPy, Matplotlib) from what these
-scripts save: `validation/figures/figures_validations.py` for FieldTrip, CRP,
-N1 and CARLA, and `validation/figures/figures_rereferencing.py` for the
-re-referencing schemes, which also computes the effect sizes' confidence
-intervals. Each script's first lines say what it reads.
+`run_validations` runs `validate_fieldtrip_uci29`, `validate_crp_scripts`,
+`validate_erdetect_ds004080`, `validate_icaref_michelmann` and
+`validate_carla_huang_ds004977` on the data given and writes what they return
+to one folder. The figures are drawn in Python (NumPy, SciPy, Matplotlib):
+`validation/figures/figures_validations.py` for FieldTrip, CRP, N1 and CARLA,
+from the folder of `run_validations`, and
+`validation/figures/figures_rereferencing.py` for the re-referencing schemes
+and the effect sizes' confidence intervals, from the output folder of
+`compare_references_ds004696`. Each script's first lines say what it reads.
 
 ## Version history
 

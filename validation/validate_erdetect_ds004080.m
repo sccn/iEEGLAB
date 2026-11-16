@@ -21,14 +21,17 @@ function out = validate_erdetect_ds004080(dsDir, erdDir)
 % over 0 to 500 ms, the largest peak in the window must be negative, and peaks
 % above 3000 uV are rejected; iEEGLAB takes the largest local extremum in the
 % window (ieeglab_detect_n1 help).
-% Three comparisons, each over every stimulation site x recording contact of
+% Four comparisons, each over every stimulation site x recording contact of
 % this run (8 sites x 84 contacts):
 %   A  same input: ER-detect's own trial averages through ieeglab_detect_n1
 %      with ER-detect's rule ('sd', 'peak_from' 'zero'): the detection alone
 %   B  iEEGLAB end to end with ER-detect's choices: ieeglab_import,
 %      ieeglab_load, ieeglab_preprocess (no filter, epochs -1 to 2 s, median
 %      baseline -500 to -20 ms), the same rule
-%   C  iEEGLAB's defaults (the step-by-step tutorial): artifact blanking, line
+%   B_median  as B, with iEEGLAB's default amplitude: the peak measured from the
+%      median of the average's baseline ('peak_from' 'median') instead of zero
+%   C  the step-by-step tutorial's settings (iEEGLAB's defaults with outlier
+%      trial rejection, which is off by default): artifact blanking, line
 %      noise removed at 50/100/150 Hz, epochs -1 to 1 s, outlier trials
 %      removed, median baseline -500 to -50 ms, common average, N1 by sign-flip
 %      permutation test with FDR across contacts of each site, window 10 to
@@ -95,13 +98,16 @@ EEG = ieeglab_preprocess(EEG0, struct('apply_epoch', true, 'epoch_window', [-100
     'baseline_period', [-500 -20], 'plot', false));
 [~, T] = ieeglab_detect_n1(EEG, rule);
 out.B = local_compare('B  iEEGLAB end to end, ER-detect''s choices and rule', T, ref, fs);
+ruleM = rule; ruleM.peak_from = 'median';
+[~, T] = ieeglab_detect_n1(EEG, ruleM);
+out.B_median = local_compare('B_median  as B, amplitude from the baseline median of the average', T, ref, fs);
 
 EEG = ieeglab_preprocess(EEG0, struct('apply_blank', true, 'apply_notch', true, 'notch', [50 100 150], ...
     'apply_epoch', true, 'epoch_window', [-1000 1000], 'reject_trials', true, 'remove_rare_cond', true, ...
     'min_trials', 5, 'remove_bad_channels', true, 'apply_baseline', true, 'baseline_period', [-500 -50], 'plot', false));
 EEG = pop_ieeglab_reref(EEG, 'method', 'car');
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', true, 'run_crp', false, 'run_matrix', false, 'plot', false));
-out.C = local_compare('C  iEEGLAB defaults, permutation test', EEG.ieeglab.n1.table, ref, fs);
+out.C = local_compare('C  the tutorial''s settings, permutation test', EEG.ieeglab.n1.table, ref, fs);
 out.seconds = toc(t0);
 fprintf('Done in %.0f s.\n', out.seconds);
 end

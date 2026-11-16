@@ -126,6 +126,26 @@ T1 = S1.ieeglab.n1.table; T2 = S2.ieeglab.n1.table;
 same = isfinite(T1.n1_latency_ms) & T1.n1_latency_ms == T2.n1_latency_ms;
 tc.assertGreaterThan(nnz(same), 0);
 tc.verifyEqual(T2.n1_amplitude_uv(same) - T1.n1_amplitude_uv(same), repmat(30, nnz(same), 1), 'AbsTol', 1e-3);
+% an invalid value is refused before the CRP runs
+s.run_crp = true; s.n1_peak_from = 'raw';
+tc.verifyError(@() ieeglab_stats_subject(E, s), 'ieeglab_stats_subject:badPeakFrom');
+end
+
+function test_crp_window_starts_after_its_start(tc)
+% At 5000 Hz a sample falls on 15 ms. As in the authors' code, the window keeps
+% the samples after its start up to its end: (15, 16] ms holds 5 samples, not 6.
+E = tc.TestData.E;
+E.srate = 5000; E.xmin = -0.1;
+E.times = (0:E.pnts-1) / E.srate * 1000 + E.xmin * 1000; E.xmax = E.times(end) / 1000;
+o = struct('run_n1',false, 'run_crp',true, 'run_matrix',false, 'plot',false, 'verbose',false, ...
+    'crp_window',[15 16]);
+try
+    evalc('ieeglab_stats_subject(E, o)');
+    tc.verifyFail('A window of 5 samples must be refused.');
+catch ME
+    tc.verifyEqual(ME.identifier, 'ieeglab_stats_subject:shortWindow');
+    tc.verifySubstring(ME.message, 'only 5 samples');
+end
 end
 
 function test_bonferroni_needs_enough_permutations(tc)

@@ -49,8 +49,10 @@ function S = matched_pipeline_ds004696(dsDir, outDir, only)
 %   bh           Benjamini-Hochberg instead of Benjamini-Yekutieli
 %   all_pairs    the correction over all pairs of the recording, not the paper's
 % (with about 10 trials per site the sign-flip permutation test cannot give p
-% below 2/2^K, 0.002 for 10 trials, which limits how many pairs pass
-% Benjamini-Yekutieli over 509 pairs), and five rows combine them:
+% below 2/2^K with K <= 9 trials, where all sign patterns are used (0.004 for
+% 9), or 1/(n_perm + 1) above, where 1000 are drawn (about 0.001 for 10),
+% which limits how many pairs pass Benjamini-Yekutieli over 509 pairs), and
+% five rows combine them:
 %   permutation_bh   the permutation test with Benjamini-Hochberg
 %   statistics       iEEGLAB's statistics (permutation, Benjamini-Hochberg over
 %                    all pairs of the recording) on the paper's preprocessing

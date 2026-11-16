@@ -29,9 +29,12 @@ function S = compare_references_ds004696(dsDir, outDir, schemes)
 %                  the 20% of good contacts with the lowest variance from 15 to
 %                  500 ms ('varsubset', Ojeda Valencia et al., 2023)
 %   carla          CARLA, iEEGLAB's default for CCEP data (Huang et al., 2024)
-%   ica            ICA re-referencing, iEEGLAB's default scaling
-%                  ('normalized'; Michelmann et al., 2018)
-%   ica_fieldtrip  the same decomposition, scaled as the authors' code ('fieldtrip')
+%   ica            ICA re-referencing (Michelmann et al., 2018), weights
+%                  normalized per component ('weights', 'normalized')
+%   ica_fieldtrip  the same decomposition, weights scaled as FieldTrip and the
+%                  authors' code ('fieldtrip', the default of ieeglab_icaref)
+% (the ICA schemes call ieeglab_icaref, which, unlike the re-referencing
+% dialog, does not remove the baseline again afterwards)
 % and the CCEP analysis of Part A (CRP, permutation test, FDR over all pairs,
 % connectivity matrix). Each scheme's decisions and response durations (tau_R)
 % are compared with the published CRP, whose decision is the paper's: p at

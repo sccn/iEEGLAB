@@ -54,8 +54,8 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 %   'p_broad'    chi-square p above which an ICA component counts as broad
 %                ('ica'). Default 0.2.
 %   'weights'    how the ICA weights are scaled for that test ('ica'):
-%                'fieldtrip' (default, as the authors' script) or 'normalized'.
-%                See ieeglab_icaref.
+%                'fieldtrip' (default, as the authors' script), 'normalized' or
+%                'raw' (command line only). See ieeglab_icaref.
 %
 % Continuous data are offered what needs no epoch: common average, ICA,
 % bipolar and custom montages. CARLA and the lowest-variance subset rank
