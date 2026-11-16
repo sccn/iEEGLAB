@@ -134,17 +134,13 @@
     <a href="#report">5. What to report</a>
   </nav>
 
-  <div class="note f">Screenshots of the full recordings are still to be updated. The frequency-analysis and bipolar
-  steps have none yet, the preprocessing window of Part A shows 60 Hz only, where the step uses 60, 120 and 180 Hz, and
-  the counts in their titles come from an earlier version (3940 of 11172 in a title for 3937 of 10780 in step 7). The
-  numbers in the steps are current.</div>
 
   <h2 id="install">1. Install</h2>
   <ol class="steps">
-    <li data-o="Install">Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Clone
-      <a href="https://github.com/sccn/iEEGLAB">iEEGLAB</a> into <code>eeglab/plugins/</code>, or
-      <a href="https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip">download it</a> and unzip it there: release
-      1.2.0 does not have all the steps below yet.<span class="f"> From
+    <li data-o="Install">Install <a href="https://github.com/sccn/eeglab">EEGLAB</a>. Unzip iEEGLAB 1.3.0 from
+      <a href="https://github.com/sccn/iEEGLAB/releases">its releases</a> (<code>iEEGLAB1.3.0.zip</code>) in
+      <code>eeglab/plugins/</code> (the extension manager lists it once its list is updated), or clone
+      <a href="https://github.com/sccn/iEEGLAB">iEEGLAB</a> there.<span class="f"> From
       <span class="menu">File &gt; Manage EEGLAB extensions</span>, install <b>MEF3</b> (Part A) and <b>bva-io</b> (Part B).</span>
       Part B draws the ECoG contacts on fsaverage: FreeSurfer has it, or get it once from Python with
       <code>import mne; mne.datasets.fetch_fsaverage()</code> (if MNE says its download folder does not exist, create
@@ -318,7 +314,7 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A12_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details>
       <p>Then, optionally, the same again with <i>Test each contact's band power in this window against its baseline</i>
-      ticked (the box is not in the screenshot yet).</p>
+      ticked.</p>
       <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
       the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
       second panel stars the contacts that differ<span class="f"> (when it names each contact: 60 or fewer)</span>, and the
@@ -447,7 +443,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B10_timefreq_2.png" alt="High-frequency activity on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq');</code></pre></details>
       <p>Then, optionally, the same again with <i>Test each contact's band power in this window against its baseline</i>
-      ticked (the box is not in the screenshot yet).</p>
+      ticked.</p>
       <div class="expect"><b>Expect</b>Each contact's 70-150 Hz change from 0 to 1000 ms is tested against its baseline over
       the epochs (sign-flip permutation, false discovery rate across contacts). The command window gives the count, the
       second panel stars the contacts that differ<span class="f"> (when it names each contact: 60 or fewer)</span>, and the
@@ -491,7 +487,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
   grids and seven depth leads. The same analysis as the
   <a href="https://www.fieldtriptoolbox.org/tutorial/intracranial/human_ecog/">FieldTrip tutorial</a>, through the
   iEEGLAB menus: common average of the grids, bipolar depth leads, time-frequency power and high-frequency activity,
-  plus a test of each contact against its baseline. Screenshots to come.</p>
+  plus a test of each contact against its baseline.</p>
 
   <h2 id="ft-data">1. Data</h2>
   <p>Four files from FieldTrip's download server, about 205 MB, kept in this folder structure, and a fifth for the
@@ -513,6 +509,8 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       <div class="expect"><b>Expect</b>A few seconds: 152 channels at 5000 Hz, 96 ECoG (grids LPG and LTG) and 56 sEEG,
       26 epochs from -400 to 900 ms, every contact with a position (ACPC space). A warning: the positions file gives the
       unit as volts, but the values are microvolts; they are kept as they are.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F1_import_dialog.png" alt="Import window, filled in" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F1_eeglab_after_import.png" alt="EEGLAB with the dataset" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_import_fieldtrip('SubjectUCI29_data.mat', 'elec', 'SubjectUCI29_elec_acpc_f.mat', ...
     'types', {'LPG*', 'ECOG'; 'LTG*', 'ECOG'; '*', 'SEEG'});</code></pre></details></li>
 
@@ -526,6 +524,7 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       (3.5 mm in the median). The grids rest on the cortex, and these positions are not yet corrected for the brain
       shift after implantation (FieldTrip's tutorial corrects them later, in <code>SubjectUCI29_elec_acpc_fr.mat</code>).
       Every depth contact is inside: the spaces do match.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F2_electrodes.png" alt="Contacts on the participant's brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_surfaces(EEG, 'surf_files', {fullfile('freesurfer', 'surf', 'lh.pial'), ...
     fullfile('freesurfer', 'surf', 'rh.pial')});
 EEG = ieeglab_vis_elec(EEG);
@@ -543,6 +542,7 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
       in <i>Method</i>.
       <div class="expect"><b>Expect</b>As in the FieldTrip tutorial: the average of the 96 grid contacts is taken out of
       each of them.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F4_reref.png" alt="Re-referencing window, common average" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'car');</code></pre></details></li>
 
     <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: <i>Time-frequency power and
@@ -555,6 +555,9 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
       LPG40, LPG24, LPG30, LPG12, LPG48 and LPG22 (+0.9 to +1.3 dB). None decreases; the smallest corrected p among the
       others is 0.065. The average of the contacts rises most at 145 Hz, 390 ms (+2.3 dB). The brain map repeats the
       surface warning of step 2, for the same 22 grid contacts (23% of the 96).</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F5_spectral_dialog.png" alt="Frequency analysis window, filled in" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F5_timefreq_1.png" alt="Time-frequency power, grids" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F5_timefreq_2.png" alt="Contacts that differ from baseline, on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);</code></pre></details></li>
   </ol>
 
@@ -570,6 +573,7 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
       <i>Method</i>, keep the default.
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead: 56 contacts become 49 channels
       (seven leads of eight contacts), none left out.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F7_reref_bipolar.png" alt="Re-referencing window, bipolar" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
 
     <li data-o="Time-frequency"><span class="menu">iEEGLAB &gt; Frequency analysis</span>: the same as for the grids
@@ -578,6 +582,8 @@ EEGall = EEG;   % all 152 channels, for the depth leads</code></pre></details></
       power over 0 to 800 ms goes from -4.7 dB (RTH4-RTH5) to +0.8 dB (ROC7-ROC8): a large value with no difference
       comes from a few epochs, as the map shows the change of the mean power and the test each epoch's change. The
       average of the channels rises most at 60 Hz, 300 ms (+1.6 dB).</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F8_bipolar_timefreq_1.png" alt="Time-frequency power, bipolar depth leads" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/F8_bipolar_timefreq_2.png" alt="High-frequency activity on the brain, bipolar" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);</code></pre></details></li>
   </ol>
 
@@ -647,6 +653,7 @@ out = validate_fieldtrip_uci29(pwd);   % the folder with the three .mat files</c
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="Published reference"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>Lowest-variance subset (Ojeda Valencia et al., 2023)</i>, keep the share at 0.2: the paper's own reference, the average of the 20% of contacts with the lowest variance from 15 to 500 ms in each block of 64 channels of the recording. iEEGLAB warns that the epochs are already baseline-corrected: here every scheme starts from the same preprocessed epochs, while the paper ranks its contacts before the baseline, which changes some of them (section 4).
       <div class="expect"><b>Expect</b>Re-referencing 23 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/R4_reref_varsubset.png" alt="Re-referencing window, lowest-variance subset" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEGpre, 'method', 'varsubset', 'fraction', 0.2);
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="CARLA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>CARLA, per stimulation site (Huang et al., 2024)</i>, the window's default.
@@ -655,6 +662,7 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="ICA"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: <i>ICA, local components only (Michelmann et al., 2018)</i>, keep the defaults. The weights of each component are scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here), before the test of whether the component is spread evenly over the contacts. The command line below calls <code>ieeglab_icaref</code>, as the numbers of <i>Expect</i> do; the menu also removes the preprocessing baseline again after re-referencing, as for every scheme, so its numbers can differ from these.
       <div class="expect"><b>Expect</b>Re-referencing takes about 35 minutes on a recent Mac and took about 3.5 hours here alongside other jobs (one ICA of 198 contacts; plan for a long run); 6 components spread evenly over the contacts are removed. 4813 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 85%: 260 respond in both, 20 in iEEGLAB only, 55 in the paper only. Effect size on the pairs that respond in the paper: d = 2.68 [2.13, 3.22]. What it removes: a median of 13 µV RMS over 10 to 300 ms.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/R6_reref_ica.png" alt="Re-referencing window, ICA" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>[EEG, info] = ieeglab_icaref(EEGpre);   % keep info to try the other scaling without refitting
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));</code></pre></details></li>
     <li data-o="ICA, normalized weights">The same decomposition, with each component's weights divided by their mean before the test, so that it measures only how unevenly the component is spread. The dialog offers it (<i>Weights scaled for that test</i>) but fits ICA again; from the command line, start from the preprocessed dataset again and pass the <code>info</code> of the previous step, so ICA is not fitted a second time.
@@ -707,7 +715,7 @@ S3 = matched_pipeline_ds004696('ds004696', 'ref_compare');     % the paper's set
   stimulation site, the channels whose common average carries no evoked response. This tab applies it through the
   menus to the recording of the paper's Figure 5, with the authors' settings: sub-1 of OpenNeuro ds004977, stereo-EEG at
   4800 Hz, stimulation site RMO8-RMO9. The authors' code puts 154 of 206 channels in the common average there; iEEGLAB
-  chooses the same 154. The tab then compares CARLA with the common average of every channel. Screenshots to come.</p>
+  chooses the same 154. The tab then compares CARLA with the common average of every channel.</p>
 
   <h2 id="carla-data">1. Data</h2>
   <p>Run 2 of sub-1, from <a href="https://openneuro.org/datasets/ds004977">ds004977</a> or with the
@@ -731,6 +739,8 @@ S3 = matched_pipeline_ds004696('ds004696', 'ref_compare');     % the paper's set
       instead of 9 minutes. The high-pass filter of step 3 then works on that stretch, which changes the covariance of a
       few channels a little: CARLA still chooses 154 channels, but RP17 instead of RP14, its 154th and 155th channels.
       Read the whole recording to reproduce the paper exactly.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C1_import_options.png" alt="Import options" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C1_eeglab_after_import.png" alt="EEGLAB with the recording" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>rec = fullfile('ds004977', 'sub-1', 'ses-ieeg01', 'ieeg', 'sub-1_ses-ieeg01_task-ccep_run-02_ieeg.mefd');
 EEG = ieeglab_import(rec);</code></pre></details></li>
 
@@ -741,6 +751,8 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <div class="expect"><b>Expect</b>228 of 255 contacts with coordinates, 43 bad (from <code>channels.tsv</code>),
       120 stimulations at 10 sites. A warning names the 27 contacts with no position in <code>electrodes.tsv</code>: 25 of
       them are bad, the other two are RP18 and ROC14.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));</code></pre></details></li>
 
     <li data-o="Preprocess"><span class="menu">iEEGLAB &gt; Preprocess iEEG data</span>, with the settings of the
@@ -754,6 +766,7 @@ EEG = ieeglab_import(rec);</code></pre></details></li>
       <div class="expect"><b>Expect</b>About 20 seconds: 212 contacts, 12 epochs.</div>
       <div class="note">The authors high-pass with a Butterworth filter, iEEGLAB with a FIR filter (both zero-phase).
       The channels chosen at step 4 are the same.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C3_preprocess.png" alt="Preprocessing window with the authors' settings (RMO8-RMO9 is chosen in the event selector)" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = ieeglab_preprocess(EEG, struct('event_filters', struct('type', {{'RMO8-RMO9'}}), ...
     'remove_no_coords', false, 'remove_bad_channels', true, 'apply_blank', false, ...
     'apply_highpass', true, 'highpass', 0.5, 'apply_notch', false, ...
@@ -766,6 +779,7 @@ EEGpre = EEG;   % kept for step 6</code></pre></details></li>
       <div class="expect"><b>Expect</b>About 10 seconds. The command window reads <i>154/212 channels in reference, 6
       excluded</i> (RMO6 to RMO11): of the 206 channels CARLA may use, it keeps 154, the same 154 as the authors' code
       (Huang et al., 2024, Figure 5). The random draws use a fixed seed, so the result repeats from run to run.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C4_reref.png" alt="Re-referencing window, CARLA" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'carla');</code></pre></details></li>
 
     <li data-o="The curve of Figure 5">From the command line. CARLA ranks the channels by their covariance across
@@ -778,6 +792,7 @@ EEGpre = EEG;   % kept for step 6</code></pre></details></li>
       <div class="expect"><b>Expect</b>The curve starts at -0.87 with 2 channels (1 channel has no value), rises to a
       plateau near -0.1 from about 80 to 180 channels, peaks at -0.086 with 154 channels (the star), and falls to -0.29
       with 200 channels and -0.45 with all 206: the channels ranked last carry the response.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C5_curve.png" alt="CARLA curve: 154 channels at the star" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd" open><summary>Command line</summary><pre><code>S = EEG.ieeglab.car.groups(1).stats;   % CARLA's statistics for the site
 z = mean(S.zMinMean, 2);                % one value per number of channels: mean of the 100 draws
 n = numel(S.chsUsed);                   % the number chosen
@@ -790,6 +805,7 @@ xlabel('Channels in the common average'); ylabel('\zeta (Fisher z)')</code></pre
       averages leave out the same contacts.
       <div class="expect"><b>Expect</b>206 channels in the common average. Between 10 and 300 ms, its trial mean differs
       from CARLA's by up to 23 µV, 134 ms after the pulse: the responses of the 52 channels that CARLA leaves out.</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C6_difference.png" alt="Common average minus CARLA's, trial mean" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEGcar = pop_ieeglab_reref(EEGpre, 'method', 'car', 'neighbors', 2);
 % the two common averages, trial mean
 G = EEG.ieeglab.car.groups(1); Gc = EEGcar.ieeglab.car.groups(1);
@@ -804,6 +820,10 @@ xlabel('Time (ms)'); ylabel('Common average minus CARLA''s (uV)')</code></pre></
       <div class="expect"><b>Expect</b>A few seconds each. After CARLA, 89 of the 210 contacts respond; after the common
       average, 147 do. The common average subtracts the responses it carries from every contact, which can make contacts
       without a response of their own look responsive (Huang et al., 2024).</div>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C7_summary_carla_1.png" alt="CRP after CARLA" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C7_summary_carla_2.png" alt="Responding contacts after CARLA" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C7_summary_car_1.png" alt="CRP after the common average" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot"><img src="tutorial/images/walkthrough/C7_summary_car_2.png" alt="Responding contacts after the common average" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>opt = struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp');
 EEG = ieeglab_stats_subject(EEG, opt);
 EEGcar = ieeglab_stats_subject(EEGcar, opt);</code></pre></details></li>

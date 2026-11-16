@@ -110,6 +110,13 @@ if nargin < 2
     if ~any(strcmp({M.name}, g.method)), g.method = M(1).name; end
     iSel = find(strcmp({M.name}, g.method), 1); if isempty(iSel), iSel = 1; end
     g = local_fill(g, prev, M(iSel).name);
+    if isfield(prev, 'car_method') && strcmpi(char(string(prev.car_method)), 'ica')
+        % the ICA options of the previous run (only the dialog reuses them)
+        g.rank = local_prev(prev, 'ica_rank', g.rank);
+        g.p_broad = local_prev(prev, 'ica_p_broad', g.p_broad);
+        g.weights = local_prev(prev, 'ica_weights', g.weights);
+    end
+    iW = find(strcmpi(W, char(g.weights)), 1); if isempty(iW), iW = 1; end
     onFor = @(tag) iff(ismember(tag, M(iSel).uses), 'on', 'off');
     row = @(tag, label, ctrl) {{'style' 'text' 'string' label 'tag' ['lbl_' tag] 'enable' onFor(tag)}, ...
                                [ctrl {'tag' tag 'enable' onFor(tag)}]};
@@ -134,10 +141,10 @@ if nargin < 2
     end
     if any(strcmp({M.name}, 'ica'))
         uilist = [uilist head('ICA') ...
-            row('rank', '   Number of components (empty = estimated rank)', {'style' 'edit' 'string' ''}) ...
+            row('rank', '   Number of components (empty = estimated rank)', {'style' 'edit' 'string' num2str(g.rank)}) ...
             row('p_broad', '   A component is broad (removed) if chi-square p above', {'style' 'edit' 'string' num2str(g.p_broad)}) ...
             row('weights', '   Weights scaled for that test', {'style' 'popupmenu' 'string' ...
-                {'As FieldTrip (the authors'' script)', 'Normalized per component'} 'value' 1})];
+                {'As FieldTrip (the authors'' script)', 'Normalized per component'} 'value' iW})];
         geom = [geom {1 [1.3 1] [1.3 1] [1.3 1]}];
         gv = [gv 1 1 1 1];
     end
@@ -290,6 +297,11 @@ if ~isfield(EEG, 'ieeglab'), EEG.ieeglab = struct(); end
 if ~isfield(EEG.ieeglab, 'opt') || ~isstruct(EEG.ieeglab.opt), EEG.ieeglab.opt = struct(); end
 for f = {'car_method', 'car_timewin', 'car_sens', 'car_persite', 'car_fraction', 'car_neighbors'}
     EEG.ieeglab.opt.(f{1}) = opt.(f{1});
+end
+if strcmp(g.method, 'ica')                          % shown again by the dialog on this dataset
+    EEG.ieeglab.opt.ica_rank = g.rank;
+    EEG.ieeglab.opt.ica_p_broad = g.p_broad;
+    EEG.ieeglab.opt.ica_weights = g.weights;
 end
 if hadBaseline
     % same window, method and mode as in preprocessing (read from EEG.ieeglab.opt)

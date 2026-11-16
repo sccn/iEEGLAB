@@ -53,6 +53,8 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 
 > **Expect.** Re-referencing 23 s. 3572 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 83%: 234 respond in both, 2 in iEEGLAB only, 81 in the paper only. Effect size on the pairs that respond in the paper: d = 2.95 [2.30, 3.61]. What it removes: a median of 15 µV RMS over 10 to 300 ms.
 
+![Re-referencing window, lowest-variance subset](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/R4_reref_varsubset.png)
+
 ```matlab
 EEG = pop_ieeglab_reref(EEGpre, 'method', 'varsubset', 'fraction', 0.2);
 EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_matrix', true, 'matrix_source', 'crp'));
@@ -74,6 +76,8 @@ EEG = ieeglab_stats_subject(EEG, struct('run_n1', false, 'run_crp', true, 'run_m
 **iEEGLAB > iEEG re-referencing**: *ICA, local components only (Michelmann et al., 2018)*, keep the defaults. The weights of each component are scaled as FieldTrip does, as in the authors' script (their 1 Hz high-pass is not applied here), before the test of whether the component is spread evenly over the contacts. The command line below calls `ieeglab_icaref`, as the numbers of *Expect* do; the menu also removes the preprocessing baseline again after re-referencing, as for every scheme, so its numbers can differ from these.
 
 > **Expect.** Re-referencing takes about 35 minutes on a recent Mac and took about 3.5 hours on a Windows laptop alongside other jobs (one ICA of 198 contacts; plan for a long run); 6 components spread evenly over the contacts are removed. 4813 of 11172 pairs respond. On the paper's 484 pairs, the same decision for 85%: 260 respond in both, 20 in iEEGLAB only, 55 in the paper only. Effect size on the pairs that respond in the paper: d = 2.68 [2.13, 3.22]. What it removes: a median of 13 µV RMS over 10 to 300 ms.
+
+![Re-referencing window, ICA](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/R6_reref_ica.png)
 
 ```matlab
 [EEG, info] = ieeglab_icaref(EEGpre);   % keep info to try the other scaling without refitting

@@ -20,7 +20,7 @@
 function vers = eegplugin_ieeglab(fig, try_strings, catch_strings)
 
 % Plugin version
-vers = '1.3.0-dev';
+vers = '1.3.0';
 
 if nargin < 3
     error('eegplugin_ieeglab:badCall', ...
@@ -92,13 +92,13 @@ uimenu(menu_root, 'Label', 'Plot CRP of one site and contact', 'Callback', cb_cr
 uimenu(menu_root, 'Label', 'Plot connectivity matrix', 'Callback', cb_matrix, 'userdata', onepoch);
 uimenu(menu_root, 'Label', 'Plot electrode values on brain', 'Callback', cb_topo, 'userdata', onepoch);
 uimenu(menu_root, 'Label', 'Export results (TSV / JSON / MAT)', 'Callback', cb_export, 'Separator', 'on', 'userdata', onepoch);
-local_docs_menu(menu_root, plugin_path, true);
+local_docs_menu(menu_root, plugin_path, vers, true);
 
 % The same documentation in EEGLAB's Help menu, next to EEGLAB's own
 if ~isempty(iHelp)
     old = findobj(top(iHelp), 'Tag', 'ieeglab_help');
     if ~isempty(old), delete(old); end
-    local_docs_menu(top(iHelp), plugin_path, true);
+    local_docs_menu(top(iHelp), plugin_path, vers, true);
 end
 
 % Also offer the electrode-value plot under EEGLAB's own Plot menu, next to the
@@ -127,32 +127,40 @@ end
 
 end
 
-function local_docs_menu(parent, plugin_path, separator)
+function local_docs_menu(parent, plugin_path, vers, separator)
 % 'iEEGLAB documentation': the README and tutorial online, the menu-by-menu
 % walkthrough shipped with the plugin, the tutorial script, and the help of
 % every menu's function (the text each dialog's Help button shows).
 m = uimenu(parent, 'Label', 'iEEGLAB documentation', 'Tag', 'ieeglab_help', ...
     'Separator', iff(separator, 'on', 'off'), 'userdata', 'study:on');
 uimenu(m, 'Label', 'README and installation (web)', 'userdata', 'study:on', ...
-    'Callback', 'web(''https://github.com/sccn/iEEGLAB#readme'', ''-browser'');');
-% One tutorial page per dataset: the Markdown files of docs/, published as the
-% repository's wiki, each titled by its first heading
+    'Callback', @(~, ~) web('https://github.com/sccn/iEEGLAB#readme', '-browser'));
+% One tutorial page per dataset: the Markdown files of docs/ shipped with the
+% plugin, each titled by its first heading. Each opens on GitHub at the release
+% installed (tag v<version>), so a page renamed later keeps working for this
+% version; a development version opens the main branch. The wiki shows the
+% same pages for the latest version.
+ref = 'main';
+if ~isempty(regexp(vers, '^\d+(\.\d+)*$', 'once')), ref = ['v' vers]; end
 pages = dir(fullfile(plugin_path, 'docs', '*.md'));
 pages = pages(~ismember({pages.name}, {'Home.md', '_Sidebar.md'}));
 for k = 1:numel(pages)
     [~, base] = fileparts(pages(k).name);
     lbl = base;
     try
-        first = strtrim(regexp(fileread(fullfile(pages(k).folder, pages(k).name)), '^# ([^\r\n]+)', 'tokens', 'once', 'lineanchors'));
-        if ~isempty(first), lbl = first{1}; end
+        txt = fileread(fullfile(pages(k).folder, pages(k).name));
+        txt = regexprep(txt, ['^' char(65279)], '');           % a byte-order mark
+        first = regexp(txt, '^#\s+([^\r\n]+)', 'tokens', 'once', 'lineanchors');
+        if ~isempty(first) && ~isempty(strtrim(first{1})), lbl = strtrim(first{1}); end
     catch
     end
+    url = sprintf('https://github.com/sccn/iEEGLAB/blob/%s/docs/%s', ref, local_urlencode(pages(k).name));
     uimenu(m, 'Label', sprintf('Tutorial: %s (web)', lbl), 'userdata', 'study:on', 'Separator', iff(k == 1, 'on', 'off'), ...
-        'Callback', sprintf('web(''https://github.com/sccn/iEEGLAB/wiki/%s'', ''-browser'');', base));
+        'Callback', @(~, ~) web(url, '-browser'));
 end
 walk = fullfile(plugin_path, 'iEEGLAB_GUI_walkthrough.html');
 uimenu(m, 'Label', 'Menu-by-menu walkthrough', 'userdata', 'study:on', ...
-    'Callback', sprintf('web(''%s'', ''-browser'');', strrep(walk, '''', '''''')));
+    'Callback', @(~, ~) web(walk, '-browser'));
 uimenu(m, 'Label', 'Tutorial script (ieeglab_tutorial.m)', 'userdata', 'study:on', 'Callback', 'edit ieeglab_tutorial;');
 fm = uimenu(m, 'Label', 'iEEGLAB functions', 'Separator', 'on', 'userdata', 'study:on');
 fns = {'pop_ieeglab_import', 'Import raw recording'; 'ieeglab_import_fieldtrip', 'Import FieldTrip epochs'; ...
@@ -168,6 +176,19 @@ for k = 1:size(fns, 1)
     uimenu(fm, 'Label', sprintf('%s (%s)', fns{k, 2}, fns{k, 1}), 'userdata', 'study:on', ...
         'Callback', sprintf('pophelp(''%s'');', fns{k, 1}));
 end
+end
+
+function s = local_urlencode(s)
+% Percent-encode everything but unreserved URL characters
+s = char(s);
+keep = isstrprop(s, 'alphanum') & s < 128 | ismember(s, '-._~');
+out = cell(1, numel(s));
+for k = 1:numel(s)
+    if keep(k), out{k} = s(k);
+    else, out{k} = sprintf('%%%02X', unicode2native(s(k), 'UTF-8'));
+    end
+end
+s = [out{:}];
 end
 
 function out = iff(c, a, b)

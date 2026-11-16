@@ -4,7 +4,7 @@ FieldTrip's intracranial tutorial data (SubjectUCI29; Stolk et al., 2018): 26 ep
 depth leads. The same analysis as the
 [FieldTrip tutorial](https://www.fieldtriptoolbox.org/tutorial/intracranial/human_ecog/), through the iEEGLAB menus:
 common average of the grids, bipolar depth leads, time-frequency power and high-frequency activity, plus a test of each
-contact against its baseline. No stimulation here: these steps work on any epoched iEEG data. Screenshots to come.
+contact against its baseline. No stimulation here: these steps work on any epoched iEEG data.
 
 Install iEEGLAB first ([Installation](https://github.com/sccn/iEEGLAB#installation)). FieldTrip itself is not needed.
 
@@ -35,6 +35,10 @@ positions*: `SubjectUCI29_elec_acpc_f.mat`; *Channel types*: `LPG* ECOG; LTG* EC
 > 900 ms, every contact with a position (ACPC space). A warning: the positions file gives the unit as volts, but the
 > values are microvolts; they are kept as they are.
 
+![Import window, filled in](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F1_import_dialog.png)
+
+![EEGLAB with the dataset](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F1_eeglab_after_import.png)
+
 ```matlab
 EEG = ieeglab_import_fieldtrip('SubjectUCI29_data.mat', 'elec', 'SubjectUCI29_elec_acpc_f.mat', ...
     'types', {'LPG*', 'ECOG'; 'LTG*', 'ECOG'; '*', 'SEEG'});
@@ -52,6 +56,8 @@ Then **iEEGLAB > Visualize electrodes**.
 > rest on the cortex, and these positions are not yet corrected for the brain shift after implantation (FieldTrip's
 > tutorial corrects them later, in `SubjectUCI29_elec_acpc_fr.mat`). Every depth contact is inside: the spaces do
 > match.
+
+![Contacts on the participant's brain](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F2_electrodes.png)
 
 ```matlab
 EEG = pop_ieeglab_surfaces(EEG, 'surf_files', {fullfile('freesurfer', 'surf', 'lh.pial'), ...
@@ -78,6 +84,8 @@ EEG = pop_select(EEGall, 'chantype', {'ECOG'});
 
 > **Expect.** As in the FieldTrip tutorial: the average of the 96 grid contacts is taken out of each of them.
 
+![Re-referencing window, common average](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F4_reref.png)
+
 ```matlab
 EEG = pop_ieeglab_reref(EEG, 'method', 'car');
 ```
@@ -94,6 +102,12 @@ baseline*; keep the rest (5 to 200 Hz, Hann windows of 0.2 s, dB, 70-150 Hz).
 > LPG39, LPG23, LPG40, LPG24, LPG30, LPG12, LPG48 and LPG22 (+0.9 to +1.3 dB). None decreases; the smallest corrected p
 > among the others is 0.065. The average of the contacts rises most at 145 Hz, 390 ms (+2.3 dB). The brain map repeats
 > the surface warning of step 2, for the same 22 grid contacts (23% of the 96).
+
+![Frequency analysis window, filled in](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F5_spectral_dialog.png)
+
+![Time-frequency power, grids](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F5_timefreq_1.png)
+
+![Contacts that differ from baseline, on the brain](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F5_timefreq_2.png)
 
 ```matlab
 EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);
@@ -119,6 +133,8 @@ EEG = pop_select(EEGall, 'chantype', {'SEEG'});
 > **Expect.** Each contact minus the next one on its lead: 56 contacts become 49 channels (seven leads of eight
 > contacts), none left out.
 
+![Re-referencing window, bipolar](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F7_reref_bipolar.png)
+
 ```matlab
 EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');
 ```
@@ -131,6 +147,10 @@ EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');
 > goes from -4.7 dB (RTH4-RTH5) to +0.8 dB (ROC7-ROC8): a large value with no difference comes from a few epochs, as
 > the map shows the change of the mean power and the test each epoch's change. The average of the channels rises most
 > at 60 Hz, 300 ms (+1.6 dB).
+
+![Time-frequency power, bipolar depth leads](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F8_bipolar_timefreq_1.png)
+
+![High-frequency activity on the brain, bipolar](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/F8_bipolar_timefreq_2.png)
 
 ```matlab
 EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'baseline', [-400 -10], 'band_window', [0 800], 'stats', true);

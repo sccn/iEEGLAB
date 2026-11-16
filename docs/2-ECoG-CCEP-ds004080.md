@@ -187,7 +187,7 @@ ieeglab_export(EEG, 'results_ecog');
 **iEEGLAB > Frequency analysis**: *Time-frequency power and band power*, keep the defaults (5 to 200 Hz, Hann windows
 of 0.2 s, dB against the baseline, high-frequency activity 70-150 Hz). It only draws figures: the dataset is not
 changed. Then, optionally, the same again with *Test each contact's band power in this window against its baseline*
-ticked (the box is not in the screenshot yet).
+ticked.
 
 > **Expect.** Two figures. The first shows the power of the average of the contacts over time and frequency, and the
 > 70-150 Hz power of every contact over time; the second, each contact's 70-150 Hz power from 0 to 1000 ms on the

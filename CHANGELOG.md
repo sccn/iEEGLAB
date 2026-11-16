@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 (2026-11-16)
 
 ### New
 
@@ -39,7 +39,8 @@
   block of epochs and reused for every frequency.
 - **Documentation in EEGLAB's Help menu** (*Help > iEEGLAB documentation*, also
   at the bottom of the iEEGLAB menu): the README, one entry per tutorial page
-  of `docs/` (opened on the repository's wiki, titled by the page's heading),
+  of `docs/` (titled by the page's heading, opened on GitHub at the installed
+  release, so a page renamed later still opens for this version),
   the menu-by-menu walkthrough, the tutorial script, and the help of each
   menu's function.
 - **Band-power statistics** (`ieeglab_band_stats`; *Frequency analysis*, box
@@ -181,9 +182,12 @@
   CARLA and the lowest-variance subset (`ieeglab_quantile`). The MEF3 reader
   stopped without the Parallel Computing Toolbox. *Check installation* lists
   Biosig for EDF/BDF and no longer lists `corr`.
-- The version is `1.3.0-dev`, so exports no longer carry the number of a release
-  that lacks this code. The README and the walkthrough point to the repository
-  until the next release.
+- EEGLAB prints the version at start-up again (`1.3.0`; it printed `v?` for
+  `1.3.0-dev`).
+- The re-referencing window shows the ICA options of the previous run on the
+  dataset (number of components, p threshold, scaling of the weights), as it
+  does for the other methods. Help menu entries no longer build their callbacks
+  from file names, so a page name with a quote or a space cannot break them.
 - A montage multiplies only the contacts it uses, so a NaN in another contact
   stays out of the new channels, and it removes N1 results as well. The heatmap
   averages in the data's class (it copied a whole recording to double, twice).

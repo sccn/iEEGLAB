@@ -33,12 +33,10 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
    **firfilt** and **EEG-BIDS** plugins that iEEGLAB uses. For raw BIDS data
    also install, from *File > Manage EEGLAB extensions*, **MEF3** (Mayo MEF3
    files), **bva-io** (BrainVision) or **Biosig** (EDF, BDF).
-2. Install iEEGLAB: clone this repository into `eeglab/plugins/`, or
-   [download it](https://github.com/sccn/iEEGLAB/archive/refs/heads/main.zip)
-   and unzip it there. This page describes the current code. The latest
-   [release](https://github.com/sccn/iEEGLAB/releases), 1.2.0, does not have the
-   brain-surface step, bipolar and custom montages, frequency analysis with its
-   band-power test, or the FieldTrip import yet.
+2. Install iEEGLAB: download the latest
+   [release](https://github.com/sccn/iEEGLAB/releases) (`iEEGLAB1.3.0.zip`) and
+   unzip it into `eeglab/plugins/`, or clone this repository there. The EEGLAB
+   extension manager lists 1.3.0 once its list is updated.
 3. Start EEGLAB and run *iEEGLAB > Check installation*
    (`ieeglab_check_install`), which lists anything missing. The iEEGLAB menu is
    right of *Help*:
