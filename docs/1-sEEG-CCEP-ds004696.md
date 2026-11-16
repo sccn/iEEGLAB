@@ -24,6 +24,24 @@ Two versions of the same recording; the steps give the numbers of both where the
 aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 ```
 
+The files the steps use, in the BIDS folder structure (`ses-ieeg01` is the session, `ieeg` the data type):
+
+```
+ds004696/
+  dataset_description.json, participants.tsv
+  sub-02/ses-ieeg01/ieeg/
+    sub-02_ses-ieeg01_task-ccep_run-01_ieeg.mefd       the recording (a folder; step 1)
+    sub-02_ses-ieeg01_task-ccep_run-01_channels.tsv    contact types and bad contacts (step 2)
+    sub-02_ses-ieeg01_task-ccep_run-01_events.tsv      the stimulations and their sites (step 2)
+    sub-02_ses-ieeg01_electrodes.tsv                   contact coordinates (step 2)
+    sub-02_ses-ieeg01_coordsystem.json                 the space of the coordinates (step 3)
+  derivatives/freesurfer/sub-02/
+    pial.L.surf.gii, pial.R.surf.gii                   the participant's brain surfaces (step 3)
+```
+
+The tutorial extract keeps the same files, with the `.set` dataset in place of the `.mefd` recording, all in
+`tutorial/seeg`.
+
 > **Note.** The full recording needs about 20 GB of memory, and CARLA takes 6 to 7 minutes. For a quicker run, read
 > only a few stimulation sites at step 1; the numbers then differ a little, also for the sites you keep, as CARLA and
 > the permutations draw from one random stream. The times on this page come from a Windows laptop with 8 cores; a
@@ -68,6 +86,12 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 found automatically; the event type is the stimulation site (for example `RA3-RA4`), and the contacts marked bad in
 `channels.tsv` are marked here and removed during preprocessing.
 
+> **Note.** After this step and most of the next ones (and after the import of the full recording), EEGLAB asks
+> what to do with the result (window *Dataset info -- pop_newset()*). By default, Ok keeps the result as a new
+> dataset, under the name shown, and the previous one in memory (**Datasets** menu). Tick *Overwrite it in memory*
+> to replace the previous one instead: with the full recording, each copy takes 9 to 16 GB. Tick *Save it as file*
+> to also write the result to disk.
+
 > **Expect.**
 >
 > - *Tutorial extract:* 14 of 17 contacts with coordinates, 3 bad (RA15, RB14, RB15, from `channels.tsv`),
@@ -88,6 +112,10 @@ EEG = ieeglab_load(EEG, struct('event_field', 'electrical_stimulation_site'));
 Chosen once, the surfaces are used by every brain figure. Without a choice, figures are drawn on the brain that matches
 the space of the coordinates in `coordsystem.json`: the participant's pial surfaces for participant coordinates (ACPC
 here), fsaverage's for fsaverage or MNI coordinates.
+
+The window names the files it found: `pial.L.surf.gii` and `pial.R.surf.gii`, in `tutorial/seeg` for the tutorial
+extract and in `ds004696/derivatives/freesurfer/sub-02` for the full recording. If it offers *Select pial files*
+instead of *Use these*, the surfaces were not downloaded or not kept in that folder: select these two files.
 
 > **Expect.** The contacts inside the brain, seen from the front and slightly above; drag to rotate. The tutorial
 > extract shows one lead (RA), in the right hemisphere.

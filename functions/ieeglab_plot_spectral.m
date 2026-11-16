@@ -90,6 +90,10 @@ else
         if ~strcmp(S.norm, 'none') && ~strcmp(S.norm, 'ratio') && isfinite(m) && m > 0, cl = [-m m]; end
     end
     if ~isempty(cl), caxis(ax1, cl); end %#ok<CAXIS>
+    % colour map and limits before the colour bar: changing the map of an axes
+    % that already has one warns "MapColorSpace/ColorBar: Attempt to modify the
+    % tree during an update traversal" (R2024a, Apple Silicon)
+    colormap(ax1, parula);
     local_zero_line(ax1);
     cb = colorbar(ax1); cb.Label.String = unit;
     xlabel(ax1, 'Time (ms)', 'FontWeight', 'bold'); ylabel(ax1, 'Frequency (Hz)', 'FontWeight', 'bold');
@@ -101,6 +105,7 @@ else
     set(ax2, 'Color', [0.9 0.9 0.9]);
     m = max(abs(B(:)), [], 'omitnan');
     if ~strcmp(S.norm, 'none') && ~strcmp(S.norm, 'ratio') && isfinite(m) && m > 0, caxis(ax2, [-m m]); end %#ok<CAXIS>
+    colormap(ax2, parula);
     local_zero_line(ax2);
     lab = S.labels;
     if hasStats, lab(sig) = strcat(lab(sig), ' *'); end
@@ -112,7 +117,6 @@ else
         t2 = sprintf('%s (* %g-%g Hz differs from baseline, %g-%g ms)', t2, S.stats_opt.band, S.stats_opt.window);
     end
     title(ax2, t2, 'FontWeight', 'normal');
-    try, colormap(ax1, parula); colormap(ax2, parula); catch, end
     what = sprintf('%s, %g to %g ms', unit, S.band_window(1), S.band_window(2));
 end
 

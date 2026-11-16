@@ -171,6 +171,18 @@ ieeglab_check_install</code></pre></details></li>
   <a href="https://openneuro.org/datasets/ds004080">ds004080</a>. Keep the folder structure.</p>
   <pre><code>aws s3 sync --no-sign-request s3://openneuro.org/ds004696 ds004696 --exclude "*" --include "sub-02/*" --include "derivatives/freesurfer/sub-02/*" --include "dataset_description.json" --include "participants.tsv"
 aws s3 sync --no-sign-request s3://openneuro.org/ds004080 ds004080 --exclude "*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*run-041456*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_electrodes.*" --include "sub-ccepAgeUMCU02/ses-1/ieeg/*_ses-1_coordsystem.json" --include "dataset_description.json" --include "participants.tsv"</code></pre>
+  <p>The files Part A uses, in the BIDS folder structure (<code>ses-ieeg01</code> is the session, <code>ieeg</code> the
+  data type); Part B's are in <code>ds004080/sub-ccepAgeUMCU02/ses-1/ieeg</code>, without surfaces:</p>
+  <pre><code>ds004696/
+  dataset_description.json, participants.tsv
+  sub-02/ses-ieeg01/ieeg/
+    sub-02_ses-ieeg01_task-ccep_run-01_ieeg.mefd       the recording (a folder; step 1)
+    sub-02_ses-ieeg01_task-ccep_run-01_channels.tsv    contact types and bad contacts (step 2)
+    sub-02_ses-ieeg01_task-ccep_run-01_events.tsv      the stimulations and their sites (step 2)
+    sub-02_ses-ieeg01_electrodes.tsv                   contact coordinates (step 2)
+    sub-02_ses-ieeg01_coordsystem.json                 the space of the coordinates (step 3)
+  derivatives/freesurfer/sub-02/
+    pial.L.surf.gii, pial.R.surf.gii                   the participant's brain surfaces (step 3)</code></pre>
   <div class="note">The full sEEG recording needs about 20 GB of memory and CARLA takes 6 to 7 minutes. For a quicker
   run, read only a few stimulation sites at step 1 of Part A; the numbers then differ a little, also for the sites you
   keep, as CARLA and the permutations draw from one random stream. The times on this page come from a Windows laptop
@@ -198,6 +210,11 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       <code>channels.tsv</code>), 34 stimulations at 3 sites. A warning says that the same three have no position in the
       electrodes file.</span><span class="f">211 contacts with coordinates, 39 bad
       (from <code>channels.tsv</code>), 695 stimulations.</span></div>
+      <div class="note">After this step and most of the next ones (and after the import of the full recording), EEGLAB
+      asks what to do with the result (window <i>Dataset info -- pop_newset()</i>). By default, Ok keeps the result as a new
+      dataset, under the name shown, and the previous one in memory (<span class="menu">Datasets</span> menu).
+      Tick <i>Overwrite it in memory</i> to replace the previous one instead: with the full recording, each copy takes
+      9 to 16 GB. Tick <i>Save it as file</i> to also write the result to disk.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
@@ -206,6 +223,9 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
 
     <li data-o="Brain surfaces"><span class="menu">iEEGLAB &gt; Choose brain surfaces</span>: <i>Use these</i> (sub-02's pial surfaces), then
       <span class="menu">iEEGLAB &gt; Visualize electrodes</span>. Chosen once, the surfaces are used by every brain figure.
+      The window names the files it found: <code>pial.L.surf.gii</code> and <code>pial.R.surf.gii</code>, in
+      <span class="t"><code>tutorial/seeg</code></span><span class="f"><code>ds004696/derivatives/freesurfer/sub-02</code></span>.
+      If it offers <i>Select pial files</i> instead of <i>Use these</i>, select these two files.
       <div class="expect"><b>Expect</b>The contacts inside the brain, seen from the front and slightly above; drag to
       rotate.<span class="t"> One lead here (RA), in the right hemisphere.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA3_surfaces_dialog.png" alt="Surfaces question" onerror="this.closest('figure').style.display='none'"></figure>
