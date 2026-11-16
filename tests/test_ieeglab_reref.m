@@ -141,6 +141,15 @@ tc.verifyGreaterThan(min(r0), 0.5);
 tc.verifyLessThan(max(r1), 0.2, 'The shared reference signal must be removed.');
 tc.verifyEqual(I.data(8, :), EEG.data(8, :), 'The bad contact must be left untouched.');
 tc.verifyError(@() pop_ieeglab_reref(EEG, 'method', 'carla'), 'pop_ieeglab_reref:notEpoched');
+
+% the ICA options are kept on the dataset for the window; a later run of another method keeps them apart
+[~, I2] = evalc('pop_ieeglab_reref(EEG, ''method'', ''ica'', ''rank'', 7, ''p_broad'', 0.3, ''weights'', ''raw'')');
+tc.verifyEqual(I2.ieeglab.opt.ica_rank, 7);
+tc.verifyEqual(I2.ieeglab.opt.ica_p_broad, 0.3);
+tc.verifyEqual(I2.ieeglab.opt.ica_weights, 'raw');
+tc.verifyEqual(I2.ieeglab.opt.car_method, 'ica');
+[~, C2] = evalc('pop_ieeglab_reref(I2, ''method'', ''car'')');
+tc.verifyEqual(C2.ieeglab.opt.car_method, 'car');
 end
 
 function test_continuous_long_recording_blocks(tc)

@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Time-frequency figure**: each axes gets its colour map before its colour
+  bar (a graphics warning on MATLAB R2024a, Apple Silicon).
+- **CRP summary figure**: its title counts the pairs tested, as the
+  connectivity matrix, without the pairs that cannot reach significance.
+- **Re-referencing window**: after an ICA run with `'weights', 'raw'` (command
+  line only), the window offers that weighting instead of switching to
+  FieldTrip's.
+- **Help > iEEGLAB documentation**: a git checkout opens the pages of the main
+  branch; an installed release, those of its tag.
+
+### Documentation
+
+- The sEEG page and the walkthrough show where each file sits in the BIDS
+  folders, where the pial surfaces are, and what the *pop_newset* window asks
+  (with the memory each copy of the full recording takes).
+- Power spectrum steps show the 70-150 Hz power on the brain; bipolar steps give
+  the contacts before the montage and those that have a neighbour; the README
+  lists the heatmap menu.
+
 ## 1.3.0 (2026-11-16)
 
 ### New
@@ -106,15 +129,15 @@
   per dataset (sEEG and ECoG CCEP, FieldTrip's tutorial data, re-referencing
   compared, and CARLA on ds004977, below), each step with its menu, what to
   expect (for the tutorial extract and the full recording where a page has
-  both) and the command line; only the two CCEP pages have screenshots. A
+  both), the command line and screenshots. A
   workflow copies them to the repository's wiki at each change, for the EEGLAB
   website. The README follows the layout of the other EEGLAB plugin pages, with links to them, a
   quick start and images that also show outside GitHub.
 - **Tutorial page for ds004977** (`docs/5-CARLA-ds004977.md`): CARLA through
   the menus with its authors' settings on the recording of their Figure 5
   (sub-1 run 2, site RMO8-RMO9: the same 154 of 206 channels), the curve of
-  that figure from the command line, and the common average of every channel
-  for comparison.
+  that figure from the command line, and the common average of all good
+  channels for comparison.
 
 ### Changed
 
@@ -185,8 +208,8 @@
 - EEGLAB prints the version at start-up again (`1.3.0`; it printed `v?` for
   `1.3.0-dev`).
 - The re-referencing window shows the ICA options of the previous run on the
-  dataset (number of components, p threshold, scaling of the weights), as it
-  does for the other methods. Help menu entries no longer build their callbacks
+  dataset (number of components, p threshold, scaling of the weights) when
+  that run used ICA. Help menu entries no longer build their callbacks
   from file names, so a page name with a quote or a space cannot break them.
 - A montage multiplies only the contacts it uses, so a NaN in another contact
   stays out of the new channels, and it removes N1 results as well. The heatmap

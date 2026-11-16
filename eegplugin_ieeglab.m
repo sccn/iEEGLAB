@@ -138,10 +138,12 @@ uimenu(m, 'Label', 'README and installation (web)', 'userdata', 'study:on', ...
 % One tutorial page per dataset: the Markdown files of docs/ shipped with the
 % plugin, each titled by its first heading. Each opens on GitHub at the release
 % installed (tag v<version>), so a page renamed later keeps working for this
-% version; a development version opens the main branch. The wiki shows the
-% same pages for the latest version.
+% version; a git checkout (the development version) opens the main branch. The
+% wiki shows the same pages for the latest version.
 ref = 'main';
-if ~isempty(regexp(vers, '^\d+(\.\d+)*$', 'once')), ref = ['v' vers]; end
+if ~isempty(regexp(vers, '^\d+(\.\d+)*$', 'once')) && ~exist(fullfile(plugin_path, '.git'), 'file')
+    ref = ['v' vers];
+end
 pages = dir(fullfile(plugin_path, 'docs', '*.md'));
 pages = pages(~ismember({pages.name}, {'Home.md', '_Sidebar.md'}));
 for k = 1:numel(pages)

@@ -148,7 +148,7 @@
       <div class="note f">Mac with Apple Silicon: compile the MEF3 reader. Its C files are in the MEF3 plugin folder: in
       MATLAB, go to <code>eeglab/plugins/MEF3v1.2.2</code> and run the five <code>mex</code> lines under
       <a href="https://github.com/MultimodalNeuroimagingLab/matmef#building-from-source">Building from source</a>.
-      With MATLAB R2025b, Apple's Command Line Tools were enough (the README's steps for the full Xcode were not
+      With MATLAB R2025b, Apple's Command Line Tools were enough (matmef's README asks for the full Xcode, which was not
       needed).</div></li>
     <li data-o="Check installation">Start EEGLAB, then <span class="menu">iEEGLAB &gt; Check installation</span>.
       <div class="expect"><b>Expect</b>An iEEGLAB menu right of Help. Nothing required is missing.
@@ -214,7 +214,8 @@ EEG = ieeglab_import(rec);   % or ieeglab_import(rec, 'sites', {'RA2-RA3', 'RA3-
       asks what to do with the result (window <i>Dataset info -- pop_newset()</i>). By default, Ok keeps the result as a new
       dataset, under the name shown, and the previous one in memory (<span class="menu">Datasets</span> menu).
       Tick <i>Overwrite it in memory</i> to replace the previous one instead: with the full recording, each copy takes
-      9 to 16 GB. Tick <i>Save it as file</i> to also write the result to disk.</div>
+      9 to 16 GB (the 20 GB of the note above are for one copy at a time). Tick <i>Save it as file</i> to also
+      write the result to disk.</div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA2_load_select.png" alt="Channels and events to keep" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A2_load_files.png" alt="Sidecar files" onerror="this.closest('figure').style.display='none'"></figure>
@@ -349,11 +350,13 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       its harmonics in the median: the line noise was removed. The largest peaks left are on LB3, at 60 Hz (20 times the neighbouring frequencies) and 180 Hz (12 times).</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TA13_spectrum_2.png" alt="70-150 Hz power on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_2.png" alt="70-150 Hz power on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
     <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
       (pairs farther apart than twice their lead's spacing are not formed).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
-      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">196 contacts become 157 channels. 21 pairs are not formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have no neighbour.</span> The CCEP results are removed: they describe the
+      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">The 198 contacts become 157 channels, from the 196 that have a neighbour. 21 pairs are not formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have none.</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the CARLA data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
@@ -476,11 +479,13 @@ ieeglab_export(EEG, 'results_ecog');</code></pre></details></li>
       the median: the line noise was removed. <span class="t">The largest peak left is on FB53 at 100 Hz, next to the stimulated FB54.</span><span class="f">No peak above 2.5 times the neighbouring frequencies on any contact.</span></div>
       <figure class="shot t"><img src="tutorial/images/walkthrough/TB11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
       <figure class="shot f"><img src="tutorial/images/walkthrough/B11_spectrum_1.png" alt="Power spectra" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot t"><img src="tutorial/images/walkthrough/TB11_spectrum_2.png" alt="70-150 Hz power on the brain" onerror="this.closest('figure').style.display='none'"></figure>
+      <figure class="shot f"><img src="tutorial/images/walkthrough/B11_spectrum_2.png" alt="70-150 Hz power on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
     <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
       (pairs farther apart than twice their lead's spacing are not formed).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
-      <span class="t">17 contacts become 14 channels. FB56-FB57 (79 mm apart) and FB63-FB64 (29 mm) are not formed, as the lead's contacts are 13.4 mm apart: the grid's numbering runs on from one row to the next.</span><span class="f">85 contacts become 71 channels. Ten pairs are not formed, their contacts being more than twice their lead's spacing apart: the ends of grid rows (FC08-FC09, FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41, FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64, vT3-vT4, vT6-vT7).</span> The CCEP results are removed: they describe the
+      <span class="t">The 18 contacts become 14 channels, from the 17 that have a neighbour. FB56-FB57 (79 mm apart) and FB63-FB64 (29 mm) are not formed, as the lead's contacts are 13.4 mm apart: the grid's numbering runs on from one row to the next.</span><span class="f">The 86 contacts become 71 channels, from the 85 that have a neighbour. Ten pairs are not formed, their contacts being more than twice their lead's spacing apart: the ends of grid rows (FC08-FC09, FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41, FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64, vT3-vT4, vT6-vT7).</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the common average data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>
@@ -735,7 +740,7 @@ S3 = matched_pipeline_ds004696('ds004696', 'ref_compare');     % the paper's set
   stimulation site, the channels whose common average carries no evoked response. This tab applies it through the
   menus to the recording of the paper's Figure 5, with the authors' settings: sub-1 of OpenNeuro ds004977, stereo-EEG at
   4800 Hz, stimulation site RMO8-RMO9. The authors' code puts 154 of 206 channels in the common average there; iEEGLAB
-  chooses the same 154. The tab then compares CARLA with the common average of every channel.</p>
+  chooses the same 154. The tab then compares CARLA with the common average of all 206 good channels.</p>
 
   <h2 id="carla-data">1. Data</h2>
   <p>Run 2 of sub-1, from <a href="https://openneuro.org/datasets/ds004977">ds004977</a> or with the

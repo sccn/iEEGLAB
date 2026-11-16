@@ -233,6 +233,8 @@ EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);   % with the
 
 ![Power spectra](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/TB11_spectrum_1.png)
 
+![70-150 Hz power on the brain](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/TB11_spectrum_2.png)
+
 ```matlab
 EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');
 ```
@@ -246,11 +248,13 @@ lead's spacing are not formed).
 > they describe the old channels. A bipolar difference cancels any reference common to its two contacts, so the same
 > channels come from the common average data as from the preprocessed ones.
 >
-> - *Tutorial extract:* 17 contacts become 14 channels. FB56-FB57 (79 mm apart) and FB63-FB64 (29 mm) are not formed,
->   as the lead's contacts are 13.4 mm apart: the grid's numbering runs on from one row to the next.
-> - *Full recording:* 85 contacts become 71 channels. Ten pairs are not formed, their contacts being more than twice
->   their lead's spacing apart: the ends of grid rows (FC08-FC09, FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41,
->   FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64, vT3-vT4, vT6-vT7).
+> - *Tutorial extract:* The 18 contacts become 14 channels, from the 17 that have a neighbour. FB56-FB57 (79 mm
+>   apart) and FB63-FB64 (29 mm) are not formed, as the lead's contacts are 13.4 mm apart: the grid's numbering runs
+>   on from one row to the next.
+> - *Full recording:* The 86 contacts become 71 channels, from the 85 that have a neighbour. Ten pairs are not
+>   formed, their contacts being more than twice their lead's spacing apart: the ends of grid rows (FC08-FC09,
+>   FC16-FC17, FC24-FC25, FC32-FC33, FC40-FC41, FB56-FB57) and wider gaps on other leads (F04-F05, FB63-FB64,
+>   vT3-vT4, vT6-vT7).
 
 ```matlab
 EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');

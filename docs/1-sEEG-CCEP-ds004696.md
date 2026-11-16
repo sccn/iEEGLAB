@@ -39,8 +39,8 @@ ds004696/
     pial.L.surf.gii, pial.R.surf.gii                   the participant's brain surfaces (step 3)
 ```
 
-The tutorial extract keeps the same files, with the `.set` dataset in place of the `.mefd` recording, all in
-`tutorial/seeg`.
+The tutorial extract has the same sidecar files and pial surfaces, with the `.set` dataset in place of the `.mefd`
+recording, all in one folder, `tutorial/seeg`.
 
 > **Note.** The full recording needs about 20 GB of memory, and CARLA takes 6 to 7 minutes. For a quicker run, read
 > only a few stimulation sites at step 1; the numbers then differ a little, also for the sites you keep, as CARLA and
@@ -89,7 +89,8 @@ found automatically; the event type is the stimulation site (for example `RA3-RA
 > **Note.** After this step and most of the next ones (and after the import of the full recording), EEGLAB asks
 > what to do with the result (window *Dataset info -- pop_newset()*). By default, Ok keeps the result as a new
 > dataset, under the name shown, and the previous one in memory (**Datasets** menu). Tick *Overwrite it in memory*
-> to replace the previous one instead: with the full recording, each copy takes 9 to 16 GB. Tick *Save it as file*
+> to replace the previous one instead: with the full recording, each copy takes 9 to 16 GB (the 20 GB of the note
+> above are for one copy at a time). Tick *Save it as file*
 > to also write the result to disk.
 
 > **Expect.**
@@ -343,6 +344,8 @@ EEG = pop_ieeglab_spectral(EEG, 'type', 'timefreq', 'stats', true);   % with the
 
 ![Power spectra](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/TA13_spectrum_1.png)
 
+![70-150 Hz power on the brain](https://raw.githubusercontent.com/sccn/iEEGLAB/main/tutorial/images/walkthrough/TA13_spectrum_2.png)
+
 ```matlab
 EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');
 ```
@@ -357,9 +360,9 @@ lead's spacing are not formed).
 > channels come from the CARLA data as from the preprocessed ones.
 >
 > - *Tutorial extract:* The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.
-> - *Full recording:* 196 contacts become 157 channels. 21 pairs are not formed: their contacts are 7 to 14 mm apart
->   where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have
->   no neighbour.
+> - *Full recording:* The 198 contacts become 157 channels, from the 196 that have a neighbour. 21 pairs are not
+>   formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of
+>   contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have none.
 
 ```matlab
 EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');

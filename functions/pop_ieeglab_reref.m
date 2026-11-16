@@ -103,6 +103,7 @@ g = struct('method', iff(isCCEP, 'carla', 'car'), 'timewin', [], 'sensitive', []
     'persite', local_prev(prev, 'car_persite', true), 'fraction', [], 'neighbors', [], ...
     'rank', [], 'p_broad', 0.2, 'weights', 'fieldtrip', 'montage', [], 'spacing_factor', 2);
 W = {'fieldtrip', 'normalized'};                    % ICA weight scalings offered in the dialog
+Wlbl = {'As FieldTrip (the authors'' script)', 'Normalized per component'};
 
 if nargin < 2
     % ---- dialog: one section per method; options of the other methods are greyed out
@@ -116,7 +117,11 @@ if nargin < 2
         g.p_broad = local_prev(prev, 'ica_p_broad', g.p_broad);
         g.weights = local_prev(prev, 'ica_weights', g.weights);
     end
-    iW = find(strcmpi(W, char(g.weights)), 1); if isempty(iW), iW = 1; end
+    iW = find(strcmpi(W, char(g.weights)), 1);
+    if isempty(iW) && strcmpi(char(g.weights), 'raw')   % a command-line choice, kept when it was the last one
+        W{end+1} = 'raw'; Wlbl{end+1} = 'Raw (no scaling)'; iW = numel(W);
+    end
+    if isempty(iW), iW = 1; end
     onFor = @(tag) iff(ismember(tag, M(iSel).uses), 'on', 'off');
     row = @(tag, label, ctrl) {{'style' 'text' 'string' label 'tag' ['lbl_' tag] 'enable' onFor(tag)}, ...
                                [ctrl {'tag' tag 'enable' onFor(tag)}]};
@@ -144,7 +149,7 @@ if nargin < 2
             row('rank', '   Number of components (empty = estimated rank)', {'style' 'edit' 'string' num2str(g.rank)}) ...
             row('p_broad', '   A component is broad (removed) if chi-square p above', {'style' 'edit' 'string' num2str(g.p_broad)}) ...
             row('weights', '   Weights scaled for that test', {'style' 'popupmenu' 'string' ...
-                {'As FieldTrip (the authors'' script)', 'Normalized per component'} 'value' iW})];
+                Wlbl 'value' iW})];
         geom = [geom {1 [1.3 1] [1.3 1] [1.3 1]}];
         gv = [gv 1 1 1 1];
     end

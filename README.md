@@ -23,6 +23,7 @@ stimulation. Every step runs from the EEGLAB menus or from a script.
 | Stimulation-artifact blanking, line-noise removal, filtering, epoching, trial and channel rejection, baseline | Preprocess iEEG data | `ieeglab_preprocess` |
 | Re-referencing: CARLA (CCEP), common average, lowest-variance subset, ICA-based, bipolar, custom montages (e.g. a local average) | iEEG re-referencing | `pop_ieeglab_reref`, `ieeglab_montage` |
 | Power spectrum of each contact; time-frequency power and band power (high-frequency activity by default), on the brain, with a permutation test of each contact's band power against its baseline | Frequency analysis | `pop_ieeglab_spectral`, `ieeglab_spectral`, `ieeglab_band_stats` |
+| Average of the epochs of every channel, as an image (channels by time) | Plot average of epochs, every channel (heatmap) | `ieeglab_plot_heatmap` |
 | CRP (sEEG) and N1 (ECoG) with permutation statistics; connectivity matrix | CCEP analysis (N1, CRP, connectivity) | `ieeglab_stats_subject` |
 | One site-contact pair (CRP), the connectivity matrix, values on the brain | Plot CRP of one site and contact; Plot connectivity matrix; Plot electrode values on brain | `ieeglab_plot_crp`, `ieeglab_plot_ccep_matrix`, `ieeglab_topoplot` |
 | Export (TSV, JSON, MAT) | Export results | `ieeglab_export` |

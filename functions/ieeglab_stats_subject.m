@@ -538,7 +538,9 @@ else
     ylabel('Significant site-contact pairs','FontWeight','bold');
     box on
 end
-title(sprintf('CRP: %d significant of %d tested (%s, \\alpha=%g)', height(sig), height(T), opt.correct, opt.alpha), ...
+nTested = height(T);
+if ismember('testable', T.Properties.VariableNames), nTested = nnz(T.testable); end   % as the CCEP matrix
+title(sprintf('CRP: %d significant of %d tested (%s, \\alpha=%g)', height(sig), nTested, opt.correct, opt.alpha), ...
     'FontWeight','normal');
 subplot(1,2,2);
 if ismember('explained_var', T.Properties.VariableNames) && any(isfinite(T.explained_var))
