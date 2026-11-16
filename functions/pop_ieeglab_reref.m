@@ -36,6 +36,8 @@ function [EEG, com] = pop_ieeglab_reref(EEG, varargin)
 %   'spacing_factor'  bipolar: with coordinates, contacts farther apart than
 %                this times the lead's median spacing are not paired (the end
 %                of one grid row and the start of the next). Default 2; 0 = off.
+%                Depth leads (SEEG, DBS) are not checked: gaps between groups
+%                of contacts are paired, as FieldTrip does.
 %   'timewin'    [start end] response window in ms used to rank channels
 %                (carla, varsubset). Default [10 300] for carla, [15 500] for
 %                varsubset (each method's publication scripts).
@@ -155,7 +157,7 @@ if nargin < 2
     end
     browse = {'style' 'pushbutton' 'string' '...' 'tag' 'browse' 'enable' onFor('montage') 'callback' @local_browse};
     uilist = [uilist head('Bipolar') ...
-        row('spacing_factor', '   Skip pairs farther apart than N x the lead''s median spacing (0 = off)', {'style' 'edit' 'string' num2str(g.spacing_factor)}) ...
+        row('spacing_factor', '   Grids and strips: skip pairs farther apart than N x the lead''s median spacing (0 = off)', {'style' 'edit' 'string' num2str(g.spacing_factor)}) ...
         head('Custom montage') ...
         row('montage', '   File (.tsv/.csv; columns positive, negative, name)', {'style' 'edit' 'string' ''}) {browse}];
     geom = [geom {1 [1.3 1] 1 [1.3 0.85 0.15]}];

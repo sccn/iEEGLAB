@@ -354,9 +354,9 @@ pop_ieeglab_ccep_matrix(EEG, 'explained_var');</code></pre></details></li>
       <figure class="shot f"><img src="tutorial/images/walkthrough/A13_spectrum_2.png" alt="70-150 Hz power on the brain" onerror="this.closest('figure').style.display='none'"></figure>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');</code></pre></details></li>
     <li data-o="Bipolar"><span class="menu">iEEGLAB &gt; iEEG re-referencing</span>: choose <i>Bipolar</i> in <i>Method</i>, keep the default
-      (pairs farther apart than twice their lead's spacing are not formed).
+      (on depth leads every consecutive pair is formed; the distance check applies to grids and strips).
       <div class="expect"><b>Expect</b>Each contact minus the next one on its lead, at the midpoint of the two.
-      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">The 198 contacts become 157 channels, from the 196 that have a neighbour. 21 pairs are not formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have none.</span> The CCEP results are removed: they describe the
+      <span class="t">The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.</span><span class="f">The 198 contacts become 178 channels, from the 197 that have a neighbour (ROP4 has none: ROP3 and ROP5 are bad). Most leads hold groups of contacts 3.3 to 4.2 mm apart with gaps of 7 to 14 mm between groups; 21 channels span such a gap (e.g. LB5-LB6, RB5-RB6).</span> The CCEP results are removed: they describe the
       old channels. A bipolar difference cancels any reference common to its two contacts, so the same channels come from
       the CARLA data as from the preprocessed ones.</div>
       <details class="cmd"><summary>Command line</summary><pre><code>EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');</code></pre></details></li>

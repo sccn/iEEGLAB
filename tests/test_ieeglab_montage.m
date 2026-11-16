@@ -55,6 +55,22 @@ M0 = ieeglab_montage(EEG, 'bipolar', 'spacing_factor', 0);
 tc.verifyTrue(ismember('G4-G5', M0.labelnew));
 end
 
+function test_grouped_depth_lead_paired_across_gaps(tc)
+% A depth lead in three groups of five (3.5 mm within, 9 mm between, as DIXI
+% D08-15BM): every consecutive pair is formed, gaps included. The same
+% geometry typed ECOG (a strip) keeps the distance check.
+pos = cumsum([0, 3.5*ones(1, 4), 9, 3.5*ones(1, 4), 9, 3.5*ones(1, 4)])';
+labels = arrayfun(@(k) sprintf('LT%d', k), 1:15, 'UniformOutput', false);
+EEG = local_eeg(labels, repmat({'SEEG'}, 1, 15), [pos zeros(15, 2)], 100, 1);
+M = ieeglab_montage(EEG, 'bipolar');
+tc.verifyEqual(numel(M.labelnew), 14, 'All 14 pairs of a grouped depth lead must be formed.');
+tc.verifyTrue(all(ismember({'LT5-LT6', 'LT10-LT11'}, M.labelnew)));
+tc.verifyFalse(any(contains(M.skipped.reason, 'apart')));
+S = local_eeg(labels, repmat({'ECOG'}, 1, 15), [pos zeros(15, 2)], 100, 1);
+Ms = ieeglab_montage(S, 'bipolar');
+tc.verifyEqual(numel(Ms.labelnew), 12, 'A strip keeps the distance check (9 mm > 2 x 3.5 mm).');
+end
+
 function test_custom_montage_table_file_and_fieldtrip(tc)
 % The same custom montage from a table, a TSV file and a FieldTrip struct:
 % a bipolar pair, a local average (Laplacian-like) and a contact as it is. A
@@ -178,7 +194,8 @@ function test_bipolar_matches_fieldtrip(tc)
 % Same pairs and weights as FieldTrip's bipolar montage per lead
 % (ft_prepare_montage, refmethod 'bipolar', groupchans 'yes') on the good
 % contacts of both tutorials. FieldTrip pairs every consecutive pair; iEEGLAB
-% also skips the pairs farther apart than twice the lead's spacing.
+% also skips, on grids and strips, the pairs farther apart than twice the
+% lead's spacing.
 tc.assumeNotEmpty(which('ft_prepare_montage'), 'FieldTrip is not on the path.');
 sets = {'seeg', 'sub-02_ses-ieeg01_task-ccep_run-01_ieeg.set'; ...
         'ecog', 'sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-041456_ieeg.set'};

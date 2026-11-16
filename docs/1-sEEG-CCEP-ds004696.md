@@ -352,17 +352,17 @@ EEG = pop_ieeglab_spectral(EEG, 'type', 'spectrum');
 
 ### 14. Bipolar
 
-**iEEGLAB > iEEG re-referencing**: choose *Bipolar* in *Method*, keep the default (pairs farther apart than twice their
-lead's spacing are not formed).
+**iEEGLAB > iEEG re-referencing**: choose *Bipolar* in *Method*, keep the default (on depth leads every consecutive pair
+is formed; the distance check applies to grids and strips).
 
 > **Expect.** Each contact minus the next one on its lead, at the midpoint of the two. The CCEP results are removed:
 > they describe the old channels. A bipolar difference cancels any reference common to its two contacts, so the same
 > channels come from the CARLA data as from the preprocessed ones.
 >
 > - *Tutorial extract:* The 14 contacts become 13 channels, RA1-RA2 to RA13-RA14.
-> - *Full recording:* The 198 contacts become 157 channels, from the 196 that have a neighbour. 21 pairs are not
->   formed: their contacts are 7 to 14 mm apart where their lead's are 3.3 to 4.2 mm (gaps between groups of
->   contacts, e.g. LB5-LB6, RB5-RB6); RO11 and ROP4 have none.
+> - *Full recording:* The 198 contacts become 178 channels, from the 197 that have a neighbour (ROP4 has none: ROP3
+>   and ROP5 are bad). Most leads hold groups of contacts 3.3 to 4.2 mm apart with gaps of 7 to 14 mm between groups;
+>   21 channels span such a gap (e.g. LB5-LB6, RB5-RB6).
 
 ```matlab
 EEG = pop_ieeglab_reref(EEG, 'method', 'bipolar');

@@ -24,7 +24,11 @@ function M = ieeglab_montage(EEG, src, varargin)
 %                     times the median distance between neighbouring contacts of
 %                     its lead is not formed: on a grid numbered row by row, the
 %                     last contact of a row and the first of the next are not
-%                     neighbours. Default 2; 0 = no check.
+%                     neighbours. Default 2; 0 = no check. Depth leads (every
+%                     contact of type SEEG or DBS) are not checked: their
+%                     contacts often come in groups (3.5 mm apart within a group,
+%                     7-14 mm between groups), and consecutive contacts of a
+%                     shaft are paired whatever the gap, as FieldTrip does.
 %   'types'           channel types paired. Default {'SEEG','ECOG','DBS','IEEG'}
 %                     plus channels with no type.
 %
@@ -175,7 +179,8 @@ for L = unique(lead(ok))'
     cand = [idx(1:end-1) idx(2:end)];
     cand = cand(num(cand(:, 2)) == num(cand(:, 1)) + 1, :);    % consecutive numbers only
     if isempty(cand), continue; end
-    if o.spacing_factor > 0 && size(cand, 1) >= 2
+    depth = all(ismember(type(idx), ["SEEG" "DBS"]));        % grouped contacts: gaps are not row ends
+    if o.spacing_factor > 0 && size(cand, 1) >= 2 && ~depth
         d = sqrt(sum((xyz(cand(:, 1), :) - xyz(cand(:, 2), :)).^2, 2));
         med = median(d, 'omitnan');
         far = d > o.spacing_factor * med;                      % NaN distances are kept

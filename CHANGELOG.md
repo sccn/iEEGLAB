@@ -13,6 +13,12 @@
   FieldTrip's.
 - **Help > iEEGLAB documentation**: a git checkout opens the pages of the main
   branch; an installed release, those of its tag.
+- **Bipolar montage**: depth leads (SEEG, DBS) pair every consecutive contact,
+  as FieldTrip does; the distance check (`'spacing_factor'`) applies to grids
+  and strips only. Depth leads often hold groups of contacts (3.5 mm apart within
+  a group, 7-14 mm between groups), and a check at twice the median spacing
+  dropped some of these pairs and kept others of the same size by rounding (on
+  ds004696 sub-02: 157 channels, now 178).
 
 ### Documentation
 

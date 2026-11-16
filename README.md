@@ -145,9 +145,10 @@ all channels together.
 *Bipolar* in *iEEGLAB > iEEG re-referencing* subtracts from each contact the next
 one on its lead (`RA1-RA2` = RA1 - RA2), as FieldTrip does for depth electrodes
 (Stolk et al., 2018); A'1 is on lead A', not A. Bad contacts are not paired, a
-missing contact leaves a gap, and with coordinates two contacts farther apart
-than twice their lead's median spacing are not paired (the end of one grid row
-and the start of the next). On CCEP data a channel that uses a stimulated
+missing contact leaves a gap, and on grids and strips two contacts farther
+apart than twice their lead's median spacing are not paired (the end of one grid
+row and the start of the next). Depth leads pair every consecutive contact, gaps
+between groups of contacts included. On CCEP data a channel that uses a stimulated
 contact counts as stimulated, whatever its name. A custom montage is a table,
 one row per new channel: `positive` (a contact), `negative` (one contact,
 several for a local average separated by spaces or commas, or `n/a`) and an
